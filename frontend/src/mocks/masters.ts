@@ -403,3 +403,97 @@ export const mockUsers = [
     createdAt: '2024-08-20T00:00:00Z',
   },
 ];
+
+// ─── Work Centers ─────────────────────────────────────────────────────────────
+export interface MockWorkCenter {
+  id: string;
+  name: string;
+  type: 'MACHINE' | 'LABOR' | 'BOTH';
+  capacityPerHour: number;
+  warehouseId: string | null;
+  description: string;
+  isActive: boolean;
+}
+
+export const mockWorkCenters: MockWorkCenter[] = [
+  { id: 'wc-001', name: 'Cutting Area', type: 'MACHINE', capacityPerHour: 120, warehouseId: 'wh-005', description: 'CNC cutting and precision machining area', isActive: true },
+  { id: 'wc-002', name: 'Assembly Line 1', type: 'BOTH', capacityPerHour: 60, warehouseId: 'wh-005', description: 'Main assembly line for gear assemblies and pumps', isActive: true },
+  { id: 'wc-003', name: 'Packing Zone', type: 'LABOR', capacityPerHour: 200, warehouseId: 'wh-005', description: 'Final packaging and labeling station', isActive: true },
+];
+
+// ─── Cost Centers ─────────────────────────────────────────────────────────────
+export interface MockCostCenter {
+  id: string;
+  name: string;
+  code: string;
+  type: 'PRODUCTION' | 'ADMIN' | 'SALES' | 'PURCHASE' | 'QUALITY' | 'MAINTENANCE';
+  managerId: string | null;
+  managerName: string | null;
+  budgetMonthly: number;
+  isActive: boolean;
+}
+
+export const mockCostCenters: MockCostCenter[] = [
+  { id: 'cc-001', name: 'Production Floor', code: 'CC-PROD', type: 'PRODUCTION', managerId: null, managerName: 'Rajesh Nair', budgetMonthly: 500000, isActive: true },
+  { id: 'cc-002', name: 'Quality Control', code: 'CC-QC', type: 'QUALITY', managerId: null, managerName: 'Vijay Kumar', budgetMonthly: 150000, isActive: true },
+  { id: 'cc-003', name: 'Maintenance', code: 'CC-MAINT', type: 'MAINTENANCE', managerId: null, managerName: 'Suresh Patil', budgetMonthly: 200000, isActive: true },
+  { id: 'cc-004', name: 'Administration', code: 'CC-ADMIN', type: 'ADMIN', managerId: null, managerName: 'Anita Singh', budgetMonthly: 300000, isActive: true },
+  { id: 'cc-005', name: 'Sales & Marketing', code: 'CC-SALES', type: 'SALES', managerId: null, managerName: null, budgetMonthly: 250000, isActive: false },
+];
+
+// ─── Machines ─────────────────────────────────────────────────────────────────
+export interface MockMachine {
+  id: string;
+  name: string;
+  model: string;
+  workCenterId: string;
+  capacityPerHour: number;
+  status: 'RUNNING' | 'IDLE' | 'MAINTENANCE' | 'BREAKDOWN';
+  lastMaintenanceDate: string;
+  maintenanceFrequencyDays: number;
+  isActive: boolean;
+}
+
+export const mockMachines: MockMachine[] = [
+  { id: 'mc-001', name: 'CNC Machine 1', model: 'HASS VF-2', workCenterId: 'wc-001', capacityPerHour: 45, status: 'RUNNING', lastMaintenanceDate: '2024-02-15', maintenanceFrequencyDays: 90, isActive: true },
+  { id: 'mc-002', name: 'Welding Robot A', model: 'KUKA KR 16', workCenterId: 'wc-002', capacityPerHour: 30, status: 'RUNNING', lastMaintenanceDate: '2024-03-10', maintenanceFrequencyDays: 120, isActive: true },
+  { id: 'mc-003', name: 'Conveyor Belt 1', model: 'FlexLink XL', workCenterId: 'wc-003', capacityPerHour: 200, status: 'MAINTENANCE', lastMaintenanceDate: '2024-03-20', maintenanceFrequencyDays: 60, isActive: true },
+  { id: 'mc-004', name: 'Hydraulic Press 2', model: 'Schuler C-frame', workCenterId: 'wc-001', capacityPerHour: 25, status: 'IDLE', lastMaintenanceDate: '2024-01-10', maintenanceFrequencyDays: 180, isActive: true },
+];
+
+// ─── Shifts ───────────────────────────────────────────────────────────────────
+export interface MockShift {
+  id: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+  breakMinutes: number;
+  workingDays: string[];
+  isActive: boolean;
+}
+
+export const mockShifts: MockShift[] = [
+  { id: 'sh-001', name: 'Morning', startTime: '06:00', endTime: '14:00', breakMinutes: 30, workingDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], isActive: true },
+  { id: 'sh-002', name: 'Afternoon', startTime: '14:00', endTime: '22:00', breakMinutes: 30, workingDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], isActive: true },
+  { id: 'sh-003', name: 'Night', startTime: '22:00', endTime: '06:00', breakMinutes: 45, workingDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'], isActive: true },
+];
+
+// ─── Operators ──────────────────────────────────────────────────────────────────
+export interface MockOperator {
+  id: string;
+  name: string;
+  employeeCode: string;
+  skill: 'WELDER' | 'MACHINIST' | 'ASSEMBLER' | 'QC_INSPECTOR' | 'SUPERVISOR';
+  wageRatePerHour: number;
+  shiftId: string;
+  isActive: boolean;
+  phone?: string | null;
+}
+
+export const mockOperators: MockOperator[] = [
+  { id: 'op-001', name: 'Ramesh Yadav', employeeCode: 'EMP-101', skill: 'MACHINIST', wageRatePerHour: 180, shiftId: 'sh-001', isActive: true, phone: null },
+  { id: 'op-002', name: 'Suresh Patil', employeeCode: 'EMP-102', skill: 'WELDER', wageRatePerHour: 200, shiftId: 'sh-001', isActive: true, phone: null },
+  { id: 'op-003', name: 'Anita Sharma', employeeCode: 'EMP-103', skill: 'ASSEMBLER', wageRatePerHour: 150, shiftId: 'sh-002', isActive: true, phone: null },
+  { id: 'op-004', name: 'Vijay Kumar', employeeCode: 'EMP-104', skill: 'QC_INSPECTOR', wageRatePerHour: 220, shiftId: 'sh-002', isActive: true, phone: null },
+  { id: 'op-005', name: 'Meena Devi', employeeCode: 'EMP-105', skill: 'SUPERVISOR', wageRatePerHour: 280, shiftId: 'sh-003', isActive: true, phone: null },
+];

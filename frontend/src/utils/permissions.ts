@@ -196,6 +196,13 @@ export const MODULES = {
   WAREHOUSES:  'warehouses',
   CATEGORIES:  'categories',    // ✅ was missing in permissions.ts (doc 15)
   UNITS:       'units',
+  WORK_CENTERS: 'work_centers', // ✅ was missing in permissions.ts (doc 15) 
+  MACHINE:     'machines',     
+  SHIFT:       'shifts',       
+  OPERATOR:    'operators',    
+  COST_CENTRE: 'cost_centers', 
+  COMPANY:     'company',
+ 
 
   // Sales
   SALES_INVOICE: 'sales_invoice',
