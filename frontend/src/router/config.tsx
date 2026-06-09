@@ -66,6 +66,11 @@ import GSTSalesReport from '@/pages/reports/gst-sales/page';
 import OutstandingReport from '@/pages/reports/outstanding/page';
 import DayBookReport from '@/pages/reports/day-book/page';
 import PartyLedgerReport from '@/pages/reports/party-ledger/page';
+import ManufacturingReportsPage from '@/pages/reports/manufacturing/page';
+import FinanceReportsPage from '@/pages/reports/finance/page';
+import GSTReportsPage from '@/pages/reports/gst/page';
+import ExecutiveDashboardPage from '@/pages/reports/dashboard/page';
+      
 import ResetPasswordPage from '@/pages/reset-password/page';
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -616,6 +621,66 @@ const routes: RouteObject[] = [
         }
       >
         <SalesRegisterReport />
+      </Perm>
+    ),
+  },
+  {
+    path: '/reports/manufacturing',
+    element: (
+      <Perm
+        module={MODULES.REPORT_MANUFACTURING}
+        action="view"
+        override={({ hasPermission, hasControl }) =>
+          hasPermission(MODULES.REPORT_MANUFACTURING, "view") ||
+          hasControl('viewFinancialReports')
+        }
+      >
+        <ManufacturingReportsPage />
+      </Perm>
+    ),
+  },
+  {
+    path: '/reports/finance',
+    element: (
+      <Perm
+        module={MODULES.REPORT_FINANCE}
+        action="view"
+        override={({ hasPermission, hasControl }) =>
+          hasPermission(MODULES.REPORT_FINANCE, "view") ||
+          hasControl('viewFinancialReports')
+        }
+      >
+        <FinanceReportsPage />
+      </Perm>
+    ),
+  },
+  {
+    path: '/reports/gst',
+    element: (
+      <Perm
+        module={MODULES.REPORT_GST}
+        action="view"
+        override={({ hasPermission, hasControl }) =>
+          hasPermission(MODULES.REPORT_GST, "view") ||
+          hasControl('viewFinancialReports')
+        }
+      >
+        <GSTReportsPage />
+      </Perm>
+    ),
+  },
+  {
+    path: '/reports/dashboard',
+    element: (
+      <Perm
+        module={MODULES.REPORT_DASHBOARD}
+        action="view"
+        override={({ hasPermission, hasControl }) =>
+          hasPermission(MODULES.REPORT_DASHBOARD, "view") ||
+          hasControl('viewFinancialReports')
+        }
+      >
+        <ExecutiveDashboardPage />
       </Perm>
     ),
   },

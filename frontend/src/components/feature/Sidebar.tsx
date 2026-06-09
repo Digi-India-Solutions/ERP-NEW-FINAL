@@ -85,7 +85,7 @@ const printGroup: NavGroup = {
 
 const reportsGroup: NavGroup = {
   label: 'Reports', icon: 'ri-bar-chart-2-line', basePath: '/reports',
-  items: [
+   items: [
     { label: 'Stock Summary', path: '/reports/stock-summary', icon: 'ri-stack-line' },
     { label: 'Stock Ledger', path: '/reports/stock-ledger', icon: 'ri-file-list-3-line' },
     { label: 'Low Stock Alert', path: '/reports/low-stock', icon: 'ri-alert-line' },
@@ -96,6 +96,10 @@ const reportsGroup: NavGroup = {
     { label: 'Outstanding', path: '/reports/outstanding', icon: 'ri-money-rupee-circle-line' },
     { label: 'Day Book', path: '/reports/day-book', icon: 'ri-calendar-check-line' },
     { label: 'Party Ledger', path: '/reports/party-ledger', icon: 'ri-group-line' },
+    { label: 'Manufacturing Reports', path: '/reports/manufacturing', icon: 'ri-building-4-line' },
+    { label: 'Financial Reports', path: '/reports/finance', icon: 'ri-bar-chart-line' },
+    { label: 'GST Reports', path: '/reports/gst', icon: 'ri-file-shield-2-line' },
+    { label: 'Executive Dashboard', path: '/reports/dashboard', icon: 'ri-dashboard-line' },
   ],
 };
 
@@ -216,6 +220,10 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     if (item.path === '/reports/outstanding') return hasPermission(MODULES.REPORT_OUTSTANDING, 'view') || fin;
     if (item.path === '/reports/day-book') return hasPermission(MODULES.REPORT_DAY_BOOK, 'view') || fin;
     if (item.path === '/reports/party-ledger') return hasPermission(MODULES.REPORT_PARTY_LEDGER, 'view') || fin;
+    if(item.path === '/reports/manufacturing') return hasPermission(MODULES.REPORT_MANUFACTURING, 'view') || fin;
+    if(item.path === '/reports/finance') return hasPermission(MODULES.REPORT_FINANCE, 'view') || fin;
+    if(item.path === '/reports/gst') return hasPermission(MODULES.REPORT_GST, 'view') || fin;
+    if(item.path === '/reports/dashboard') return hasPermission(MODULES.REPORT_DASHBOARD, 'view') || fin;
     return false;
   });
 

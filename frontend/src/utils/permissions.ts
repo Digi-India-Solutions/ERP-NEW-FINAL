@@ -244,6 +244,10 @@ export const MODULES = {
   REPORT_OUTSTANDING:   'report_outstanding',
   REPORT_DAY_BOOK:      'report_day_book',
   REPORT_PARTY_LEDGER:  'report_party_ledger',
+  REPORT_MANUFACTURING: 'report_manufacturing', 
+  REPORT_FINANCE: 'report_finance',             
+  REPORT_GST: 'report_gst',                    
+  REPORT_DASHBOARD: 'report_dashboard',         
 
   // System
   SETTINGS: 'settings',

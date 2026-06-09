@@ -38,11 +38,11 @@ export const kpiData = [
 ];
 
 export const salesTrend = [
-  { month: 'Oct', sales: 210000, purchase: 146000 },
-  { month: 'Nov', sales: 286000, purchase: 198000 },
-  { month: 'Dec', sales: 320000, purchase: 226000 },
+  { month: 'Oct', sales: 210000, purchase: 145000 },
+  { month: 'Nov', sales: 285000, purchase: 198000 },
+  { month: 'Dec', sales: 320000, purchase: 225000 },
   { month: 'Jan', sales: 298000, purchase: 210000 },
-  { month: 'Feb', sales: 376000, purchase: 258000 },
+  { month: 'Feb', sales: 375000, purchase: 258000 },
   { month: 'Mar', sales: 428500, purchase: 302000 },
 ];
 
