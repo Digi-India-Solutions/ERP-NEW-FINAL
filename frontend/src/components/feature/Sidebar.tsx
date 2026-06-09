@@ -171,6 +171,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     // if (item.path === '/masters/quality-parameters') return hasPermission(MODULES.QUALITY_PARAMETER, 'view');
     // if (item.path === '/masters/inspection-checklists') return hasPermission(MODULES.INSPECTION_CHECKLIST, 'view');
     // if (item.path === '/masters/routing') return hasPermission(MODULES.ROUTING, 'view');
+    
     return false;
   });
 
