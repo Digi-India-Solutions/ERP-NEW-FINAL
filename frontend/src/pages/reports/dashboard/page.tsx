@@ -18,7 +18,7 @@ import AlertsPanel from './components/AlertsPanel';
 
 type PeriodKey = 'this_month' | 'last_month' | 'this_quarter' | 'custom';
 
-/* ─── Quick Actions ─── */
+
 const QUICK_ACTIONS = [
   { label: '+ Sales Invoice', path: '/sales/invoices/new', icon: 'ri-file-add-line', color: 'bg-emerald-600 text-white hover:bg-emerald-700' },
   { label: '+ Purchase Order', path: '/purchase/orders/new', icon: 'ri-shopping-bag-line', color: 'bg-amber-500 text-white hover:bg-amber-600' },
