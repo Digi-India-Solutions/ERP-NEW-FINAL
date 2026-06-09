@@ -18,6 +18,13 @@ import MachinesPage from '@/pages/masters/machines/page';
 import ShiftsPage from '@/pages/masters/shifts/page';
 import OperatorsPage from '@/pages/masters/operators/page';
 import CostCentersPage from '@/pages/masters/cost-centers/page';
+import CompanyPage from '@/pages/masters/company/page';
+import InspectionChecklistsPage from '@/pages/masters/inspection-checklists/page';
+import DowntimeCodesPage from '@/pages/masters/downtime-codes/page';
+import QualityParametersPage from '@/pages/masters/quality-parameters/page';
+import RejectionCodesPage from '@/pages/masters/rejection-codes/page';
+import RoutingPage from '@/pages/masters/routing/page';
+import RoutingFormPage from '@/pages/masters/routing/form/page';
 import SalesInvoiceListPage from '@/pages/sales/invoices/page';
 import SalesInvoiceNewPage from '@/pages/sales/invoices/new/page';
 import SaleReturnsPage from '@/pages/sales/returns/page';
@@ -224,8 +231,70 @@ const routes: RouteObject[] = [
         <CostCentersPage />
       </Perm>)
   },
+  {
+    path :'masters/company',
+    element :(
+      <Perm module= {
+        MODULES.COMPANY} action = "view">
+          <CompanyPage/>
+        </Perm>
+    )
+      },
 
+      {
+        path:'/masters/inspection-checklists',
+        element :(
+          <Perm module={
+            MODULES.INSPECTION_CHECKLIST} action = "view" >
+              <InspectionChecklistsPage/>
+            </Perm>
+        )
+      },
 
+      {
+        path :'masters/downtime-codes',
+        element :(
+          <Perm module={
+            MODULES.DOWNTIME_CODE} action = "view" >
+              <DowntimeCodesPage/>
+            </Perm>
+        )
+      },
+
+      {
+        path :'masters/quality-parameters',
+        element :(
+          <Perm module={
+            MODULES.QUALITY_PARAMETER} action = "view" >
+              <QualityParametersPage/>
+            </Perm>
+        )
+      },
+
+      {
+        path: 'masters/rejection-codes',
+        element: (
+          <Perm module={MODULES.REJECTION_CODE} action="view">
+            <RejectionCodesPage />
+          </Perm>
+        )
+      },
+      {
+        path: 'masters/routing',
+        element: (
+          <Perm module={MODULES.ROUTING} action="view">
+            <RoutingPage />
+          </Perm>
+        )
+      },
+      {
+        path: 'masters/routing/new',
+        element: (
+          <Perm module={MODULES.ROUTING} action="create">
+            <RoutingFormPage />
+          </Perm>
+        )
+      },
 
   // ── Sales ─────────────────────────────────────────────────────────────────
   { path: '/sales', element: <Navigate to="/sales/invoices" replace /> },
