@@ -15,18 +15,18 @@ interface CompanyData { name: string; logo_url?: string | null; }
 const mastersGroup: NavGroup = {
   label: 'Masters', icon: 'ri-database-2-line', basePath: '/masters',
   items: [
-    //  { label: 'Company', path: '/masters/company', icon: 'ri-building-line' },
+     { label: 'Company', path: '/masters/company', icon: 'ri-building-line' },
     { label: 'Warehouses', path: '/masters/warehouses', icon: 'ri-store-3-line' },
     { label: 'Work Centers', path: '/masters/work-centers', icon: 'ri-building-2-line' },
     { label: 'Machines', path: '/masters/machines', icon: 'ri-settings-3-line' },
     { label: 'Shifts', path: '/masters/shifts', icon: 'ri-time-line' },
     { label: 'Operators', path: '/masters/operators', icon: 'ri-user-settings-line' },
     { label: 'Cost Centers', path: '/masters/cost-centers', icon: 'ri-building-4-line' },
-    // { label: 'Rejection Codes', path: '/masters/rejection-codes', icon: 'ri-close-circle-line' },
-    // { label: 'Downtime Codes', path: '/masters/downtime-codes', icon: 'ri-timer-flash-line' },
-    // { label: 'Quality Parameters', path: '/masters/quality-parameters', icon: 'ri-microscope-line' },
-    // { label: 'Inspection Checklists', path: '/masters/inspection-checklists', icon: 'ri-checkbox-multiple-line' },
-    // { label: 'Routing', path: '/masters/routing', icon: 'ri-git-branch-line' },
+    { label: 'Rejection Codes', path: '/masters/rejection-codes', icon: 'ri-close-circle-line' },
+    { label: 'Downtime Codes', path: '/masters/downtime-codes', icon: 'ri-timer-flash-line' },
+    { label: 'Quality Parameters', path: '/masters/quality-parameters', icon: 'ri-microscope-line' },
+    { label: 'Inspection Checklists', path: '/masters/inspection-checklists', icon: 'ri-checkbox-multiple-line' },
+    { label: 'Routing', path: '/masters/routing', icon: 'ri-git-branch-line' },
     { label: 'Parties', path: '/masters/parties', icon: 'ri-group-2-line' },
     { label: 'Items', path: '/masters/items', icon: 'ri-box-3-line' },
     { label: 'Categories & Units', path: '/masters/categories', icon: 'ri-price-tag-3-line' },
@@ -166,12 +166,13 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     if (item.path === '/masters/shifts') return hasPermission(MODULES.SHIFT, 'view');
     if (item.path === '/masters/operators') return hasPermission(MODULES.OPERATOR, 'view');
     if (item.path === '/masters/cost-centers') return hasPermission(MODULES.COST_CENTRE, 'view');
-    // if (item.path === '/masters/rejection-codes') return hasPermission(MODULES.REJECTION_CODE, 'view');
-    // if (item.path === '/masters/downtime-codes')  return hasPermission(MODULES.DOWNTIME_CODE, 'view');
-    // if (item.path === '/masters/quality-parameters') return hasPermission(MODULES.QUALITY_PARAMETER, 'view');
-    // if (item.path === '/masters/inspection-checklists') return hasPermission(MODULES.INSPECTION_CHECKLIST, 'view');
-    // if (item.path === '/masters/routing') return hasPermission(MODULES.ROUTING, 'view');
-    
+    if (item.path === '/masters/rejection-codes') return hasPermission(MODULES.REJECTION_CODE, 'view');
+    if (item.path === '/masters/downtime-codes')  return hasPermission(MODULES.DOWNTIME_CODE, 'view');
+    if (item.path === '/masters/quality-parameters') return hasPermission(MODULES.QUALITY_PARAMETER, 'view');
+    if (item.path === '/masters/inspection-checklists') return hasPermission(MODULES.INSPECTION_CHECKLIST, 'view');
+    if (item.path === '/masters/routing') return hasPermission(MODULES.ROUTING, 'view');
+    if(item.path === '/masters/routing/new') return hasPermission(MODULES.ROUTING, 'create');
+
     return false;
   });
 

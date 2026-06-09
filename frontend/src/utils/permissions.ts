@@ -202,6 +202,11 @@ export const MODULES = {
   OPERATOR:    'operators',    
   COST_CENTRE: 'cost_centers', 
   COMPANY:     'company',
+  REJECTION_CODE: 'rejection_codes',
+  DOWNTIME_CODE: 'downtime_codes',   
+  QUALITY_PARAMETER: 'quality_parameters', 
+  INSPECTION_CHECKLIST: 'inspection_checklists',
+  ROUTING: 'routing',
  
 
   // Sales
