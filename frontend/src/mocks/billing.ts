@@ -15,6 +15,10 @@ export interface MockSalesInvoiceItem {
   sgst: number;
   igst: number;
   total: number;
+  batchNumber?: string | null;
+  serialNumbers?: string;
+  expiryDate?: string | null;
+  productionOrderRef?: string | null;
 }
 
 function calcItem(itemName: string, hsnCode: string, qty: number, unit: string, rate: number, discount: number, taxRate: number, isSameState: boolean): MockSalesInvoiceItem {
@@ -31,6 +35,10 @@ function calcItem(itemName: string, hsnCode: string, qty: number, unit: string, 
     sgst: isSameState ? halfTax : 0,
     igst: isSameState ? 0 : taxAmt,
     total: Math.round((taxable + taxAmt) * 100) / 100,
+    batchNumber: null,
+    serialNumbers: '',
+    expiryDate: null,
+    productionOrderRef: null,
   };
 }
 
@@ -150,6 +158,8 @@ export interface MockPurchaseInvoiceItem {
   sgst: number;
   igst: number;
   total: number;
+  batchNumber?: string | null;
+  expiryDate?: string | null;
 }
 
 export interface MockPurchaseInvoiceDetail extends MockBillRecord {
@@ -186,6 +196,8 @@ function calcPurchaseItem(itemName: string, hsnCode: string, qty: number, unit: 
     sgst: isSameState ? halfTax : 0,
     igst: isSameState ? 0 : taxAmt,
     total: Math.round((taxable + taxAmt) * 100) / 100,
+    batchNumber: null,
+    expiryDate: null,
   };
 }
 
@@ -205,6 +217,8 @@ function buildPurchaseTotals(items: MockPurchaseInvoiceItem[]) {
 // ─── Extended purchase item with itemId for price history lookup ──────────────
 export interface MockPurchaseInvoiceItemWithId extends MockPurchaseInvoiceItem {
   itemId?: string;
+  batchNumber?: string | null;
+  expiryDate?: string | null;
 }
 
 function calcPurchaseItemWithId(itemId: string, itemName: string, hsnCode: string, qty: number, unit: string, rate: number, discount: number, taxRate: number, isSameState: boolean): MockPurchaseInvoiceItemWithId {
@@ -238,7 +252,7 @@ const pi003Items = [
 const pi003T = buildPurchaseTotals(pi003Items);
 
 const pi004Items = [
-  calcPurchaseItemWithId('itm-001', 'Laptop 15" Core i7', '84713010', 5, 'Pcs', 70010, 0, 18, true),
+  calcPurchaseItemWithId('itm-001', 'Laptop 15" Core i7', '84713010', 5, 'Pcs', 70000, 0, 18, true),
   calcPurchaseItemWithId('itm-002', 'Wireless Mouse Logitech M235', '84716060', 30, 'Pcs', 820, 0, 18, true),
   calcPurchaseItemWithId('itm-004', 'Mechanical Keyboard RGB', '84716060', 15, 'Pcs', 5300, 0, 18, true),
   calcPurchaseItemWithId('itm-010', 'RAM 16GB DDR5 3200MHz', '84717010', 25, 'Pcs', 4700, 0, 18, true),
@@ -384,51 +398,49 @@ export interface MockPurchaseReturnDetail extends MockBillRecord {
   refundId?: string | null;
 }
 
-export const mockPurchaseReturns: MockPurchaseReturnDetail[] = [];
-
-// export const mockPurchaseReturns: MockPurchaseReturnDetail[] = [
-//   {
-//     id: 'pr-001', billNo: 'PRTN-2024-001', date: '2024-01-15', partyName: 'NexGen Components',
-//     warehouseName: 'Main Warehouse', itemCount: 2, grandTotal: 13680, status: 'SAVED',
-//     originalInvoiceId: 'pi-002', originalInvoiceNo: 'PINV-2024-002', supplierId: 'pty-005',
-//     paymentHandled: true, paymentType: 'refund', refundId: 'rr-001',
-//     items: [
-//       { id: 'pri-001', itemName: 'USB-C 7-in-1 Hub', hsnCode: '85444290', returnQty: 5, unit: 'Pcs', rate: 1100, amount: 5500, reason: 'Damaged packaging' },
-//       { id: 'pri-002', itemName: 'Monitor 24" Full HD IPS', hsnCode: '85285200', returnQty: 2, unit: 'Pcs', rate: 11500, amount: 23000, reason: 'Dead pixels' },
-//     ],
-//   },
-//   {
-//     id: 'pr-002', billNo: 'PRTN-2024-002', date: '2024-02-20', partyName: 'NexGen Components',
-//     warehouseName: 'East Branch', itemCount: 3, grandTotal: 28600, status: 'SAVED',
-//     originalInvoiceId: 'pi-003', originalInvoiceNo: 'PINV-2024-003', supplierId: 'pty-005',
-//     paymentHandled: true, paymentType: 'credit', refundId: null,
-//     items: [
-//       { id: 'pri-003', itemName: 'Laptop Bag 15.6" Waterproof', hsnCode: '42021200', returnQty: 10, unit: 'Pcs', rate: 750, amount: 7500, reason: 'Wrong item delivered' },
-//       { id: 'pri-004', itemName: 'Webcam 1080p with Mic', hsnCode: '85258090', returnQty: 5, unit: 'Pcs', rate: 1700, amount: 8500, reason: 'Quality issue' },
-//       { id: 'pri-005', itemName: 'Wi-Fi 6 Router AX1800', hsnCode: '85176200', returnQty: 3, unit: 'Pcs', rate: 4000, amount: 12000, reason: 'Defective units' },
-//     ],
-//   },
-//   {
-//     id: 'pr-003', billNo: 'PRTN-2024-003', date: '2024-02-25', partyName: 'TechSupply Co.',
-//     warehouseName: 'West Godown', itemCount: 2, grandTotal: 9800, status: 'SAVED',
-//     originalInvoiceId: 'pi-004', originalInvoiceNo: 'PINV-2024-004', supplierId: 'pty-002',
-//     paymentHandled: false, paymentType: null, refundId: null,
-//     items: [
-//       { id: 'pri-006', itemName: 'Wireless Mouse Logitech M235', hsnCode: '84716060', returnQty: 5, unit: 'Pcs', rate: 780, amount: 3900, reason: 'Scroll wheel defect' },
-//       { id: 'pri-007', itemName: 'Mechanical Keyboard RGB', hsnCode: '84716060', returnQty: 2, unit: 'Pcs', rate: 5100, amount: 10200, reason: 'Key sticking issue' },
-//     ],
-//   },
-//   {
-//     id: 'pr-004', billNo: 'PRTN-2024-004', date: '2024-03-10', partyName: 'TechSupply Co.',
-//     warehouseName: 'Main Warehouse', itemCount: 2, grandTotal: 7500, status: 'SAVED',
-//     originalInvoiceId: 'pi-001', originalInvoiceNo: 'PINV-2024-001', supplierId: 'pty-002',
-//     paymentHandled: false, paymentType: null, refundId: null,
-//     items: [
-//       { id: 'pri-008', itemName: 'SSD 1TB NVMe Samsung', hsnCode: '84717010', returnQty: 1, unit: 'Pcs', rate: 6200, amount: 6200, reason: 'Excess quantity ordered' },
-//       { id: 'pri-009', itemName: 'RAM 16GB DDR5 3200MHz', hsnCode: '84717010', returnQty: 1, unit: 'Pcs', rate: 4600, amount: 4600, reason: 'Wrong spec received' },
-//     ],
-//   },
-// ];
+export const mockPurchaseReturns: MockPurchaseReturnDetail[] = [
+  {
+    id: 'pr-001', billNo: 'PRTN-2024-001', date: '2024-01-15', partyName: 'NexGen Components',
+    warehouseName: 'Main Warehouse', itemCount: 2, grandTotal: 13680, status: 'SAVED',
+    originalInvoiceId: 'pi-002', originalInvoiceNo: 'PINV-2024-002', supplierId: 'pty-005',
+    paymentHandled: true, paymentType: 'refund', refundId: 'rr-001',
+    items: [
+      { id: 'pri-001', itemName: 'USB-C 7-in-1 Hub', hsnCode: '85444290', returnQty: 5, unit: 'Pcs', rate: 1100, amount: 5500, reason: 'Damaged packaging' },
+      { id: 'pri-002', itemName: 'Monitor 24" Full HD IPS', hsnCode: '85285200', returnQty: 2, unit: 'Pcs', rate: 11500, amount: 23000, reason: 'Dead pixels' },
+    ],
+  },
+  {
+    id: 'pr-002', billNo: 'PRTN-2024-002', date: '2024-02-20', partyName: 'NexGen Components',
+    warehouseName: 'East Branch', itemCount: 3, grandTotal: 28600, status: 'SAVED',
+    originalInvoiceId: 'pi-003', originalInvoiceNo: 'PINV-2024-003', supplierId: 'pty-005',
+    paymentHandled: true, paymentType: 'credit', refundId: null,
+    items: [
+      { id: 'pri-003', itemName: 'Laptop Bag 15.6" Waterproof', hsnCode: '42021200', returnQty: 10, unit: 'Pcs', rate: 750, amount: 7500, reason: 'Wrong item delivered' },
+      { id: 'pri-004', itemName: 'Webcam 1080p with Mic', hsnCode: '85258090', returnQty: 5, unit: 'Pcs', rate: 1700, amount: 8500, reason: 'Quality issue' },
+      { id: 'pri-005', itemName: 'Wi-Fi 6 Router AX1800', hsnCode: '85176200', returnQty: 3, unit: 'Pcs', rate: 4000, amount: 12000, reason: 'Defective units' },
+    ],
+  },
+  {
+    id: 'pr-003', billNo: 'PRTN-2024-003', date: '2024-02-25', partyName: 'TechSupply Co.',
+    warehouseName: 'West Godown', itemCount: 2, grandTotal: 9800, status: 'SAVED',
+    originalInvoiceId: 'pi-004', originalInvoiceNo: 'PINV-2024-004', supplierId: 'pty-002',
+    paymentHandled: false, paymentType: null, refundId: null,
+    items: [
+      { id: 'pri-006', itemName: 'Wireless Mouse Logitech M235', hsnCode: '84716060', returnQty: 5, unit: 'Pcs', rate: 780, amount: 3900, reason: 'Scroll wheel defect' },
+      { id: 'pri-007', itemName: 'Mechanical Keyboard RGB', hsnCode: '84716060', returnQty: 2, unit: 'Pcs', rate: 5100, amount: 10200, reason: 'Key sticking issue' },
+    ],
+  },
+  {
+    id: 'pr-004', billNo: 'PRTN-2024-004', date: '2024-03-10', partyName: 'TechSupply Co.',
+    warehouseName: 'Main Warehouse', itemCount: 2, grandTotal: 7500, status: 'SAVED',
+    originalInvoiceId: 'pi-001', originalInvoiceNo: 'PINV-2024-001', supplierId: 'pty-002',
+    paymentHandled: false, paymentType: null, refundId: null,
+    items: [
+      { id: 'pri-008', itemName: 'SSD 1TB NVMe Samsung', hsnCode: '84717010', returnQty: 1, unit: 'Pcs', rate: 6200, amount: 6200, reason: 'Excess quantity ordered' },
+      { id: 'pri-009', itemName: 'RAM 16GB DDR5 3200MHz', hsnCode: '84717010', returnQty: 1, unit: 'Pcs', rate: 4600, amount: 4600, reason: 'Wrong spec received' },
+    ],
+  },
+];
 
 // ─── Invoice Items for Returns ────────────────────────────────────────────────
 export interface MockInvoiceItem {
@@ -649,6 +661,12 @@ export interface MockGRNItem {
   unit: string;
   rate: number;
   poRef: string | null;
+  batchNumber: string | null;
+  lotNumber: string | null;
+  expiryDate: string | null;
+  manufacturingDate: string | null;
+  qualityStatus: 'PENDING_QC' | 'QC_PASSED' | 'QC_FAILED' | 'QC_SKIPPED';
+  qcInspectionId: string | null;
 }
 
 export interface MockGRN {
@@ -686,8 +704,8 @@ export let mockGRNs: MockGRN[] = [
     createdBy: 'Admin User',
     linkedPOs: [],
     items: [
-      { itemId: 'itm-007', itemName: 'HDMI Cable 2m v2.0', hsnCode: '85444290', qty: 50, unit: 'Pcs', rate: 150, poRef: null },
-      { itemId: 'itm-006', itemName: 'Laptop Bag 15.6" Waterproof', hsnCode: '42021200', qty: 30, unit: 'Pcs', rate: 800, poRef: null },
+      { itemId: 'itm-007', itemName: 'HDMI Cable 2m v2.0', hsnCode: '85444290', qty: 50, unit: 'Pcs', rate: 150, poRef: null, batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
+      { itemId: 'itm-006', itemName: 'Laptop Bag 15.6" Waterproof', hsnCode: '42021200', qty: 30, unit: 'Pcs', rate: 800, poRef: null, batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
     ],
     totalItems: 2,
     totalValue: 31500,
@@ -706,9 +724,9 @@ export let mockGRNs: MockGRN[] = [
     createdBy: 'Rahul Sharma',
     linkedPOs: ['PO-2024-002'],
     items: [
-      { itemId: 'itm-009', itemName: 'SSD 1TB NVMe Samsung', hsnCode: '84717010', qty: 10, unit: 'Pcs', rate: 6500, poRef: 'PO-2024-002' },
-      { itemId: 'itm-010', itemName: 'RAM 16GB DDR5 3200MHz', hsnCode: '84717010', qty: 20, unit: 'Pcs', rate: 4800, poRef: 'PO-2024-002' },
-      { itemId: 'itm-003', itemName: 'USB-C 7-in-1 Hub', hsnCode: '85444290', qty: 25, unit: 'Pcs', rate: 1200, poRef: 'PO-2024-002' },
+      { itemId: 'itm-009', itemName: 'SSD 1TB NVMe Samsung', hsnCode: '84717010', qty: 10, unit: 'Pcs', rate: 6500, poRef: 'PO-2024-002', batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
+      { itemId: 'itm-010', itemName: 'RAM 16GB DDR5 3200MHz', hsnCode: '84717010', qty: 20, unit: 'Pcs', rate: 4800, poRef: 'PO-2024-002', batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
+      { itemId: 'itm-003', itemName: 'USB-C 7-in-1 Hub', hsnCode: '85444290', qty: 25, unit: 'Pcs', rate: 1200, poRef: 'PO-2024-002', batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
     ],
     totalItems: 3,
     totalValue: 191000,
@@ -727,8 +745,8 @@ export let mockGRNs: MockGRN[] = [
     createdBy: 'Admin User',
     linkedPOs: [],
     items: [
-      { itemId: 'itm-011', itemName: 'Webcam 1080p with Mic', hsnCode: '85258090', qty: 15, unit: 'Pcs', rate: 1800, poRef: null },
-      { itemId: 'itm-012', itemName: 'Wi-Fi 6 Router AX1800', hsnCode: '85176200', qty: 8, unit: 'Pcs', rate: 4200, poRef: null },
+      { itemId: 'itm-011', itemName: 'Webcam 1080p with Mic', hsnCode: '85258090', qty: 15, unit: 'Pcs', rate: 1800, poRef: null, batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
+      { itemId: 'itm-012', itemName: 'Wi-Fi 6 Router AX1800', hsnCode: '85176200', qty: 8, unit: 'Pcs', rate: 4200, poRef: null, batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
     ],
     totalItems: 2,
     totalValue: 60600,
@@ -748,8 +766,8 @@ export let mockGRNs: MockGRN[] = [
     createdBy: 'Priya Mehta',
     linkedPOs: ['PO-2024-001'],
     items: [
-      { itemId: 'itm-001', itemName: 'Laptop 15" Core i7', hsnCode: '84713010', qty: 5, unit: 'Pcs', rate: 72000, poRef: 'PO-2024-001' },
-      { itemId: 'itm-002', itemName: 'Wireless Mouse Logitech M235', hsnCode: '84716060', qty: 30, unit: 'Pcs', rate: 850, poRef: 'PO-2024-001' },
+      { itemId: 'itm-001', itemName: 'Laptop 15" Core i7', hsnCode: '84713010', qty: 5, unit: 'Pcs', rate: 72000, poRef: 'PO-2024-001', batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
+      { itemId: 'itm-002', itemName: 'Wireless Mouse Logitech M235', hsnCode: '84716060', qty: 30, unit: 'Pcs', rate: 850, poRef: 'PO-2024-001', batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
     ],
     totalItems: 2,
     totalValue: 385500,
@@ -768,9 +786,9 @@ export let mockGRNs: MockGRN[] = [
     createdBy: 'Rahul Sharma',
     linkedPOs: ['PO-2024-002'],
     items: [
-      { itemId: 'itm-009', itemName: 'SSD 1TB NVMe Samsung', hsnCode: '84717010', qty: 20, unit: 'Pcs', rate: 6500, poRef: 'PO-2024-002' },
-      { itemId: 'itm-010', itemName: 'RAM 16GB DDR5 3200MHz', hsnCode: '84717010', qty: 20, unit: 'Pcs', rate: 4800, poRef: 'PO-2024-002' },
-      { itemId: 'itm-013', itemName: 'Thermal Paste Arctic MX-4', hsnCode: '34039900', qty: 50, unit: 'Pcs', rate: 320, poRef: null },
+      { itemId: 'itm-009', itemName: 'SSD 1TB NVMe Samsung', hsnCode: '84717010', qty: 20, unit: 'Pcs', rate: 6500, poRef: 'PO-2024-002', batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
+      { itemId: 'itm-010', itemName: 'RAM 16GB DDR5 3200MHz', hsnCode: '84717010', qty: 20, unit: 'Pcs', rate: 4800, poRef: 'PO-2024-002', batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
+      { itemId: 'itm-013', itemName: 'Thermal Paste Arctic MX-4', hsnCode: '34039900', qty: 50, unit: 'Pcs', rate: 320, poRef: null, batchNumber: 'B-2024-TP-001', lotNumber: 'LOT-A2403', expiryDate: '2027-03-20', manufacturingDate: '2024-03-15', qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
     ],
     totalItems: 3,
     totalValue: 242000,
@@ -790,9 +808,9 @@ export let mockGRNs: MockGRN[] = [
     createdBy: 'Admin User',
     linkedPOs: ['PO-2024-003'],
     items: [
-      { itemId: 'itm-005', itemName: 'Monitor 24" Full HD IPS', hsnCode: '85285200', qty: 10, unit: 'Pcs', rate: 12000, poRef: 'PO-2024-003' },
-      { itemId: 'itm-008', itemName: 'Network Switch 8-Port', hsnCode: '85176200', qty: 6, unit: 'Pcs', rate: 3200, poRef: 'PO-2024-003' },
-      { itemId: 'itm-014', itemName: 'Cat6 Ethernet Cable 10m', hsnCode: '85444290', qty: 100, unit: 'Pcs', rate: 180, poRef: null },
+      { itemId: 'itm-005', itemName: 'Monitor 24" Full HD IPS', hsnCode: '85285200', qty: 10, unit: 'Pcs', rate: 12000, poRef: 'PO-2024-003', batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
+      { itemId: 'itm-008', itemName: 'Network Switch 8-Port', hsnCode: '85176200', qty: 6, unit: 'Pcs', rate: 3200, poRef: 'PO-2024-003', batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
+      { itemId: 'itm-014', itemName: 'Cat6 Ethernet Cable 10m', hsnCode: '85444290', qty: 100, unit: 'Pcs', rate: 180, poRef: null, batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
     ],
     totalItems: 3,
     totalValue: 157200,
@@ -811,9 +829,9 @@ export let mockGRNs: MockGRN[] = [
     createdBy: 'Priya Mehta',
     linkedPOs: [],
     items: [
-      { itemId: 'itm-015', itemName: 'USB 3.0 Flash Drive 64GB', hsnCode: '84717090', qty: 200, unit: 'Pcs', rate: 450, poRef: null },
-      { itemId: 'itm-016', itemName: 'Bluetooth Speaker JBL Go 3', hsnCode: '85182200', qty: 40, unit: 'Pcs', rate: 2800, poRef: null },
-      { itemId: 'itm-017', itemName: 'Power Bank 20000mAh', hsnCode: '85076000', qty: 60, unit: 'Pcs', rate: 1600, poRef: null },
+      { itemId: 'itm-015', itemName: 'USB 3.0 Flash Drive 64GB', hsnCode: '84717090', qty: 200, unit: 'Pcs', rate: 450, poRef: null, batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
+      { itemId: 'itm-016', itemName: 'Bluetooth Speaker JBL Go 3', hsnCode: '85182200', qty: 40, unit: 'Pcs', rate: 2800, poRef: null, batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
+      { itemId: 'itm-017', itemName: 'Power Bank 20000mAh', hsnCode: '85076000', qty: 60, unit: 'Pcs', rate: 1600, poRef: null, batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
     ],
     totalItems: 3,
     totalValue: 298000,
@@ -832,10 +850,10 @@ export let mockGRNs: MockGRN[] = [
     createdBy: 'Rahul Sharma',
     linkedPOs: ['PO-2024-001'],
     items: [
-      { itemId: 'itm-001', itemName: 'Laptop 15" Core i7', hsnCode: '84713010', qty: 5, unit: 'Pcs', rate: 72000, poRef: 'PO-2024-001' },
-      { itemId: 'itm-004', itemName: 'Mechanical Keyboard RGB', hsnCode: '84716060', qty: 20, unit: 'Pcs', rate: 5500, poRef: 'PO-2024-001' },
-      { itemId: 'itm-018', itemName: 'Laptop Stand Adjustable', hsnCode: '94033000', qty: 25, unit: 'Pcs', rate: 1200, poRef: null },
-      { itemId: 'itm-019', itemName: 'Screen Cleaning Kit', hsnCode: '34051000', qty: 80, unit: 'Pcs', rate: 250, poRef: null },
+      { itemId: 'itm-001', itemName: 'Laptop 15" Core i7', hsnCode: '84713010', qty: 5, unit: 'Pcs', rate: 72000, poRef: 'PO-2024-001', batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
+      { itemId: 'itm-004', itemName: 'Mechanical Keyboard RGB', hsnCode: '84716060', qty: 20, unit: 'Pcs', rate: 5500, poRef: 'PO-2024-001', batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
+      { itemId: 'itm-018', itemName: 'Laptop Stand Adjustable', hsnCode: '94033000', qty: 25, unit: 'Pcs', rate: 1200, poRef: null, batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
+      { itemId: 'itm-019', itemName: 'Screen Cleaning Kit', hsnCode: '34051000', qty: 80, unit: 'Pcs', rate: 250, poRef: null, batchNumber: 'B-2024-SC-001', lotNumber: 'LOT-S2403', expiryDate: '2027-03-28', manufacturingDate: '2024-03-01', qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
     ],
     totalItems: 4,
     totalValue: 490000,
@@ -854,11 +872,11 @@ export let mockGRNs: MockGRN[] = [
     createdBy: 'Admin User',
     linkedPOs: ['PO-2024-002'],
     items: [
-      { itemId: 'itm-020', itemName: 'PCIe NVMe Adapter Card', hsnCode: '84717010', qty: 15, unit: 'Pcs', rate: 1800, poRef: 'PO-2024-002' },
-      { itemId: 'itm-021', itemName: 'CPU Cooler 120mm RGB', hsnCode: '84145990', qty: 20, unit: 'Pcs', rate: 2400, poRef: null },
+      { itemId: 'itm-020', itemName: 'PCIe NVMe Adapter Card', hsnCode: '84717010', qty: 15, unit: 'Pcs', rate: 1800, poRef: 'PO-2024-002', batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
+      { itemId: 'itm-021', itemName: 'CPU Cooler 120mm RGB', hsnCode: '84145990', qty: 20, unit: 'Pcs', rate: 2400, poRef: null, batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
     ],
     totalItems: 2,
-    totalValue: 76000,
+    totalValue: 75000,
     piCreated: false,
     linkedPINumber: null,
     piCreatedDate: null,
@@ -874,16 +892,112 @@ export let mockGRNs: MockGRN[] = [
     createdBy: 'Priya Mehta',
     linkedPOs: ['PO-2024-003'],
     items: [
-      { itemId: 'itm-005', itemName: 'Monitor 24" Full HD IPS', hsnCode: '85285200', qty: 5, unit: 'Pcs', rate: 12000, poRef: 'PO-2024-003' },
-      { itemId: 'itm-008', itemName: 'Network Switch 8-Port', hsnCode: '85176200', qty: 4, unit: 'Pcs', rate: 3200, poRef: 'PO-2024-003' },
-      { itemId: 'itm-022', itemName: 'Patch Panel 24-Port', hsnCode: '85176200', qty: 5, unit: 'Pcs', rate: 4500, poRef: null },
-      { itemId: 'itm-023', itemName: 'Rack Mount Cabinet 12U', hsnCode: '94033000', qty: 2, unit: 'Pcs', rate: 18000, poRef: null },
+      { itemId: 'itm-005', itemName: 'Monitor 24" Full HD IPS', hsnCode: '85285200', qty: 5, unit: 'Pcs', rate: 12000, poRef: 'PO-2024-003', batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
+      { itemId: 'itm-008', itemName: 'Network Switch 8-Port', hsnCode: '85176200', qty: 4, unit: 'Pcs', rate: 3200, poRef: 'PO-2024-003', batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
+      { itemId: 'itm-022', itemName: 'Patch Panel 24-Port', hsnCode: '85176200', qty: 5, unit: 'Pcs', rate: 4500, poRef: null, batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
+      { itemId: 'itm-023', itemName: 'Rack Mount Cabinet 12U', hsnCode: '94033000', qty: 2, unit: 'Pcs', rate: 18000, poRef: null, batchNumber: null, lotNumber: null, expiryDate: null, manufacturingDate: null, qualityStatus: 'QC_SKIPPED', qcInspectionId: null },
     ],
     totalItems: 4,
     totalValue: 134800,
     piCreated: false,
     linkedPINumber: null,
     piCreatedDate: null,
+  },
+];
+
+// ─── Batch Stock Records ────────────────────────────────────────────────────
+export interface MockBatchStockRecord {
+  id: string;
+  itemId: string;
+  itemName: string;
+  batchNumber: string;
+  lotNumber: string | null;
+  qty: number;
+  warehouseId: string;
+  warehouseName: string;
+  manufacturingDate: string | null;
+  expiryDate: string | null;
+  grnRef: string;
+}
+
+export const mockBatchStock: MockBatchStockRecord[] = [
+  {
+    id: 'bs-001',
+    itemId: 'itm-016',
+    itemName: 'Steel Rod 10mm',
+    batchNumber: 'B-ST-2024-A',
+    lotNumber: 'LOT-ST-2403',
+    qty: 150,
+    warehouseId: 'wh-001',
+    warehouseName: 'Main Warehouse',
+    manufacturingDate: '2024-03-01',
+    expiryDate: null,
+    grnRef: 'GRN-2024-0001',
+  },
+  {
+    id: 'bs-002',
+    itemId: 'itm-019',
+    itemName: 'Cutting Oil 5L',
+    batchNumber: 'B-CO-2024-A',
+    lotNumber: 'LOT-CO-2403',
+    qty: 24,
+    warehouseId: 'wh-001',
+    warehouseName: 'Main Warehouse',
+    manufacturingDate: '2024-03-15',
+    expiryDate: '2026-03-15',
+    grnRef: 'GRN-2024-0005',
+  },
+  {
+    id: 'bs-003',
+    itemId: 'itm-019',
+    itemName: 'Cutting Oil 5L',
+    batchNumber: 'B-CO-2024-B',
+    lotNumber: 'LOT-CO-2404',
+    qty: 20,
+    warehouseId: 'wh-002',
+    warehouseName: 'North Branch',
+    manufacturingDate: '2024-04-01',
+    expiryDate: '2026-03-30',
+    grnRef: 'GRN-2024-0008',
+  },
+  {
+    id: 'bs-004',
+    itemId: 'itm-019',
+    itemName: 'Cutting Oil 5L',
+    batchNumber: 'B-CO-2024-C',
+    lotNumber: 'LOT-CO-2405',
+    qty: 4,
+    warehouseId: 'wh-001',
+    warehouseName: 'Main Warehouse',
+    manufacturingDate: '2024-02-01',
+    expiryDate: '2026-05-10',
+    grnRef: 'GRN-2024-0007',
+  },
+  {
+    id: 'bs-005',
+    itemId: 'itm-013',
+    itemName: 'Thermal Paste Arctic MX-4',
+    batchNumber: 'B-TP-2024-001',
+    lotNumber: 'LOT-TP-2403',
+    qty: 50,
+    warehouseId: 'wh-003',
+    warehouseName: 'South Depot',
+    manufacturingDate: '2024-03-15',
+    expiryDate: '2027-03-20',
+    grnRef: 'GRN-2024-0005',
+  },
+  {
+    id: 'bs-006',
+    itemId: 'itm-019',
+    itemName: 'Cutting Oil 5L',
+    batchNumber: 'B-CO-2023-X',
+    lotNumber: 'LOT-CO-2310',
+    qty: 2,
+    warehouseId: 'wh-003',
+    warehouseName: 'South Depot',
+    manufacturingDate: '2023-10-01',
+    expiryDate: '2025-10-01',
+    grnRef: 'GRN-2024-0002',
   },
 ];
 
@@ -895,12 +1009,6 @@ export interface MockChallanItem {
   unit: string;
   rate?: number;
   amount?: number;
-    hsnCode?: string;       // ← add
-  taxRate?: number;       // ← add
-  cgst?: number;          // ← add
-  sgst?: number;          // ← add
-  igst?: number;          // ← add
-  taxableAmount?: number;
 }
 
 export interface MockChallanDetail extends MockBillRecord {
@@ -909,23 +1017,7 @@ export interface MockChallanDetail extends MockBillRecord {
   driverName?: string;
   lrNo?: string;
   billingAddress: string;
-  items: Array<{
-  id: string;
-  itemName: string;
-  qty: number;
-  unit: string;
-  rate?: number;
-  amount?: number;
-  hsnCode?: string;       // ← add
-  taxRate?: number;       // ← add
-  cgst?: number;          // ← add
-  sgst?: number;          // ← add
-  igst?: number;          // ← add
-  taxableAmount?: number; // ← add
-  itemId?: string;
-  itemCode?: string;
-  unitId?: string;
-}>;
+  items: MockChallanItem[];
 }
 
 export const mockChallans: MockChallanDetail[] = [
@@ -988,6 +1080,21 @@ export interface MockItemForSearch {
   unit: string;
   unitId: string;
   categoryId?: string;
+  itemType: string;
+  isBatchTracked: boolean;
+  isSerialTracked: boolean;
+  hasExpiry: boolean;
+  shelfLifeDays: number | null;
+  requiresIncomingQC: boolean;
+  requiresFinalQC: boolean;
+  isParent?: boolean;
+  hasVariants?: boolean;
+  variantCount?: number;
+  isVariant?: boolean;
+  parentItemId?: string | null;
+  variantName?: string | null;
+  variantAttributes?: Record<string, string> | null;
+  variantSku?: string | null;
 }
 
 // ─── Direct Stock Entries ─────────────────────────────────────────────────────
@@ -1040,7 +1147,7 @@ export let mockDirectStockEntries: MockDirectStockEntry[] = [
     createdBy: 'Admin User',
     items: [
       { id: 'dsei-001', itemId: 'itm-001', itemName: 'Tata Salt 1kg', hsnCode: '2501', qty: 500, unit: 'Pcs', rate: 18, total: 9000 },
-      { id: 'dsei-002', itemId: 'itm-002', itemName: 'Tata Tea Premium 500g', hsnCode: '0902', qty: 200, unit: 'Pcs', rate: 125, total: 26000 },
+      { id: 'dsei-002', itemId: 'itm-002', itemName: 'Tata Tea Premium 500g', hsnCode: '0902', qty: 200, unit: 'Pcs', rate: 125, total: 25000 },
       { id: 'dsei-003', itemId: 'itm-003', itemName: 'Surf Excel 1kg', hsnCode: '3402', qty: 150, unit: 'Pcs', rate: 165, total: 24750 },
       { id: 'dsei-004', itemId: 'itm-007', itemName: 'Maggi 2-Minute Noodles', hsnCode: '1902', qty: 800, unit: 'Pcs', rate: 12, total: 9600 },
     ],
@@ -1060,7 +1167,7 @@ export let mockDirectStockEntries: MockDirectStockEntry[] = [
     createdBy: 'Rahul Sharma',
     items: [
       { id: 'dsei-005', itemId: 'itm-005', itemName: 'Dove Soap 100g', hsnCode: '3401', qty: 300, unit: 'Pcs', rate: 45, total: 13500 },
-      { id: 'dsei-006', itemId: 'itm-006', itemName: 'Colgate Max Fresh 150g', hsnCode: '3306', qty: 250, unit: 'Pcs', rate: 68, total: 17001 },
+      { id: 'dsei-006', itemId: 'itm-006', itemName: 'Colgate Max Fresh 150g', hsnCode: '3306', qty: 250, unit: 'Pcs', rate: 68, total: 17000 },
       { id: 'dsei-007', itemId: 'itm-010', itemName: 'Clinic Plus Shampoo 80ml', hsnCode: '3305', qty: 200, unit: 'Pcs', rate: 42, total: 8400 },
     ],
     totalItems: 3,
@@ -1122,19 +1229,270 @@ export let mockDirectStockEntries: MockDirectStockEntry[] = [
     totalQty: 35,
     totalValue: 3035,
   },
+  {
+    id: 'dse-006',
+    entryNumber: 'DSE-2024-0006',
+    date: '2024-03-16',
+    warehouseId: 'wh-001',
+    warehouseName: 'Main Warehouse',
+    reason: 'Stock Audit Found',
+    referenceNo: 'AUDIT-VAR-001',
+    notes: 'Audit found unrecorded Pump X-100 units in storage bay C',
+    createdBy: 'Admin User',
+    items: [
+      { id: 'dsei-015', itemId: 'itm-v001', itemName: 'Industrial Pump X — Pump X-100', hsnCode: '84137010', qty: 2, unit: 'Pcs', rate: 40000, total: 80000 },
+    ],
+    totalItems: 1,
+    totalQty: 2,
+    totalValue: 80000,
+  },
+];
+
+// ─── Gate Pass ────────────────────────────────────────────────────────────────
+export interface MockGatePass {
+  id: string;
+  gpNumber: string;
+  type: 'OUTWARD' | 'INWARD';
+  date: string;
+  time: string;
+  partyId: string;
+  partyName: string;
+  vehicleNumber: string;
+  driverName: string;
+  driverPhone: string;
+  securityGuard: string;
+  purpose: 'SALE' | 'TRANSFER' | 'RETURN' | 'SAMPLE' | 'OTHER' | 'PURCHASE' | 'SALE_RETURN' | 'TRANSFER_IN';
+  customPurpose: string | null;
+  isReturnable: boolean;
+  expectedReturnDate: string | null;
+  returnedDate: string | null;
+  status: 'OPEN' | 'RETURNED' | 'CLOSED' | 'OVERDUE' | 'RECEIVED' | 'LINKED' | 'PENDING';
+  linkedDocType: 'SALES_INVOICE' | 'CHALLAN' | 'TRANSFER' | 'PURCHASE_RETURN' | 'GRN' | 'SALE_RETURN' | 'NONE';
+  linkedDocId: string | null;
+  linkedDocNumber: string | null;
+  authorisedBy: string;
+  receivedBy: string | null;
+  notes: string | null;
+  items: Array<{ itemName: string; qty: number; unit: string; description: string | null }>;
+  createdBy: string;
+  createdAt: string;
+  // Security Guard System fields
+  verificationStatus: 'PENDING' | 'VERIFIED' | 'REJECTED';
+  verifiedBy: string | null;
+  verifiedAt: string | null;
+  vehicleEntryTime: string | null;
+  vehicleExitTime: string | null;
+  guardRemarks: string | null;
+  rejectionReason: string | null;
+  isRecreated: boolean;
+  originalGPId: string | null;
+  createdById: string;
+  createdByName: string;
+}
+
+export const mockGatePasses: MockGatePass[] = [
+  {
+    id: 'gp1', gpNumber: 'GP-OUT-2026-0001', type: 'OUTWARD',
+    date: '2026-04-01', time: '10:30', status: 'OPEN',
+    partyId: 'p1', partyName: 'TechSupply Co.',
+    vehicleNumber: 'MH12AB1234', driverName: 'Raju Kumar',
+    driverPhone: '9876543210', securityGuard: 'Suresh Patil',
+    purpose: 'SAMPLE', customPurpose: null,
+    isReturnable: true, expectedReturnDate: '2026-04-20',
+    returnedDate: null, linkedDocType: 'NONE',
+    linkedDocId: null, linkedDocNumber: null,
+    authorisedBy: 'Admin User', receivedBy: null,
+    notes: 'Handle with care',
+    items: [
+      { itemName: 'Laptop 15 i7', qty: 2, unit: 'Pcs', description: 'Demo' },
+      { itemName: 'Wireless Mouse', qty: 5, unit: 'Pcs', description: 'Demo' },
+    ],
+    createdBy: 'Admin User', createdAt: '2026-04-01T10:30:00Z',
+    verificationStatus: 'PENDING', verifiedBy: null, verifiedAt: null,
+    vehicleEntryTime: null, vehicleExitTime: null,
+    guardRemarks: null, rejectionReason: null,
+    isRecreated: false, originalGPId: null,
+    createdById: 'usr-001', createdByName: 'Admin User',
+  },
+  {
+    id: 'gp2', gpNumber: 'GP-OUT-2026-0002', type: 'OUTWARD',
+    date: '2026-03-15', time: '14:00', status: 'RETURNED',
+    partyId: 'p2', partyName: 'NexGen Components',
+    vehicleNumber: 'DL05CD5678', driverName: 'Mohan Singh',
+    driverPhone: '9765432109', securityGuard: 'Ramesh Kumar',
+    purpose: 'TRANSFER', customPurpose: null,
+    isReturnable: true, expectedReturnDate: '2026-03-20',
+    returnedDate: '2026-03-19', linkedDocType: 'NONE',
+    linkedDocId: null, linkedDocNumber: null,
+    authorisedBy: 'Admin User', receivedBy: null, notes: null,
+    items: [
+      { itemName: 'Mechanical Keyboard', qty: 10, unit: 'Pcs', description: 'Transfer' },
+    ],
+    createdBy: 'Admin User', createdAt: '2026-03-15T14:00:00Z',
+    verificationStatus: 'VERIFIED', verifiedBy: 'Suresh Patil', verifiedAt: '2026-03-19T14:30:00Z',
+    vehicleEntryTime: null, vehicleExitTime: '14:30',
+    guardRemarks: 'All items verified and matched', rejectionReason: null,
+    isRecreated: false, originalGPId: null,
+    createdById: 'usr-001', createdByName: 'Admin User',
+  },
+  {
+    id: 'gp3', gpNumber: 'GP-OUT-2026-0003', type: 'OUTWARD',
+    date: '2026-03-20', time: '11:00', status: 'CLOSED',
+    partyId: 'p3', partyName: 'Ramesh Electronics',
+    vehicleNumber: 'MH14EF9012', driverName: 'Vijay Patil',
+    driverPhone: '9654321098', securityGuard: 'Suresh Patil',
+    purpose: 'SALE', customPurpose: null,
+    isReturnable: false, expectedReturnDate: null,
+    returnedDate: null, linkedDocType: 'SALES_INVOICE',
+    linkedDocId: 'inv1', linkedDocNumber: 'INV-2024-001',
+    authorisedBy: 'Admin User', receivedBy: null, notes: null,
+    items: [
+      { itemName: 'Laptop 15 i7', qty: 5, unit: 'Pcs', description: 'Sold' },
+      { itemName: 'SSD 1TB', qty: 10, unit: 'Pcs', description: 'Sold' },
+    ],
+    createdBy: 'Admin User', createdAt: '2026-03-20T11:00:00Z',
+    verificationStatus: 'PENDING', verifiedBy: null, verifiedAt: null,
+    vehicleEntryTime: null, vehicleExitTime: null,
+    guardRemarks: null, rejectionReason: null,
+    isRecreated: false, originalGPId: null,
+    createdById: 'usr-001', createdByName: 'Admin User',
+  },
+  {
+    id: 'gp4', gpNumber: 'GP-OUT-2026-0004', type: 'OUTWARD',
+    date: '2026-02-20', time: '09:00', status: 'OVERDUE',
+    partyId: 'p4', partyName: 'Suresh Traders',
+    vehicleNumber: 'GJ05AB3456', driverName: 'Kiran Shah',
+    driverPhone: '9543210987', securityGuard: 'Ramesh Kumar',
+    purpose: 'SAMPLE', customPurpose: null,
+    isReturnable: true, expectedReturnDate: '2026-03-01',
+    returnedDate: null, linkedDocType: 'NONE',
+    linkedDocId: null, linkedDocNumber: null,
+    authorisedBy: 'Admin User', receivedBy: null,
+    notes: 'Overdue \u2014 follow up',
+    items: [
+      { itemName: 'Monitor 24 FHD', qty: 2, unit: 'Pcs', description: 'Demo' },
+      { itemName: 'Webcam 1080p', qty: 3, unit: 'Pcs', description: 'Demo' },
+    ],
+    createdBy: 'Admin User', createdAt: '2026-02-20T09:00:00Z',
+    verificationStatus: 'REJECTED', verifiedBy: 'Suresh Patil', verifiedAt: '2026-03-05T10:00:00Z',
+    vehicleEntryTime: null, vehicleExitTime: null,
+    guardRemarks: null, rejectionReason: 'Items quantity does not match physical count',
+    isRecreated: false, originalGPId: null,
+    createdById: 'usr-001', createdByName: 'Admin User',
+  },
+  {
+    id: 'gp5', gpNumber: 'GP-OUT-2026-0005', type: 'OUTWARD',
+    date: '2026-02-01', time: '16:00', status: 'OVERDUE',
+    partyId: 'p5', partyName: 'Vijay Wholesale',
+    vehicleNumber: 'KA01CD7890', driverName: 'Arun Nair',
+    driverPhone: '9432109876', securityGuard: 'Suresh Patil',
+    purpose: 'RETURN', customPurpose: null,
+    isReturnable: true, expectedReturnDate: '2026-02-15',
+    returnedDate: null, linkedDocType: 'NONE',
+    linkedDocId: null, linkedDocNumber: null,
+    authorisedBy: 'Admin User', receivedBy: null, notes: null,
+    items: [
+      { itemName: 'Network Switch 8Port', qty: 1, unit: 'Pcs', description: 'For repair' },
+    ],
+    createdBy: 'Admin User', createdAt: '2026-02-01T16:00:00Z',
+    verificationStatus: 'PENDING', verifiedBy: null, verifiedAt: null,
+    vehicleEntryTime: null, vehicleExitTime: null,
+    guardRemarks: null, rejectionReason: null,
+    isRecreated: false, originalGPId: null,
+    createdById: 'usr-001', createdByName: 'Admin User',
+  },
+  {
+    id: 'gp6', gpNumber: 'GP-IN-2026-0001', type: 'INWARD',
+    date: '2026-04-02', time: '09:30', status: 'RECEIVED',
+    partyId: 'p1', partyName: 'TechSupply Co.',
+    vehicleNumber: 'MH12AB1234', driverName: 'Raju Kumar',
+    driverPhone: '9876543210', securityGuard: 'Suresh Patil',
+    purpose: 'PURCHASE', customPurpose: null,
+    isReturnable: false, expectedReturnDate: null,
+    returnedDate: null, linkedDocType: 'GRN',
+    linkedDocId: 'grn1', linkedDocNumber: 'GRN-2024-0001',
+    authorisedBy: 'Admin User', receivedBy: 'Warehouse Staff',
+    notes: null,
+    items: [
+      { itemName: 'Laptop 15 i7', qty: 10, unit: 'Pcs', description: 'Purchase' },
+      { itemName: 'Wireless Mouse', qty: 50, unit: 'Pcs', description: 'Purchase' },
+    ],
+    createdBy: 'Admin User', createdAt: '2026-04-02T09:30:00Z',
+    verificationStatus: 'VERIFIED', verifiedBy: 'Suresh Patil', verifiedAt: '2026-03-19T14:30:00Z',
+    vehicleEntryTime: '09:30', vehicleExitTime: null,
+    guardRemarks: 'Goods count matched', rejectionReason: null,
+    isRecreated: false, originalGPId: null,
+    createdById: 'usr-001', createdByName: 'Admin User',
+  },
+  {
+    id: 'gp7', gpNumber: 'GP-IN-2026-0002', type: 'INWARD',
+    date: '2026-04-03', time: '15:00', status: 'LINKED',
+    partyId: 'p3', partyName: 'Ramesh Electronics',
+    vehicleNumber: 'MH14EF9012', driverName: 'Vijay Patil',
+    driverPhone: '9654321098', securityGuard: 'Ramesh Kumar',
+    purpose: 'SALE_RETURN', customPurpose: null,
+    isReturnable: false, expectedReturnDate: null,
+    returnedDate: null, linkedDocType: 'SALE_RETURN',
+    linkedDocId: 'sr1', linkedDocNumber: 'SRTN-2024-001',
+    authorisedBy: 'Admin User', receivedBy: 'Warehouse Staff',
+    notes: 'Inspect before stocking',
+    items: [
+      { itemName: 'Laptop 15 i7', qty: 2, unit: 'Pcs', description: 'Customer return' },
+      { itemName: 'SSD 1TB', qty: 3, unit: 'Pcs', description: 'Customer return' },
+    ],
+    createdBy: 'Admin User', createdAt: '2026-04-03T15:00:00Z',
+    verificationStatus: 'PENDING', verifiedBy: null, verifiedAt: null,
+    vehicleEntryTime: null, vehicleExitTime: null,
+    guardRemarks: null, rejectionReason: null,
+    isRecreated: false, originalGPId: null,
+    createdById: 'usr-001', createdByName: 'Admin User',
+  },
+  {
+    id: 'gp8', gpNumber: 'GP-IN-2026-0003', type: 'INWARD',
+    date: '2026-04-09', time: '08:00', status: 'PENDING',
+    partyId: 'p2', partyName: 'NexGen Components',
+    vehicleNumber: 'DL05CD5678', driverName: 'Mohan Singh',
+    driverPhone: '9765432109', securityGuard: 'Suresh Patil',
+    purpose: 'PURCHASE', customPurpose: null,
+    isReturnable: false, expectedReturnDate: null,
+    returnedDate: null, linkedDocType: 'NONE',
+    linkedDocId: null, linkedDocNumber: null,
+    authorisedBy: 'Admin User', receivedBy: null, notes: null,
+    items: [
+      { itemName: 'USB Flash Drive 64GB', qty: 100, unit: 'Pcs', description: 'Incoming' },
+      { itemName: 'Bluetooth Speaker', qty: 25, unit: 'Pcs', description: 'Incoming' },
+    ],
+    createdBy: 'Admin User', createdAt: '2026-04-09T08:00:00Z',
+    verificationStatus: 'PENDING', verifiedBy: null, verifiedAt: null,
+    vehicleEntryTime: null, vehicleExitTime: null,
+    guardRemarks: null, rejectionReason: null,
+    isRecreated: false, originalGPId: null,
+    createdById: 'usr-001', createdByName: 'Admin User',
+  },
 ];
 
 export const mockSearchItems: MockItemForSearch[] = [
-  { id: 'itm-001', name: 'Laptop 15" Core i7', code: 'ITM-0001', barcode: '8901234567890', hsnCode: '84713010', taxRate: 18, purchaseRate: 72000, saleRate: 86000, currentStock: 38, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-003' },
-  { id: 'itm-002', name: 'Wireless Mouse Logitech M235', code: 'ITM-0002', barcode: '7612345678901', hsnCode: '84716060', taxRate: 18, purchaseRate: 850, saleRate: 1200, currentStock: 124, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-005' },
-  { id: 'itm-003', name: 'USB-C 7-in-1 Hub', code: 'ITM-0003', barcode: '7623456789012', hsnCode: '85444290', taxRate: 18, purchaseRate: 1200, saleRate: 1800, currentStock: 89, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-006' },
-  { id: 'itm-004', name: 'Mechanical Keyboard RGB', code: 'ITM-0004', barcode: '7634567890123', hsnCode: '84716060', taxRate: 18, purchaseRate: 5500, saleRate: 7500, currentStock: 45, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-005' },
-  { id: 'itm-005', name: 'Monitor 24" Full HD IPS', code: 'ITM-0045', barcode: '8645678901234', hsnCode: '85285200', taxRate: 18, purchaseRate: 12000, saleRate: 16000, currentStock: 4, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-004' },
-  { id: 'itm-006', name: 'Laptop Bag 15.6" Waterproof', code: 'ITM-0078', barcode: '8656789012345', hsnCode: '42021200', taxRate: 12, purchaseRate: 800, saleRate: 1200, currentStock: 3, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-002' },
-  { id: 'itm-007', name: 'HDMI Cable 2m v2.0', code: 'ITM-0112', barcode: '8667890123456', hsnCode: '85444290', taxRate: 18, purchaseRate: 150, saleRate: 250, currentStock: 6, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-006' },
-  { id: 'itm-008', name: 'Network Switch 8-Port', code: 'ITM-0150', barcode: '8678901234567', hsnCode: '85176200', taxRate: 18, purchaseRate: 3200, saleRate: 4500, currentStock: 2, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-008' },
-  { id: 'itm-009', name: 'SSD 1TB NVMe Samsung', code: 'ITM-0200', barcode: '8689012345678', hsnCode: '84717010', taxRate: 18, purchaseRate: 6500, saleRate: 8500, currentStock: 67, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-007' },
-  { id: 'itm-010', name: 'RAM 16GB DDR5 3200MHz', code: 'ITM-0201', barcode: '8690123456789', hsnCode: '84717010', taxRate: 18, purchaseRate: 4800, saleRate: 6200, currentStock: 54, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-007' },
-  { id: 'itm-011', name: 'Webcam 1080p with Mic', code: 'ITM-0222', barcode: '8601234567890', hsnCode: '85258090', taxRate: 18, purchaseRate: 1800, saleRate: 2500, currentStock: 29, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-002' },
-  { id: 'itm-012', name: 'Wi-Fi 6 Router AX1800', code: 'ITM-0230', barcode: '8612345678901', hsnCode: '85176200', taxRate: 18, purchaseRate: 4200, saleRate: 5800, currentStock: 16, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-008' },
+  { id: 'itm-001', name: 'Laptop 15" Core i7', code: 'ITM-0001', barcode: '8901234567890', hsnCode: '84713010', taxRate: 18, purchaseRate: 72000, saleRate: 85000, currentStock: 38, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-003', itemType: 'FINISHED_GOOD', isBatchTracked: false, isSerialTracked: true, hasExpiry: false, shelfLifeDays: null, requiresIncomingQC: false, requiresFinalQC: true, isParent: false, hasVariants: false, variantCount: 0, isVariant: false, parentItemId: null, variantName: null, variantAttributes: null, variantSku: null },
+  { id: 'itm-002', name: 'Wireless Mouse Logitech M235', code: 'ITM-0002', barcode: '7612345678901', hsnCode: '84716060', taxRate: 18, purchaseRate: 850, saleRate: 1200, currentStock: 124, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-005', itemType: 'FINISHED_GOOD', isBatchTracked: false, isSerialTracked: false, hasExpiry: false, shelfLifeDays: null, requiresIncomingQC: false, requiresFinalQC: false, isParent: false, hasVariants: false, variantCount: 0, isVariant: false, parentItemId: null, variantName: null, variantAttributes: null, variantSku: null },
+  { id: 'itm-003', name: 'USB-C 7-in-1 Hub', code: 'ITM-0003', barcode: '7623456789012', hsnCode: '85444290', taxRate: 18, purchaseRate: 1200, saleRate: 1800, currentStock: 89, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-006', itemType: 'FINISHED_GOOD', isBatchTracked: false, isSerialTracked: false, hasExpiry: false, shelfLifeDays: null, requiresIncomingQC: false, requiresFinalQC: false, isParent: false, hasVariants: false, variantCount: 0, isVariant: false, parentItemId: null, variantName: null, variantAttributes: null, variantSku: null },
+  { id: 'itm-004', name: 'Mechanical Keyboard RGB', code: 'ITM-0004', barcode: '7634567890123', hsnCode: '84716060', taxRate: 18, purchaseRate: 5500, saleRate: 7500, currentStock: 45, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-005', itemType: 'FINISHED_GOOD', isBatchTracked: false, isSerialTracked: true, hasExpiry: false, shelfLifeDays: null, requiresIncomingQC: false, requiresFinalQC: true, isParent: false, hasVariants: false, variantCount: 0, isVariant: false, parentItemId: null, variantName: null, variantAttributes: null, variantSku: null },
+  { id: 'itm-005', name: 'Monitor 24" Full HD IPS', code: 'ITM-0045', barcode: '8645678901234', hsnCode: '85285200', taxRate: 18, purchaseRate: 12000, saleRate: 15000, currentStock: 4, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-004', itemType: 'FINISHED_GOOD', isBatchTracked: false, isSerialTracked: true, hasExpiry: false, shelfLifeDays: null, requiresIncomingQC: false, requiresFinalQC: true, isParent: false, hasVariants: false, variantCount: 0, isVariant: false, parentItemId: null, variantName: null, variantAttributes: null, variantSku: null },
+  { id: 'itm-006', name: 'Laptop Bag 15.6" Waterproof', code: 'ITM-0078', barcode: '8656789012345', hsnCode: '42021200', taxRate: 12, purchaseRate: 800, saleRate: 1200, currentStock: 3, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-002', itemType: 'FINISHED_GOOD', isBatchTracked: false, isSerialTracked: false, hasExpiry: false, shelfLifeDays: null, requiresIncomingQC: false, requiresFinalQC: false, isParent: false, hasVariants: false, variantCount: 0, isVariant: false, parentItemId: null, variantName: null, variantAttributes: null, variantSku: null },
+  { id: 'itm-007', name: 'HDMI Cable 2m v2.0', code: 'ITM-0112', barcode: '8667890123456', hsnCode: '85444290', taxRate: 18, purchaseRate: 150, saleRate: 250, currentStock: 6, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-006', itemType: 'CONSUMABLE', isBatchTracked: false, isSerialTracked: false, hasExpiry: false, shelfLifeDays: null, requiresIncomingQC: false, requiresFinalQC: false, isParent: false, hasVariants: false, variantCount: 0, isVariant: false, parentItemId: null, variantName: null, variantAttributes: null, variantSku: null },
+  { id: 'itm-008', name: 'Network Switch 8-Port', code: 'ITM-0150', barcode: '8678901234567', hsnCode: '85176200', taxRate: 18, purchaseRate: 3200, saleRate: 4500, currentStock: 2, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-008', itemType: 'FINISHED_GOOD', isBatchTracked: false, isSerialTracked: true, hasExpiry: false, shelfLifeDays: null, requiresIncomingQC: false, requiresFinalQC: true, isParent: false, hasVariants: false, variantCount: 0, isVariant: false, parentItemId: null, variantName: null, variantAttributes: null, variantSku: null },
+  { id: 'itm-009', name: 'SSD 1TB NVMe Samsung', code: 'ITM-0200', barcode: '8689012345678', hsnCode: '84717010', taxRate: 18, purchaseRate: 6500, saleRate: 8500, currentStock: 67, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-007', itemType: 'FINISHED_GOOD', isBatchTracked: false, isSerialTracked: true, hasExpiry: false, shelfLifeDays: null, requiresIncomingQC: false, requiresFinalQC: true, isParent: false, hasVariants: false, variantCount: 0, isVariant: false, parentItemId: null, variantName: null, variantAttributes: null, variantSku: null },
+  { id: 'itm-010', name: 'RAM 16GB DDR5 3200MHz', code: 'ITM-0201', barcode: '8690123456789', hsnCode: '84717010', taxRate: 18, purchaseRate: 4800, saleRate: 6200, currentStock: 54, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-007', itemType: 'FINISHED_GOOD', isBatchTracked: false, isSerialTracked: false, hasExpiry: false, shelfLifeDays: null, requiresIncomingQC: false, requiresFinalQC: false, isParent: false, hasVariants: false, variantCount: 0, isVariant: false, parentItemId: null, variantName: null, variantAttributes: null, variantSku: null },
+  { id: 'itm-011', name: 'Webcam 1080p with Mic', code: 'ITM-0222', barcode: '8601234567890', hsnCode: '85258090', taxRate: 18, purchaseRate: 1800, saleRate: 2500, currentStock: 29, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-002', itemType: 'FINISHED_GOOD', isBatchTracked: false, isSerialTracked: false, hasExpiry: false, shelfLifeDays: null, requiresIncomingQC: false, requiresFinalQC: false, isParent: false, hasVariants: false, variantCount: 0, isVariant: false, parentItemId: null, variantName: null, variantAttributes: null, variantSku: null },
+  { id: 'itm-012', name: 'Wi-Fi 6 Router AX1800', code: 'ITM-0230', barcode: '8612345678901', hsnCode: '85176200', taxRate: 18, purchaseRate: 4200, saleRate: 5800, currentStock: 16, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-008', itemType: 'FINISHED_GOOD', isBatchTracked: false, isSerialTracked: true, hasExpiry: false, shelfLifeDays: null, requiresIncomingQC: false, requiresFinalQC: true, isParent: false, hasVariants: false, variantCount: 0, isVariant: false, parentItemId: null, variantName: null, variantAttributes: null, variantSku: null },
+  { id: 'itm-013', name: 'USB 3.0 Flash Drive 64GB', code: 'ITM-0240', barcode: '', hsnCode: '84717010', taxRate: 18, purchaseRate: 350, saleRate: 550, currentStock: 42, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-007', itemType: 'FINISHED_GOOD', isBatchTracked: false, isSerialTracked: false, hasExpiry: false, shelfLifeDays: null, requiresIncomingQC: false, requiresFinalQC: false, isParent: false, hasVariants: false, variantCount: 0, isVariant: false, parentItemId: null, variantName: null, variantAttributes: null, variantSku: null },
+  { id: 'itm-014', name: 'Bluetooth Speaker Portable', code: 'ITM-0241', barcode: '', hsnCode: '85182100', taxRate: 18, purchaseRate: 1500, saleRate: 2200, currentStock: 18, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-002', itemType: 'FINISHED_GOOD', isBatchTracked: false, isSerialTracked: false, hasExpiry: false, shelfLifeDays: null, requiresIncomingQC: false, requiresFinalQC: false, isParent: false, hasVariants: false, variantCount: 0, isVariant: false, parentItemId: null, variantName: null, variantAttributes: null, variantSku: null },
+  { id: 'itm-015', name: 'Laptop Cooling Pad', code: 'ITM-0242', barcode: '', hsnCode: '84145990', taxRate: 18, purchaseRate: 600, saleRate: 950, currentStock: 25, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-002', itemType: 'FINISHED_GOOD', isBatchTracked: false, isSerialTracked: false, hasExpiry: false, shelfLifeDays: null, requiresIncomingQC: false, requiresFinalQC: false, isParent: false, hasVariants: false, variantCount: 0, isVariant: false, parentItemId: null, variantName: null, variantAttributes: null, variantSku: null },
+  { id: 'itm-016', name: 'Steel Rod 10mm', code: 'ITM-0301', barcode: '8712345678901', hsnCode: '72159090', taxRate: 18, purchaseRate: 85, saleRate: 95, currentStock: 350, unit: 'Kg', unitId: 'un-002', categoryId: 'cat-001', itemType: 'RAW_MATERIAL', isBatchTracked: true, isSerialTracked: false, hasExpiry: false, shelfLifeDays: null, requiresIncomingQC: true, requiresFinalQC: false, isParent: false, hasVariants: false, variantCount: 0, isVariant: false, parentItemId: null, variantName: null, variantAttributes: null, variantSku: null },
+  { id: 'itm-017', name: 'Gear Assembly A', code: 'ITM-0302', barcode: '8723456789012', hsnCode: '84839000', taxRate: 18, purchaseRate: 2500, saleRate: 3200, currentStock: 22, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-001', itemType: 'SEMI_FINISHED', isBatchTracked: false, isSerialTracked: false, hasExpiry: false, shelfLifeDays: null, requiresIncomingQC: true, requiresFinalQC: true, isParent: false, hasVariants: false, variantCount: 0, isVariant: false, parentItemId: null, variantName: null, variantAttributes: null, variantSku: null },
+  { id: 'itm-018', name: 'Industrial Pump X', code: 'ITM-0303', barcode: '8734567890123', hsnCode: '84137010', taxRate: 18, purchaseRate: 45000, saleRate: 58000, currentStock: 5, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-001', itemType: 'FINISHED_GOOD', isBatchTracked: false, isSerialTracked: true, hasExpiry: false, shelfLifeDays: null, requiresIncomingQC: false, requiresFinalQC: true, isParent: true, hasVariants: true, variantCount: 3, isVariant: false, parentItemId: null, variantName: null, variantAttributes: null, variantSku: null },
+  { id: 'itm-019', name: 'Cutting Oil 5L', code: 'ITM-0304', barcode: '8745678901234', hsnCode: '34039900', taxRate: 18, purchaseRate: 450, saleRate: 550, currentStock: 48, unit: 'Ltr', unitId: 'un-003', categoryId: 'cat-002', itemType: 'CONSUMABLE', isBatchTracked: true, isSerialTracked: false, hasExpiry: true, shelfLifeDays: 730, requiresIncomingQC: false, requiresFinalQC: false, isParent: false, hasVariants: false, variantCount: 0, isVariant: false, parentItemId: null, variantName: null, variantAttributes: null, variantSku: null },
+  { id: 'itm-020', name: 'Cardboard Box 30x20', code: 'ITM-0305', barcode: '8756789012345', hsnCode: '48192010', taxRate: 12, purchaseRate: 25, saleRate: 35, currentStock: 500, unit: 'Box', unitId: 'un-004', categoryId: 'cat-002', itemType: 'PACKAGING', isBatchTracked: false, isSerialTracked: false, hasExpiry: false, shelfLifeDays: null, requiresIncomingQC: false, requiresFinalQC: false, isParent: false, hasVariants: false, variantCount: 0, isVariant: false, parentItemId: null, variantName: null, variantAttributes: null, variantSku: null },
+  { id: 'itm-v001', name: 'Industrial Pump X-100', code: 'ITM-0303-100', barcode: '', hsnCode: '84137010', taxRate: 18, purchaseRate: 40000, saleRate: 52000, currentStock: 3, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-001', itemType: 'FINISHED_GOOD', isBatchTracked: false, isSerialTracked: true, hasExpiry: false, shelfLifeDays: null, requiresIncomingQC: false, requiresFinalQC: true, isVariant: true, parentItemId: 'itm-018', variantName: 'Pump X-100', variantAttributes: { 'Flow Rate': '100 LPM', 'Motor': 'Type A', 'Impeller': 'Small' }, variantSku: 'IP-X-100' },
+  { id: 'itm-v002', name: 'Industrial Pump X-200', code: 'ITM-0303-200', barcode: '', hsnCode: '84137010', taxRate: 18, purchaseRate: 48000, saleRate: 62000, currentStock: 2, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-001', itemType: 'FINISHED_GOOD', isBatchTracked: false, isSerialTracked: true, hasExpiry: false, shelfLifeDays: null, requiresIncomingQC: false, requiresFinalQC: true, isVariant: true, parentItemId: 'itm-018', variantName: 'Pump X-200', variantAttributes: { 'Flow Rate': '200 LPM', 'Motor': 'Type B', 'Impeller': 'Medium' }, variantSku: 'IP-X-200' },
+  { id: 'itm-v003', name: 'Industrial Pump X-500', code: 'ITM-0303-500', barcode: '', hsnCode: '84137010', taxRate: 18, purchaseRate: 65000, saleRate: 85000, currentStock: 1, unit: 'Pcs', unitId: 'un-001', categoryId: 'cat-001', itemType: 'FINISHED_GOOD', isBatchTracked: false, isSerialTracked: true, hasExpiry: false, shelfLifeDays: null, requiresIncomingQC: false, requiresFinalQC: true, isVariant: true, parentItemId: 'itm-018', variantName: 'Pump X-500', variantAttributes: { 'Flow Rate': '500 LPM', 'Motor': 'Type C', 'Impeller': 'Large' }, variantSku: 'IP-X-500' },
 ];

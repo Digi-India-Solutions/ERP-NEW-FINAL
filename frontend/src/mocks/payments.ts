@@ -1,5 +1,5 @@
 // ─── Payment Receipts (Sales) ─────────────────────────────────────────────────
-export type PaymentMode = 'CASH' | 'UPI' | 'CARD' | 'CHEQUE' | 'NEFT' | 'RTGS' | 'CREDIT' | 'CREDIT_AMOUNT';
+export type PaymentMode = 'CASH' | 'UPI' | 'CARD' | 'CHEQUE' | 'NEFT' | 'RTGS';
 export type ChequeStatus = 'PENDING' | 'CLEARED' | 'BOUNCED' | 'INSUFFICIENT_BALANCE';
 
 export interface MockPaymentReceipt {
@@ -53,9 +53,9 @@ export let mockPaymentReceipts: MockPaymentReceipt[] = [
     invoiceNumber: 'INV-2024-002',
     customerId: 'pty-002',
     customerName: 'Suresh Traders',
-    invoiceAmount: 60000,
-    balanceDue: 26000,
-    paymentAmount: 26000,
+    invoiceAmount: 50000,
+    balanceDue: 25000,
+    paymentAmount: 25000,
     paymentMode: 'UPI',
     referenceNo: 'UPI123456789',
     notes: 'Partial payment',
@@ -69,9 +69,9 @@ export let mockPaymentReceipts: MockPaymentReceipt[] = [
     invoiceNumber: 'INV-2024-003',
     customerId: 'pty-003',
     customerName: 'Mahesh Distributors',
-    invoiceAmount: 76000,
-    balanceDue: 76000,
-    paymentAmount: 76000,
+    invoiceAmount: 75000,
+    balanceDue: 75000,
+    paymentAmount: 75000,
     paymentMode: 'CHEQUE',
     bankName: 'SBI Bank',
     chequeNo: '789012',
@@ -87,9 +87,9 @@ export let mockPaymentReceipts: MockPaymentReceipt[] = [
     invoiceNumber: 'INV-2024-004',
     customerId: 'pty-001',
     customerName: 'Ramesh Electronics',
-    invoiceAmount: 46000,
+    invoiceAmount: 45000,
     balanceDue: 0,
-    paymentAmount: 46000,
+    paymentAmount: 45000,
     paymentMode: 'NEFT',
     referenceNo: 'NEFT20240301001',
     notes: 'Bank transfer received',
@@ -158,7 +158,7 @@ export let mockPaymentsMade: MockPaymentVoucher[] = [
     balanceDue: 0,
     paymentAmount: 118734,
     paymentMode: 'NEFT',
-    referenceNo: 'NEFT20240126000',
+    referenceNo: 'NEFT20240125001',
     notes: 'Full payment to supplier',
     createdAt: '2024-01-25T11:00:00Z',
   },
@@ -171,8 +171,8 @@ export let mockPaymentsMade: MockPaymentVoucher[] = [
     supplierId: 'pty-005',
     supplierName: 'NexGen Components',
     invoiceAmount: 100000,
-    balanceDue: 60000,
-    paymentAmount: 60000,
+    balanceDue: 50000,
+    paymentAmount: 50000,
     paymentMode: 'CHEQUE',
     bankName: 'ICICI Bank',
     chequeNo: '234567',
@@ -193,7 +193,7 @@ export let mockPaymentsMade: MockPaymentVoucher[] = [
     balanceDue: 0,
     paymentAmount: 273000,
     paymentMode: 'RTGS',
-    referenceNo: 'RTGS20240226000',
+    referenceNo: 'RTGS20240225001',
     createdAt: '2024-02-25T10:00:00Z',
   },
   {
