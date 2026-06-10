@@ -59,6 +59,16 @@ import ResetPasswordPage from '@/pages/reset-password/page';
 import { useAuth } from "@/contexts/AuthContext";
 import EditPOPage from '@/pages/purchase/orders/new/EditPOPage';
 import PaymentDuesTable from '@/pages/purchase/payments/components/paymantDuesTable';
+import BOMListTable from '@/pages/manifacturing/bom/page';
+import BOMForm from '@/pages/manifacturing/bom/BOMForm';
+import ProductionOrderForm from '@/pages/manifacturing/orders/ProductionOrderForm';
+import WorkOrdersPage from '@/pages/manifacturing/work-orders/page';
+import ProductionSchedulePage from '@/pages/manifacturing/schedule/page';
+import MRPRunPage from '@/pages/manifacturing/mrp/page';
+import MaterialShortagePage from '@/pages/manifacturing/mrp/shortage/page';
+import ProductionEntryPage from '@/pages/manifacturing/shop-floor/page';
+import DowntimeEntryPage from '@/pages/manifacturing/downtime/page';
+import LiveDashboardPage from '@/pages/manifacturing/live/page';
 
 const P = ({
   children,
@@ -127,37 +137,44 @@ const routes: RouteObject[] = [
   { path: '/forgot-password', element: <ForgetPasswordPage /> },
   { path: '/reset-password/:token', element: <ResetPasswordPage /> },
 
-  { path: '/', element: <P><Dashboard /></P> },
   {
-  path: '/settings',
-  element: (
-    <Perm
-      module={MODULES.SETTINGS}
-      action="view"
-      override={({ hasPermission, hasControl }) =>
-        hasPermission(MODULES.SETTINGS, "view") ||
-        hasControl("manageUserPermissions")
-      }
-    >
-      <Settings/>
-    </Perm>
-  ),
-},
-{
-  path: '/users',
-  element: (
-    <Perm
-      module={MODULES.USERS}
-      action="view"
-      override={({ hasPermission, hasControl }) =>
-        hasPermission(MODULES.USERS, "view") ||
-        hasControl("manageUserPermissions")
-      }
-    >
-      <Users/>
-    </Perm>
-  ),
-},
+    path: '/',
+    element: (
+      <P>
+        <Dashboard />
+      </P>
+    ),
+  },
+  {
+    path: '/settings',
+    element: (
+      <Perm
+        module={MODULES.SETTINGS}
+        action="view"
+        override={({ hasPermission, hasControl }) =>
+          hasPermission(MODULES.SETTINGS, 'view') ||
+          hasControl('manageUserPermissions')
+        }
+      >
+        <Settings />
+      </Perm>
+    ),
+  },
+  {
+    path: '/users',
+    element: (
+      <Perm
+        module={MODULES.USERS}
+        action="view"
+        override={({ hasPermission, hasControl }) =>
+          hasPermission(MODULES.USERS, 'view') ||
+          hasControl('manageUserPermissions')
+        }
+      >
+        <Users />
+      </Perm>
+    ),
+  },
 
   // ── Masters ───────────────────────────────────────────────────────────────
   { path: '/masters', element: <Navigate to="/masters/company" replace /> },
@@ -178,12 +195,22 @@ const routes: RouteObject[] = [
       </Perm>
     ),
   },
-  { path: '/masters/items', element: <P><ItemsPage /></P> },
-  { path: '/masters/categories',element: (
+  {
+    path: '/masters/items',
+    element: (
+      <P>
+        <ItemsPage />
+      </P>
+    ),
+  },
+  {
+    path: '/masters/categories',
+    element: (
       <Perm module={MODULES.CATEGORIES} action="view">
         <CategoriesUnitsPage />
       </Perm>
-    )},
+    ),
+  },
 
   // ── Sales ─────────────────────────────────────────────────────────────────
   { path: '/sales', element: <Navigate to="/sales/invoices" replace /> },
@@ -195,7 +222,14 @@ const routes: RouteObject[] = [
       </Perm>
     ),
   },
-  { path: '/sales/invoices/new', element: <P><SalesInvoiceNewPage /></P> },
+  {
+    path: '/sales/invoices/new',
+    element: (
+      <P>
+        <SalesInvoiceNewPage />
+      </P>
+    ),
+  },
   {
     path: '/sales/returns',
     element: (
@@ -220,7 +254,14 @@ const routes: RouteObject[] = [
       </Perm>
     ),
   },
-  { path: '/sales/payments/new', element: <P><SalesPaymentPage /></P> },
+  {
+    path: '/sales/payments/new',
+    element: (
+      <P>
+        <SalesPaymentPage />
+      </P>
+    ),
+  },
 
   // ── Purchase ──────────────────────────────────────────────────────────────
   { path: '/purchase', element: <Navigate to="/purchase/orders" replace /> },
@@ -232,8 +273,15 @@ const routes: RouteObject[] = [
       </Perm>
     ),
   },
-  { path: "/purchase-orders/edit/:id", element: <EditPOPage /> },
-  { path: '/purchase/orders/new', element: <P><PurchaseOrderNewPage /></P> },
+  { path: '/purchase-orders/edit/:id', element: <EditPOPage /> },
+  {
+    path: '/purchase/orders/new',
+    element: (
+      <P>
+        <PurchaseOrderNewPage />
+      </P>
+    ),
+  },
   {
     path: '/purchase/invoices',
     element: (
@@ -242,7 +290,14 @@ const routes: RouteObject[] = [
       </Perm>
     ),
   },
-  { path: '/purchase/invoices/new', element: <P><PurchaseInvoiceNewPage /></P> },
+  {
+    path: '/purchase/invoices/new',
+    element: (
+      <P>
+        <PurchaseInvoiceNewPage />
+      </P>
+    ),
+  },
   {
     path: '/purchase/payments',
     element: (
@@ -251,8 +306,22 @@ const routes: RouteObject[] = [
       </Perm>
     ),
   },
-  { path: '/purchase/payments/new', element: <P><PurchasePaymentPage /></P> },
-  { path: '/purchase/payments/news', element: <P><PaymentDuesTable /></P> },
+  {
+    path: '/purchase/payments/new',
+    element: (
+      <P>
+        <PurchasePaymentPage />
+      </P>
+    ),
+  },
+  {
+    path: '/purchase/payments/news',
+    element: (
+      <P>
+        <PaymentDuesTable />
+      </P>
+    ),
+  },
   {
     path: '/purchase/grn',
     element: (
@@ -272,7 +341,14 @@ const routes: RouteObject[] = [
 
   // ── Inventory ─────────────────────────────────────────────────────────────
   { path: '/inventory', element: <Navigate to="/inventory/stock" replace /> },
-  { path: '/inventory/stock', element: <P><StockViewPage /></P> },
+  {
+    path: '/inventory/stock',
+    element: (
+      <P>
+        <StockViewPage />
+      </P>
+    ),
+  },
   {
     path: '/inventory/receiving',
     element: (
@@ -298,20 +374,20 @@ const routes: RouteObject[] = [
   //   ),
   // },
   {
-  path: '/inventory/adjustment',
-  element: (
-    <Perm
-      module={MODULES.STOCK_ADJUSTMENT}
-      action="view"
-      override={({ hasPermission, hasControl }) =>
-        hasPermission(MODULES.STOCK_ADJUSTMENT, "view") ||
-        hasControl("approveStockAdjustment")
-      }
-    >
-      <StockAdjustmentPage />
-    </Perm>
-  ),
-},
+    path: '/inventory/adjustment',
+    element: (
+      <Perm
+        module={MODULES.STOCK_ADJUSTMENT}
+        action="view"
+        override={({ hasPermission, hasControl }) =>
+          hasPermission(MODULES.STOCK_ADJUSTMENT, 'view') ||
+          hasControl('approveStockAdjustment')
+        }
+      >
+        <StockAdjustmentPage />
+      </Perm>
+    ),
+  },
 
   {
     path: '/inventory/stock-entries',
@@ -345,170 +421,296 @@ const routes: RouteObject[] = [
   },
 
   // ── Print ─────────────────────────────────────────────────────────────────
-  { path: '/print', element: <Navigate to="/print/barcode-management" replace /> },
-  { path: '/print/barcode-management', element: <P><BarcodeManagementPage /></P> },
+  {
+    path: '/print',
+    element: <Navigate to="/print/barcode-management" replace />,
+  },
+  {
+    path: '/print/barcode-management',
+    element: (
+      <P>
+        <BarcodeManagementPage />
+      </P>
+    ),
+  },
   // Legacy redirect
-  { path: '/inventory/barcode-management', element: <Navigate to="/print/barcode-management" replace /> },
+  {
+    path: '/inventory/barcode-management',
+    element: <Navigate to="/print/barcode-management" replace />,
+  },
+
+  {
+    path: '/manufacturing/bom-list',
+    element: (
+      <Perm module={MODULES.PURCHASE_PAYMENT} action="view">
+        <BOMListTable />
+      </Perm>
+    ),
+  },
+
+  {
+    path: '/manufacturing/create-bom',
+    element: (
+      <Perm module={MODULES.PURCHASE_PAYMENT} action="view">
+        <BOMForm />
+      </Perm>
+    ),
+  },
+  {
+    path: '/manufacturing/production-orders',
+    element: (
+      <Perm module={MODULES.PURCHASE_PAYMENT} action="view">
+        <ProductionOrderForm />
+      </Perm>
+    ),
+  },
+  {
+    path: '/manufacturing/work-orders',
+    element: (
+      <Perm module={MODULES.PURCHASE_PAYMENT} action="view">
+        <WorkOrdersPage />
+      </Perm>
+    ),
+  },
+  {
+    path: '/manufacturing/schedule',
+    element: (
+      <Perm module={MODULES.PURCHASE_PAYMENT} action="view">
+        <ProductionSchedulePage />
+      </Perm>
+    ),
+  },
+  {
+    path: '/manufacturing/mrp',
+    element: (
+      <Perm module={MODULES.PURCHASE_PAYMENT} action="view">
+        <MRPRunPage />
+      </Perm>
+    ),
+  },
+  {
+    path: '/manufacturing/mrp/shortage',
+    element: (
+      <Perm module={MODULES.PURCHASE_PAYMENT} action="view">
+        <MaterialShortagePage />
+      </Perm>
+    ),
+  },
+  {
+    path: '/manufacturing/shop-floor',
+    element: (
+      <Perm module={MODULES.PURCHASE_PAYMENT} action="view">
+        <ProductionEntryPage />
+      </Perm>
+    ),
+  },
+  {
+    path: '/manufacturing/downtime',
+    element: (
+      <Perm module={MODULES.PURCHASE_PAYMENT} action="view">
+        <DowntimeEntryPage />
+      </Perm>
+    ),
+  },
+  {
+    path: '/manufacturing/live',
+    element: (
+      <Perm module={MODULES.PURCHASE_PAYMENT} action="view">
+        <LiveDashboardPage />
+      </Perm>
+    ),
+  },
+  // {
+  //   path: '/manufacturing',
+  //   element: <Navigate to="/manufacturing/bom/new" replace />,
+  // },
 
   // ── Guard-only routes (/guard/*) ──────────────────────────────────────────
   { path: '/guard', element: <Navigate to="/guard/dashboard" replace /> },
-  { path: '/guard/dashboard', element: <GuardOnly><GuardDashboard /></GuardOnly> },
-  { path: '/guard/outward', element: <GuardOnly><GuardOutwardPage /></GuardOnly> },
-  { path: '/guard/inward', element: <GuardOnly><GuardInwardPage /></GuardOnly> },
+  {
+    path: '/guard/dashboard',
+    element: (
+      <GuardOnly>
+        <GuardDashboard />
+      </GuardOnly>
+    ),
+  },
+  {
+    path: '/guard/outward',
+    element: (
+      <GuardOnly>
+        <GuardOutwardPage />
+      </GuardOnly>
+    ),
+  },
+  {
+    path: '/guard/inward',
+    element: (
+      <GuardOnly>
+        <GuardInwardPage />
+      </GuardOnly>
+    ),
+  },
 
   // ── Reports ───────────────────────────────────────────────────────────────
-  { path: '/reports', element: <P><ReportsLanding /></P> },
   {
-  path: '/reports/stock-summary',
-  element: (
-    <Perm
-      module={MODULES.REPORT_STOCK_SUMMARY}
-      action="view"
-      override={({ hasPermission, hasControl }) =>
-        hasPermission(MODULES.REPORT_STOCK_SUMMARY, "view") ||
-        hasControl('viewFinancialReports')
-      }
-    >
-      <StockSummaryReport />
-    </Perm>
-  ),
-},
- {
-  path: '/reports/party-ledger',
-  element: (
-    <Perm
-      module={MODULES.REPORT_PARTY_LEDGER}
-      action="view"
-      override={({ hasPermission, hasControl }) =>
-        hasPermission(MODULES.REPORT_PARTY_LEDGER, "view") ||
-        hasControl('viewFinancialReports')
-      }
-    >
-      <PartyLedgerReport />
-    </Perm>
-  ),
-},
-{
-  path: '/reports/low-stock',
-  element: (
-    <Perm
-      module={MODULES.REPORT_LOW_STOCK}
-      action="view"
-      override={({ hasPermission, hasControl }) =>
-        hasPermission(MODULES.REPORT_LOW_STOCK, "view") ||
-        hasControl('viewFinancialReports')
-      }
-    >
-      <LowStockReport />
-    </Perm>
-  ),
-},
-{
-  path: '/reports/purchase-register',
-  element: (
-    <Perm
-      module={MODULES.REPORT_PURCHASE_REG}
-      action="view"
-      override={({ hasPermission, hasControl }) =>
-        hasPermission(MODULES.REPORT_PURCHASE_REG, "view") ||
-        hasControl('viewFinancialReports')
-      }
-    >
-      <PurchaseRegisterReport />
-    </Perm>
-  ),
-},
+    path: '/reports',
+    element: (
+      <P>
+        <ReportsLanding />
+      </P>
+    ),
+  },
   {
-  path: '/reports/gst-purchase',
-  element: (
-    <Perm
-      module={MODULES.REPORT_GST_PURCHASE}
-      action="view"
-      override={({ hasPermission, hasControl }) =>
-        hasPermission(MODULES.REPORT_GST_PURCHASE, "view") ||
-        hasControl('viewFinancialReports')
-      }
-    >
-      <GSTPurchaseReport />
-    </Perm>
-  ),
-},
- {
-  path: '/reports/stock-ledger',
-  element: (
-    <Perm
-      module={MODULES.REPORT_STOCK_LEDGER}
-      action="view"
-      override={({ hasPermission, hasControl }) =>
-        hasPermission(MODULES.REPORT_STOCK_LEDGER, "view") ||
-        hasControl('viewFinancialReports')
-      }
-    >
-      <StockLedgerReport />
-    </Perm>
-  ),
-},
-{
-  path: '/reports/day-book',
-  element: (
-    <Perm
-      module={MODULES.REPORT_DAY_BOOK}
-      action="view"
-      override={({ hasPermission, hasControl }) =>
-        hasPermission(MODULES.REPORT_DAY_BOOK, "view") ||
-        hasControl('viewFinancialReports')
-      }
-    >
-      <DayBookReport />
-    </Perm>
-  ),
-},
-{
-  path: '/reports/outstanding',
-  element: (
-    <Perm
-      module={MODULES.REPORT_OUTSTANDING}
-      action="view"
-      override={({ hasPermission, hasControl }) =>
-        hasPermission(MODULES.REPORT_OUTSTANDING, "view") ||
-        hasControl('viewFinancialReports')
-      }
-    >
-      <OutstandingReport />
-    </Perm>
-  ),
-},
+    path: '/reports/stock-summary',
+    element: (
+      <Perm
+        module={MODULES.REPORT_STOCK_SUMMARY}
+        action="view"
+        override={({ hasPermission, hasControl }) =>
+          hasPermission(MODULES.REPORT_STOCK_SUMMARY, 'view') ||
+          hasControl('viewFinancialReports')
+        }
+      >
+        <StockSummaryReport />
+      </Perm>
+    ),
+  },
   {
-  path: '/reports/gst-sales',
-  element: (
-    <Perm
-      module={MODULES.REPORT_GST_SALES}
-      action="view"
-      override={({ hasPermission, hasControl }) =>
-        hasPermission(MODULES.REPORT_GST_SALES, "view") ||
-        hasControl('viewFinancialReports')
-      }
-    >
-      <GSTSalesReport />
-    </Perm>
-  ),
-},  
-{
-  path: '/reports/sales-register',
-  element: (
-    <Perm
-      module={MODULES.REPORT_SALES_REG}
-      action="view"
-      override={({ hasPermission, hasControl }) =>
-        hasPermission(MODULES.REPORT_SALES_REG, "view") ||
-        hasControl('viewFinancialReports')
-      }
-    >
-      <SalesRegisterReport/>
-    </Perm>
-  ),
-},
-
+    path: '/reports/party-ledger',
+    element: (
+      <Perm
+        module={MODULES.REPORT_PARTY_LEDGER}
+        action="view"
+        override={({ hasPermission, hasControl }) =>
+          hasPermission(MODULES.REPORT_PARTY_LEDGER, 'view') ||
+          hasControl('viewFinancialReports')
+        }
+      >
+        <PartyLedgerReport />
+      </Perm>
+    ),
+  },
+  {
+    path: '/reports/low-stock',
+    element: (
+      <Perm
+        module={MODULES.REPORT_LOW_STOCK}
+        action="view"
+        override={({ hasPermission, hasControl }) =>
+          hasPermission(MODULES.REPORT_LOW_STOCK, 'view') ||
+          hasControl('viewFinancialReports')
+        }
+      >
+        <LowStockReport />
+      </Perm>
+    ),
+  },
+  {
+    path: '/reports/purchase-register',
+    element: (
+      <Perm
+        module={MODULES.REPORT_PURCHASE_REG}
+        action="view"
+        override={({ hasPermission, hasControl }) =>
+          hasPermission(MODULES.REPORT_PURCHASE_REG, 'view') ||
+          hasControl('viewFinancialReports')
+        }
+      >
+        <PurchaseRegisterReport />
+      </Perm>
+    ),
+  },
+  {
+    path: '/reports/gst-purchase',
+    element: (
+      <Perm
+        module={MODULES.REPORT_GST_PURCHASE}
+        action="view"
+        override={({ hasPermission, hasControl }) =>
+          hasPermission(MODULES.REPORT_GST_PURCHASE, 'view') ||
+          hasControl('viewFinancialReports')
+        }
+      >
+        <GSTPurchaseReport />
+      </Perm>
+    ),
+  },
+  {
+    path: '/reports/stock-ledger',
+    element: (
+      <Perm
+        module={MODULES.REPORT_STOCK_LEDGER}
+        action="view"
+        override={({ hasPermission, hasControl }) =>
+          hasPermission(MODULES.REPORT_STOCK_LEDGER, 'view') ||
+          hasControl('viewFinancialReports')
+        }
+      >
+        <StockLedgerReport />
+      </Perm>
+    ),
+  },
+  {
+    path: '/reports/day-book',
+    element: (
+      <Perm
+        module={MODULES.REPORT_DAY_BOOK}
+        action="view"
+        override={({ hasPermission, hasControl }) =>
+          hasPermission(MODULES.REPORT_DAY_BOOK, 'view') ||
+          hasControl('viewFinancialReports')
+        }
+      >
+        <DayBookReport />
+      </Perm>
+    ),
+  },
+  {
+    path: '/reports/outstanding',
+    element: (
+      <Perm
+        module={MODULES.REPORT_OUTSTANDING}
+        action="view"
+        override={({ hasPermission, hasControl }) =>
+          hasPermission(MODULES.REPORT_OUTSTANDING, 'view') ||
+          hasControl('viewFinancialReports')
+        }
+      >
+        <OutstandingReport />
+      </Perm>
+    ),
+  },
+  {
+    path: '/reports/gst-sales',
+    element: (
+      <Perm
+        module={MODULES.REPORT_GST_SALES}
+        action="view"
+        override={({ hasPermission, hasControl }) =>
+          hasPermission(MODULES.REPORT_GST_SALES, 'view') ||
+          hasControl('viewFinancialReports')
+        }
+      >
+        <GSTSalesReport />
+      </Perm>
+    ),
+  },
+  {
+    path: '/reports/sales-register',
+    element: (
+      <Perm
+        module={MODULES.REPORT_SALES_REG}
+        action="view"
+        override={({ hasPermission, hasControl }) =>
+          hasPermission(MODULES.REPORT_SALES_REG, 'view') ||
+          hasControl('viewFinancialReports')
+        }
+      >
+        <SalesRegisterReport />
+      </Perm>
+    ),
+  },
 
   { path: '*', element: <NotFound /> },
 ];

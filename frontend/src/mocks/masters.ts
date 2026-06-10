@@ -16,6 +16,800 @@ export const mockCompany = {
   purchasePrefix: 'PO',
 };
 
+export interface MockMaterialReservation {
+  id: string;
+  productionOrderId: string;
+  itemId: string;
+  itemName: string;
+  itemCode: string;
+  requiredQty: number;
+  reservedQty: number;
+  unit: string;
+  status: 'PENDING' | 'RESERVED' | 'PARTIAL' | 'RELEASED';
+  warehouseId: string;
+}
+
+export let mockMaterialReservations: MockMaterialReservation[] = [
+  {
+    id: 'mr-001',
+    productionOrderId: 'prod-001',
+    itemId: 'itm-016',
+    itemName: 'Steel Rod 10mm',
+    itemCode: 'ITM-0301',
+    requiredQty: 18.9,
+    reservedQty: 18.9,
+    unit: 'Kg',
+    status: 'RESERVED',
+    warehouseId: 'wh-001',
+  },
+  {
+    id: 'mr-002',
+    productionOrderId: 'prod-001',
+    itemId: 'itm-019',
+    itemName: 'Cutting Oil 5L',
+    itemCode: 'ITM-0304',
+    requiredQty: 1.5,
+    reservedQty: 1.5,
+    unit: 'Ltr',
+    status: 'RESERVED',
+    warehouseId: 'wh-001',
+  },
+  {
+    id: 'mr-003',
+    productionOrderId: 'prod-001',
+    itemId: 'itm-017',
+    itemName: 'Gear Assembly A',
+    itemCode: 'ITM-0302',
+    requiredQty: 1.02,
+    reservedQty: 1,
+    unit: 'Pcs',
+    status: 'PARTIAL',
+    warehouseId: 'wh-001',
+  },
+  {
+    id: 'mr-004',
+    productionOrderId: 'prod-001',
+    itemId: 'itm-020',
+    itemName: 'Cardboard Box',
+    itemCode: 'ITM-0305',
+    requiredQty: 1,
+    reservedQty: 0,
+    unit: 'Box',
+    status: 'PENDING',
+    warehouseId: 'wh-001',
+  },
+];
+
+export interface MockProductionOrder {
+  id: string;
+  poNumber: string;
+  type: 'MTO' | 'MTS';
+  status:
+    | 'DRAFT'
+    | 'PLANNED'
+    | 'IN_PROGRESS'
+    | 'COMPLETED'
+    | 'ON_HOLD'
+    | 'CANCELLED';
+  priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+  productId: string;
+  productName: string;
+  productCode: string;
+  isVariant: boolean;
+  variantName: string | null;
+  bomId: string;
+  bomVersion: string;
+  plannedQty: number;
+  completedQty: number;
+  rejectedQty: number;
+  unit: string;
+  plannedStartDate: string;
+  plannedEndDate: string;
+  actualStartDate: string | null;
+  actualEndDate: string | null;
+  salesOrderRef: string | null;
+  salesOrderId: string | null;
+  warehouseId: string;
+  warehouseName: string;
+  routingId: string | null;
+  notes: string | null;
+  createdBy: string;
+  createdAt: string;
+}
+export interface MockProductionEntry {
+  id: string;
+  entryNumber: string;
+  productionOrderId: string;
+  productionOrderNumber: string;
+  workOrderId: string;
+  workOrderNumber: string;
+  stageName: string;
+  workCenterId: string;
+  workCenterName: string;
+  machineId: string | null;
+  machineName: string | null;
+  operatorId: string;
+  operatorName: string;
+  shiftId: string;
+  shiftName: string;
+  date: string;
+  producedQty: number;
+  rejectedQty: number;
+  unit: string;
+  startTime: string;
+  endTime: string;
+  actualTimeMinutes: number;
+  notes: string | null;
+  enteredBy: string;
+  supervisorId: string | null;
+  supervisorName: string | null;
+  isApproved: boolean;
+  createdAt: string;
+}
+
+export const mockProductionEntries: MockProductionEntry[] = [
+  {
+    id: 'pe-001',
+    entryNumber: 'PE-2024-001',
+    productionOrderId: 'prod-001',
+    productionOrderNumber: 'PRD-2024-001',
+    workOrderId: 'wo-002',
+    workOrderNumber: 'WO-2024-001-2',
+    stageName: 'Casting & Cutting',
+    workCenterId: 'wc-001',
+    workCenterName: 'Cutting Area',
+    machineId: 'mc-001',
+    machineName: 'CNC Machine 1',
+    operatorId: 'op-001',
+    operatorName: 'Ramesh Yadav',
+    shiftId: 'sh-001',
+    shiftName: 'Morning',
+    date: '2024-04-16',
+    producedQty: 3,
+    rejectedQty: 0,
+    unit: 'Pcs',
+    startTime: '06:00',
+    endTime: '10:00',
+    actualTimeMinutes: 240,
+    notes: null,
+    enteredBy: 'op-001',
+    supervisorId: null,
+    supervisorName: 'Meena Devi',
+    isApproved: true,
+    createdAt: '2024-04-16T10:30:00Z',
+  },
+  {
+    id: 'pe-002',
+    entryNumber: 'PE-2024-002',
+    productionOrderId: 'prod-001',
+    productionOrderNumber: 'PRD-2024-001',
+    workOrderId: 'wo-002',
+    workOrderNumber: 'WO-2024-001-2',
+    stageName: 'Casting & Cutting',
+    workCenterId: 'wc-001',
+    workCenterName: 'Cutting Area',
+    machineId: 'mc-001',
+    machineName: 'CNC Machine 1',
+    operatorId: 'op-001',
+    operatorName: 'Ramesh Yadav',
+    shiftId: 'sh-001',
+    shiftName: 'Morning',
+    date: '2024-04-17',
+    producedQty: 2,
+    rejectedQty: 0,
+    unit: 'Pcs',
+    startTime: '06:00',
+    endTime: '08:30',
+    actualTimeMinutes: 150,
+    notes: null,
+    enteredBy: 'op-001',
+    supervisorId: null,
+    supervisorName: 'Meena Devi',
+    isApproved: true,
+    createdAt: '2024-04-17T08:45:00Z',
+  },
+  {
+    id: 'pe-003',
+    entryNumber: 'PE-2024-003',
+    productionOrderId: 'prod-001',
+    productionOrderNumber: 'PRD-2024-001',
+    workOrderId: 'wo-003',
+    workOrderNumber: 'WO-2024-001-3',
+    stageName: 'Machining',
+    workCenterId: 'wc-001',
+    workCenterName: 'Cutting Area',
+    machineId: 'mc-004',
+    machineName: 'Hydraulic Press 2',
+    operatorId: 'op-001',
+    operatorName: 'Ramesh Yadav',
+    shiftId: 'sh-001',
+    shiftName: 'Morning',
+    date: '2024-04-18',
+    producedQty: 2,
+    rejectedQty: 0,
+    unit: 'Pcs',
+    startTime: '06:00',
+    endTime: '14:00',
+    actualTimeMinutes: 480,
+    notes: null,
+    enteredBy: 'op-001',
+    supervisorId: null,
+    supervisorName: null,
+    isApproved: false,
+    createdAt: '2024-04-18T14:30:00Z',
+  },
+  {
+    id: 'pe-004',
+    entryNumber: 'PE-2024-004',
+    productionOrderId: 'prod-001',
+    productionOrderNumber: 'PRD-2024-001',
+    workOrderId: 'wo-003',
+    workOrderNumber: 'WO-2024-001-3',
+    stageName: 'Machining',
+    workCenterId: 'wc-001',
+    workCenterName: 'Cutting Area',
+    machineId: 'mc-004',
+    machineName: 'Hydraulic Press 2',
+    operatorId: 'op-001',
+    operatorName: 'Ramesh Yadav',
+    shiftId: 'sh-001',
+    shiftName: 'Morning',
+    date: '2024-04-19',
+    producedQty: 0,
+    rejectedQty: 1,
+    unit: 'Pcs',
+    startTime: '06:00',
+    endTime: '08:00',
+    actualTimeMinutes: 120,
+    notes: 'Machine calibration issue',
+    enteredBy: 'op-001',
+    supervisorId: null,
+    supervisorName: null,
+    isApproved: false,
+    createdAt: '2024-04-19T08:15:00Z',
+  },
+  {
+    id: 'pe-005',
+    entryNumber: 'PE-2024-005',
+    productionOrderId: 'prod-003',
+    productionOrderNumber: 'PRD-2024-003',
+    workOrderId: 'wo-006',
+    workOrderNumber: 'WO-2024-001-6',
+    stageName: 'Packing',
+    workCenterId: 'wc-003',
+    workCenterName: 'Packing Zone',
+    machineId: null,
+    machineName: null,
+    operatorId: 'op-003',
+    operatorName: 'Anita Sharma',
+    shiftId: 'sh-002',
+    shiftName: 'Afternoon',
+    date: '2024-04-09',
+    producedQty: 10,
+    rejectedQty: 1,
+    unit: 'Pcs',
+    startTime: '14:00',
+    endTime: '18:00',
+    actualTimeMinutes: 240,
+    notes: null,
+    enteredBy: 'op-003',
+    supervisorId: null,
+    supervisorName: null,
+    isApproved: true,
+    createdAt: '2024-04-09T18:30:00Z',
+  },
+];
+
+export let mockProductionOrders: MockProductionOrder[] = [
+  {
+    id: 'prod-001',
+    poNumber: 'PRD-2024-001',
+    type: 'MTO',
+    status: 'IN_PROGRESS',
+    priority: 'HIGH',
+    productId: 'itm-v001',
+    productName: 'Industrial Pump X',
+    productCode: 'ITM-0303-100',
+    isVariant: true,
+    variantName: 'Pump X-100 (100 LPM)',
+    bomId: 'bom-v001',
+    bomVersion: '1.0',
+    plannedQty: 5,
+    completedQty: 2,
+    rejectedQty: 0,
+    unit: 'Pcs',
+    plannedStartDate: '2024-04-15',
+    plannedEndDate: '2024-04-25',
+    actualStartDate: '2024-04-15',
+    actualEndDate: null,
+    salesOrderRef: 'INV-2024-003',
+    salesOrderId: 'si-003',
+    warehouseId: 'wh-005',
+    warehouseName: 'Manufacturing Plant',
+    routingId: 'rt-001',
+    notes: null,
+    createdBy: 'Admin User',
+    createdAt: '2024-04-14T09:00:00Z',
+  },
+  {
+    id: 'prod-002',
+    poNumber: 'PRD-2024-002',
+    type: 'MTS',
+    status: 'PLANNED',
+    priority: 'NORMAL',
+    productId: 'itm-v002',
+    productName: 'Industrial Pump X',
+    productCode: 'ITM-0303-200',
+    isVariant: true,
+    variantName: 'Pump X-200 (200 LPM)',
+    bomId: 'bom-v002',
+    bomVersion: '1.0',
+    plannedQty: 3,
+    completedQty: 0,
+    rejectedQty: 0,
+    unit: 'Pcs',
+    plannedStartDate: '2024-04-28',
+    plannedEndDate: '2024-05-05',
+    actualStartDate: null,
+    actualEndDate: null,
+    salesOrderRef: null,
+    salesOrderId: null,
+    warehouseId: 'wh-005',
+    warehouseName: 'Manufacturing Plant',
+    routingId: 'rt-001',
+    notes: 'Replenish stock to min level',
+    createdBy: 'Admin User',
+    createdAt: '2024-04-20T10:00:00Z',
+  },
+  {
+    id: 'prod-003',
+    poNumber: 'PRD-2024-003',
+    type: 'MTO',
+    status: 'COMPLETED',
+    priority: 'NORMAL',
+    productId: 'itm-017',
+    productName: 'Gear Assembly A',
+    productCode: 'ITM-0302',
+    isVariant: false,
+    variantName: null,
+    bomId: 'bom_pending',
+    bomVersion: '0.1',
+    plannedQty: 10,
+    completedQty: 10,
+    rejectedQty: 1,
+    unit: 'Pcs',
+    plannedStartDate: '2024-04-01',
+    plannedEndDate: '2024-04-10',
+    actualStartDate: '2024-04-01',
+    actualEndDate: '2024-04-09',
+    salesOrderRef: 'INV-2024-001',
+    salesOrderId: 'si-001',
+    warehouseId: 'wh-005',
+    warehouseName: 'Manufacturing Plant',
+    routingId: 'rt-002',
+    notes: null,
+    createdBy: 'Admin User',
+    createdAt: '2024-03-30T08:00:00Z',
+  },
+  {
+    id: 'prod-004',
+    poNumber: 'PRD-2024-004',
+    type: 'MTS',
+    status: 'DRAFT',
+    priority: 'LOW',
+    productId: 'itm-v001',
+    productName: 'Industrial Pump X',
+    productCode: 'ITM-0303-100',
+    isVariant: true,
+    variantName: 'Pump X-100 (100 LPM)',
+    bomId: 'bom-v001',
+    bomVersion: '1.0',
+    plannedQty: 2,
+    completedQty: 0,
+    rejectedQty: 0,
+    unit: 'Pcs',
+    plannedStartDate: '2024-05-10',
+    plannedEndDate: '2024-05-15',
+    actualStartDate: null,
+    actualEndDate: null,
+    salesOrderRef: null,
+    salesOrderId: null,
+    warehouseId: 'wh-005',
+    warehouseName: 'Manufacturing Plant',
+    routingId: 'rt-001',
+    notes: null,
+    createdBy: 'Admin User',
+    createdAt: '2024-04-25T11:00:00Z',
+  },
+  {
+    id: 'prod-005',
+    poNumber: 'PRD-2024-005',
+    type: 'MTO',
+    status: 'ON_HOLD',
+    priority: 'URGENT',
+    productId: 'itm-v002',
+    productName: 'Industrial Pump X',
+    productCode: 'ITM-0303-200',
+    isVariant: true,
+    variantName: 'Pump X-200 (200 LPM)',
+    bomId: 'bom-v002',
+    bomVersion: '1.0',
+    plannedQty: 4,
+    completedQty: 1,
+    rejectedQty: 0,
+    unit: 'Pcs',
+    plannedStartDate: '2024-04-20',
+    plannedEndDate: '2024-04-30',
+    actualStartDate: '2024-04-20',
+    actualEndDate: null,
+    salesOrderRef: 'INV-2024-002',
+    salesOrderId: 'si-002',
+    warehouseId: 'wh-005',
+    warehouseName: 'Manufacturing Plant',
+    routingId: 'rt-001',
+    notes: 'Material shortage — on hold',
+    createdBy: 'Admin User',
+    createdAt: '2024-04-18T14:00:00Z',
+  },
+];
+
+export interface MockRoutingStage {
+  id: string;
+  stageNumber: number;
+  stageName: string;
+  workCenterId: string | null;
+  workCenterName: string | null;
+  machineId: string | null;
+  machineName: string | null;
+  standardTimeMinutes: number;
+  setupTimeMinutes: number;
+  description: string | null;
+  qcRequired: boolean;
+}
+
+export interface MockShift {
+  id: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+  breakMinutes: number;
+  workingDays: string[];
+  isActive: boolean;
+}
+
+export interface MockDowntimeCode {
+  id: string;
+  code: string;
+  description: string;
+  category:
+    | 'BREAKDOWN'
+    | 'PLANNED'
+    | 'MATERIAL'
+    | 'POWER'
+    | 'OPERATOR'
+    | 'SETUP'
+    | 'OTHER';
+  affectsMachine: boolean;
+  isActive: boolean;
+}
+
+export const mockDowntimeCodes: MockDowntimeCode[] = [
+  {
+    id: 'dt-001',
+    code: 'DT-BRK',
+    description: 'Machine Breakdown',
+    category: 'BREAKDOWN',
+    affectsMachine: true,
+    isActive: true,
+  },
+  {
+    id: 'dt-002',
+    code: 'DT-PM',
+    description: 'Planned Maintenance',
+    category: 'PLANNED',
+    affectsMachine: true,
+    isActive: true,
+  },
+  {
+    id: 'dt-003',
+    code: 'DT-MAT',
+    description: 'Material Shortage',
+    category: 'MATERIAL',
+    affectsMachine: false,
+    isActive: true,
+  },
+  {
+    id: 'dt-004',
+    code: 'DT-PWR',
+    description: 'Power Failure',
+    category: 'POWER',
+    affectsMachine: true,
+    isActive: true,
+  },
+  {
+    id: 'dt-005',
+    code: 'DT-OPR',
+    description: 'Operator Absent',
+    category: 'OPERATOR',
+    affectsMachine: false,
+    isActive: true,
+  },
+  {
+    id: 'dt-006',
+    code: 'DT-SET',
+    description: 'Machine Setup/Changeover',
+    category: 'SETUP',
+    affectsMachine: true,
+    isActive: true,
+  },
+  {
+    id: 'dt-007',
+    code: 'DT-OTH',
+    description: 'Other',
+    category: 'OTHER',
+    affectsMachine: false,
+    isActive: true,
+  },
+];
+
+export const mockShifts: MockShift[] = [
+  {
+    id: 'sh-001',
+    name: 'Morning',
+    startTime: '06:00',
+    endTime: '14:00',
+    breakMinutes: 30,
+    workingDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+    isActive: true,
+  },
+  {
+    id: 'sh-002',
+    name: 'Afternoon',
+    startTime: '14:00',
+    endTime: '22:00',
+    breakMinutes: 30,
+    workingDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+    isActive: true,
+  },
+  {
+    id: 'sh-003',
+    name: 'Night',
+    startTime: '22:00',
+    endTime: '06:00',
+    breakMinutes: 45,
+    workingDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+    isActive: true,
+  },
+];
+
+export interface MockRouting {
+  id: string;
+  name: string;
+  code: string;
+  itemId: string | null;
+  itemName: string | null;
+  version: string;
+  status: 'ACTIVE' | 'DRAFT' | 'OBSOLETE';
+  stages: MockRoutingStage[];
+  totalTimeMinutes: number;
+  createdAt: string;
+  isActive: boolean;
+}
+
+export const mockRoutings: MockRouting[] = [
+  {
+    id: 'rt-001',
+    name: 'Industrial Pump Routing',
+    code: 'RT-IP-001',
+    itemId: 'itm-018',
+    itemName: 'Industrial Pump X',
+    version: '1.0',
+    status: 'ACTIVE',
+    isActive: true,
+    totalTimeMinutes: 275,
+    createdAt: '2024-08-15T10:00:00Z',
+    stages: [
+      {
+        id: 'rs-001',
+        stageNumber: 1,
+        stageName: 'Incoming Inspection',
+        workCenterId: 'wc-003',
+        workCenterName: 'Packing Zone',
+        machineId: null,
+        machineName: null,
+        standardTimeMinutes: 30,
+        setupTimeMinutes: 5,
+        description: 'Inspect raw materials before production',
+        qcRequired: true,
+      },
+      {
+        id: 'rs-002',
+        stageNumber: 2,
+        stageName: 'Casting & Cutting',
+        workCenterId: 'wc-001',
+        workCenterName: 'Cutting Area',
+        machineId: 'mc-001',
+        machineName: 'CNC Machine 1',
+        standardTimeMinutes: 60,
+        setupTimeMinutes: 15,
+        description: 'Cast and cut pump body parts',
+        qcRequired: false,
+      },
+      {
+        id: 'rs-003',
+        stageNumber: 3,
+        stageName: 'Machining',
+        workCenterId: 'wc-001',
+        workCenterName: 'Cutting Area',
+        machineId: 'mc-004',
+        machineName: 'Hydraulic Press 2',
+        standardTimeMinutes: 90,
+        setupTimeMinutes: 20,
+        description: 'Machine all precision components',
+        qcRequired: false,
+      },
+      {
+        id: 'rs-004',
+        stageNumber: 4,
+        stageName: 'Assembly',
+        workCenterId: 'wc-002',
+        workCenterName: 'Assembly Line 1',
+        machineId: null,
+        machineName: null,
+        standardTimeMinutes: 45,
+        setupTimeMinutes: 10,
+        description: 'Assemble pump components',
+        qcRequired: true,
+      },
+      {
+        id: 'rs-005',
+        stageNumber: 5,
+        stageName: 'Final Inspection',
+        workCenterId: 'wc-003',
+        workCenterName: 'Packing Zone',
+        machineId: null,
+        machineName: null,
+        standardTimeMinutes: 30,
+        setupTimeMinutes: 0,
+        description: 'Final QC before packing',
+        qcRequired: true,
+      },
+      {
+        id: 'rs-006',
+        stageNumber: 6,
+        stageName: 'Packing',
+        workCenterId: 'wc-003',
+        workCenterName: 'Packing Zone',
+        machineId: null,
+        machineName: null,
+        standardTimeMinutes: 20,
+        setupTimeMinutes: 5,
+        description: 'Pack finished pump for dispatch',
+        qcRequired: false,
+      },
+    ],
+  },
+  {
+    id: 'rt-002',
+    name: 'Gear Assembly Routing',
+    code: 'RT-GA-001',
+    itemId: 'itm-017',
+    itemName: 'Gear Assembly A',
+    version: '1.0',
+    status: 'ACTIVE',
+    isActive: true,
+    totalTimeMinutes: 180,
+    createdAt: '2024-08-20T14:00:00Z',
+    stages: [
+      {
+        id: 'rs-007',
+        stageNumber: 1,
+        stageName: 'Cutting',
+        workCenterId: 'wc-001',
+        workCenterName: 'Cutting Area',
+        machineId: 'mc-001',
+        machineName: 'CNC Machine 1',
+        standardTimeMinutes: 40,
+        setupTimeMinutes: 15,
+        description: 'Rough cutting of gear blanks',
+        qcRequired: false,
+      },
+      {
+        id: 'rs-008',
+        stageNumber: 2,
+        stageName: 'Grinding',
+        workCenterId: 'wc-001',
+        workCenterName: 'Cutting Area',
+        machineId: 'mc-001',
+        machineName: 'CNC Machine 1',
+        standardTimeMinutes: 55,
+        setupTimeMinutes: 10,
+        description: 'Precision grinding of gear teeth',
+        qcRequired: false,
+      },
+      {
+        id: 'rs-009',
+        stageNumber: 3,
+        stageName: 'Heat Treatment',
+        workCenterId: 'wc-002',
+        workCenterName: 'Assembly Line 1',
+        machineId: null,
+        machineName: null,
+        standardTimeMinutes: 50,
+        setupTimeMinutes: 20,
+        description: 'Hardening and tempering process',
+        qcRequired: true,
+      },
+      {
+        id: 'rs-010',
+        stageNumber: 4,
+        stageName: 'Inspection',
+        workCenterId: 'wc-003',
+        workCenterName: 'Packing Zone',
+        machineId: null,
+        machineName: null,
+        standardTimeMinutes: 35,
+        setupTimeMinutes: 5,
+        description: 'Dimensional and hardness inspection',
+        qcRequired: true,
+      },
+    ],
+  },
+  {
+    id: 'rt-003',
+    name: 'General Machining Routing',
+    code: 'RT-GEN-001',
+    itemId: null,
+    itemName: null,
+    version: '0.1',
+    status: 'DRAFT',
+    isActive: true,
+    totalTimeMinutes: 120,
+    createdAt: '2024-09-01T09:00:00Z',
+    stages: [
+      {
+        id: 'rs-011',
+        stageNumber: 1,
+        stageName: 'Setup',
+        workCenterId: 'wc-001',
+        workCenterName: 'Cutting Area',
+        machineId: 'mc-001',
+        machineName: 'CNC Machine 1',
+        standardTimeMinutes: 20,
+        setupTimeMinutes: 15,
+        description: 'Fixture setup and tool loading',
+        qcRequired: false,
+      },
+      {
+        id: 'rs-012',
+        stageNumber: 2,
+        stageName: 'Machining',
+        workCenterId: 'wc-001',
+        workCenterName: 'Cutting Area',
+        machineId: 'mc-004',
+        machineName: 'Hydraulic Press 2',
+        standardTimeMinutes: 75,
+        setupTimeMinutes: 10,
+        description: 'Primary machining operations',
+        qcRequired: false,
+      },
+      {
+        id: 'rs-013',
+        stageNumber: 3,
+        stageName: 'Inspection',
+        workCenterId: 'wc-003',
+        workCenterName: 'Packing Zone',
+        machineId: null,
+        machineName: null,
+        standardTimeMinutes: 25,
+        setupTimeMinutes: 0,
+        description: 'Dimensional verification and surface check',
+        qcRequired: true,
+      },
+    ],
+  },
+];
+
 // ─── Warehouses ───────────────────────────────────────────────────────────────
 export const mockWarehouses = [
   { id: 'wh-001', name: 'Main Warehouse', type: 'GODOWN' as const, address: '204, Tech Park, Baner, Pune 411045', inchargeName: 'Suresh Patil', inchargePhone: '9876543210', isActive: true, itemCount: 128, totalValue: 4820000 },
@@ -96,6 +890,1021 @@ export const mockUnits = [
   { id: 'unt-007', name: 'Sets', shortName: 'Set', isActive: true, itemCount: 18 },
   { id: 'unt-008', name: 'Rolls', shortName: 'Roll', isActive: false, itemCount: 0 },
 ];
+
+export interface MockWorkOrder {
+  id: string;
+  woNumber: string;
+  productionOrderId: string;
+  productionOrderNumber: string;
+  stageNumber: number;
+  stageName: string;
+  workCenterId: string;
+  workCenterName: string;
+  machineId: string | null;
+  machineName: string | null;
+  operatorId: string | null;
+  operatorName: string | null;
+  shiftId: string | null;
+  shiftName: string | null;
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'ON_HOLD';
+  plannedQty: number;
+  completedQty: number;
+  rejectedQty: number;
+  plannedStartDate: string;
+  plannedEndDate: string;
+  actualStartDate: string | null;
+  actualEndDate: string | null;
+  plannedTimeMinutes: number;
+  actualTimeMinutes: number | null;
+  notes: string | null;
+}
+
+export interface MockWorkCenter {
+  id: string;
+  name: string;
+  type: 'MACHINE' | 'LABOR' | 'BOTH';
+  capacityPerHour: number;
+  warehouseId: string | null;
+  description: string;
+  isActive: boolean;
+}
+
+export interface MockOperator {
+  id: string;
+  name: string;
+  employeeCode: string;
+  skill: 'WELDER' | 'MACHINIST' | 'ASSEMBLER' | 'QC_INSPECTOR' | 'SUPERVISOR';
+  wageRatePerHour: number;
+  shiftId: string;
+  isActive: boolean;
+  phone?: string | null;
+}
+
+export const mockOperators: MockOperator[] = [
+  {
+    id: 'op-001',
+    name: 'Ramesh Yadav',
+    employeeCode: 'EMP-101',
+    skill: 'MACHINIST',
+    wageRatePerHour: 180,
+    shiftId: 'sh-001',
+    isActive: true,
+    phone: null,
+  },
+  {
+    id: 'op-002',
+    name: 'Suresh Patil',
+    employeeCode: 'EMP-102',
+    skill: 'WELDER',
+    wageRatePerHour: 200,
+    shiftId: 'sh-001',
+    isActive: true,
+    phone: null,
+  },
+  {
+    id: 'op-003',
+    name: 'Anita Sharma',
+    employeeCode: 'EMP-103',
+    skill: 'ASSEMBLER',
+    wageRatePerHour: 150,
+    shiftId: 'sh-002',
+    isActive: true,
+    phone: null,
+  },
+  {
+    id: 'op-004',
+    name: 'Vijay Kumar',
+    employeeCode: 'EMP-104',
+    skill: 'QC_INSPECTOR',
+    wageRatePerHour: 220,
+    shiftId: 'sh-002',
+    isActive: true,
+    phone: null,
+  },
+  {
+    id: 'op-005',
+    name: 'Meena Devi',
+    employeeCode: 'EMP-105',
+    skill: 'SUPERVISOR',
+    wageRatePerHour: 280,
+    shiftId: 'sh-003',
+    isActive: true,
+    phone: null,
+  },
+];
+
+
+export interface MockMachine {
+  id: string;
+  name: string;
+  model: string;
+  workCenterId: string;
+  capacityPerHour: number;
+  status: 'RUNNING' | 'IDLE' | 'MAINTENANCE' | 'BREAKDOWN';
+  lastMaintenanceDate: string;
+  maintenanceFrequencyDays: number;
+  isActive: boolean;
+}
+
+export interface MockDowntimeEntry {
+  id: string;
+  entryNumber: string;
+  machineId: string;
+  machineName: string;
+  workCenterId: string;
+  workCenterName: string;
+  downtimeCodeId: string;
+  downtimeCodeName: string;
+  category: string;
+  startTime: string;
+  endTime: string | null;
+  durationMinutes: number | null;
+  productionOrderId: string | null;
+  shiftId: string;
+  shiftName: string;
+  operatorId: string;
+  operatorName: string;
+  description: string | null;
+  isResolved: boolean;
+  resolvedBy: string | null;
+  resolvedAt: string | null;
+  date: string;
+}
+
+export const mockDowntimeEntries: MockDowntimeEntry[] = [
+  {
+    id: 'dt-001',
+    entryNumber: 'DTE-2024-001',
+    machineId: 'mc-001',
+    machineName: 'CNC Machine 1',
+    workCenterId: 'wc-001',
+    workCenterName: 'Cutting Area',
+    downtimeCodeId: 'dt-002',
+    downtimeCodeName: 'Planned Maintenance',
+    category: 'PLANNED',
+    startTime: '10:00',
+    endTime: '12:00',
+    durationMinutes: 120,
+    productionOrderId: 'prod-001',
+    shiftId: 'sh-001',
+    shiftName: 'Morning',
+    operatorId: 'op-001',
+    operatorName: 'Ramesh Yadav',
+    description: 'Monthly scheduled maintenance',
+    isResolved: true,
+    resolvedBy: 'Suresh Patil',
+    resolvedAt: '2024-04-16T12:00:00Z',
+    date: '2024-04-16',
+  },
+  {
+    id: 'dt-002',
+    entryNumber: 'DTE-2024-002',
+    machineId: 'mc-004',
+    machineName: 'Hydraulic Press 2',
+    workCenterId: 'wc-001',
+    workCenterName: 'Cutting Area',
+    downtimeCodeId: 'dt-001',
+    downtimeCodeName: 'Machine Breakdown',
+    category: 'BREAKDOWN',
+    startTime: '09:30',
+    endTime: null,
+    durationMinutes: null,
+    productionOrderId: null,
+    shiftId: 'sh-001',
+    shiftName: 'Morning',
+    operatorId: 'op-001',
+    operatorName: 'Ramesh Yadav',
+    description: 'Hydraulic seal failure',
+    isResolved: false,
+    resolvedBy: null,
+    resolvedAt: null,
+    date: '2024-04-19',
+  },
+  {
+    id: 'dt-003',
+    entryNumber: 'DTE-2024-003',
+    machineId: 'mc-003',
+    machineName: 'Conveyor Belt 1',
+    workCenterId: 'wc-003',
+    workCenterName: 'Packing Zone',
+    downtimeCodeId: 'dt-003',
+    downtimeCodeName: 'Material Shortage',
+    category: 'MATERIAL',
+    startTime: '14:00',
+    endTime: '15:30',
+    durationMinutes: 90,
+    productionOrderId: null,
+    shiftId: 'sh-002',
+    shiftName: 'Afternoon',
+    operatorId: 'op-003',
+    operatorName: 'Anita Sharma',
+    description: null,
+    isResolved: true,
+    resolvedBy: 'Meena Devi',
+    resolvedAt: '2024-04-18T15:30:00Z',
+    date: '2024-04-18',
+  },
+];
+
+export const mockMachines: MockMachine[] = [
+  {
+    id: 'mc-001',
+    name: 'CNC Machine 1',
+    model: 'HASS VF-2',
+    workCenterId: 'wc-001',
+    capacityPerHour: 45,
+    status: 'RUNNING',
+    lastMaintenanceDate: '2024-02-15',
+    maintenanceFrequencyDays: 90,
+    isActive: true,
+  },
+  {
+    id: 'mc-002',
+    name: 'Welding Robot A',
+    model: 'KUKA KR 16',
+    workCenterId: 'wc-002',
+    capacityPerHour: 30,
+    status: 'RUNNING',
+    lastMaintenanceDate: '2024-03-10',
+    maintenanceFrequencyDays: 120,
+    isActive: true,
+  },
+  {
+    id: 'mc-003',
+    name: 'Conveyor Belt 1',
+    model: 'FlexLink XL',
+    workCenterId: 'wc-003',
+    capacityPerHour: 200,
+    status: 'MAINTENANCE',
+    lastMaintenanceDate: '2024-03-20',
+    maintenanceFrequencyDays: 60,
+    isActive: true,
+  },
+  {
+    id: 'mc-004',
+    name: 'Hydraulic Press 2',
+    model: 'Schuler C-frame',
+    workCenterId: 'wc-001',
+    capacityPerHour: 25,
+    status: 'IDLE',
+    lastMaintenanceDate: '2024-01-10',
+    maintenanceFrequencyDays: 180,
+    isActive: true,
+  },
+];
+
+export const mockRejectionEntries: MockRejectionEntry[] = [
+  {
+    id: 're-001',
+    entryNumber: 'RE-2024-001',
+    productionOrderId: 'prod-001',
+    productionOrderNumber: 'PRD-2024-001',
+    workOrderId: 'wo-003',
+    stageName: 'Machining',
+    machineId: 'mc-004',
+    machineName: 'Hydraulic Press 2',
+    operatorId: 'op-001',
+    operatorName: 'Ramesh Yadav',
+    rejectionCodeId: 'rc-001',
+    rejectionCodeName: 'Dimensional Error',
+    category: 'MACHINE',
+    rejectedQty: 1,
+    unit: 'Pcs',
+    date: '2024-04-19',
+    shiftId: 'sh-001',
+    shiftName: 'Morning',
+    description: 'Bore diameter out of tolerance',
+    isReworkable: false,
+    reworkQty: 0,
+    scrappedQty: 1,
+  },
+  {
+    id: 're-002',
+    entryNumber: 'RE-2024-002',
+    productionOrderId: 'prod-003',
+    productionOrderNumber: 'PRD-2024-003',
+    workOrderId: 'wo-006',
+    stageName: 'Packing',
+    machineId: null,
+    machineName: null,
+    operatorId: 'op-003',
+    operatorName: 'Anita Sharma',
+    rejectionCodeId: 'rc-006',
+    rejectionCodeName: 'Packaging Defect',
+    category: 'PROCESS',
+    rejectedQty: 1,
+    unit: 'Pcs',
+    date: '2024-04-09',
+    shiftId: 'sh-002',
+    shiftName: 'Afternoon',
+    description: 'Damaged outer box during packing',
+    isReworkable: true,
+    reworkQty: 1,
+    scrappedQty: 0,
+  },
+];
+
+export interface MockRejectionEntry {
+  id: string;
+  entryNumber: string;
+  productionOrderId: string;
+  productionOrderNumber: string;
+  workOrderId: string;
+  stageName: string;
+  machineId: string | null;
+  machineName: string | null;
+  operatorId: string;
+  operatorName: string;
+  rejectionCodeId: string;
+  rejectionCodeName: string;
+  category: string;
+  rejectedQty: number;
+  unit: string;
+  date: string;
+  shiftId: string;
+  shiftName: string;
+  description: string | null;
+  isReworkable: boolean;
+  reworkQty: number;
+  scrappedQty: number;
+}
+
+export interface MockRejectionCode {
+  id: string;
+  code: string;
+  description: string;
+  category: 'MATERIAL' | 'MACHINE' | 'OPERATOR' | 'PROCESS' | 'DESIGN';
+  applicableTo: 'INCOMING' | 'IN_PROCESS' | 'FINAL' | 'ALL';
+  isActive: boolean;
+}
+
+export const mockRejectionCodes: MockRejectionCode[] = [
+  {
+    id: 'rc-001',
+    code: 'RC-DIM',
+    description: 'Dimensional Error',
+    category: 'MACHINE',
+    applicableTo: 'ALL',
+    isActive: true,
+  },
+  {
+    id: 'rc-002',
+    code: 'RC-SUR',
+    description: 'Surface Defect',
+    category: 'MATERIAL',
+    applicableTo: 'INCOMING',
+    isActive: true,
+  },
+  {
+    id: 'rc-003',
+    code: 'RC-COL',
+    description: 'Wrong Color/Shade',
+    category: 'MATERIAL',
+    applicableTo: 'ALL',
+    isActive: true,
+  },
+  {
+    id: 'rc-004',
+    code: 'RC-WLD',
+    description: 'Welding Defect',
+    category: 'OPERATOR',
+    applicableTo: 'IN_PROCESS',
+    isActive: true,
+  },
+  {
+    id: 'rc-005',
+    code: 'RC-ASM',
+    description: 'Assembly Error',
+    category: 'OPERATOR',
+    applicableTo: 'IN_PROCESS',
+    isActive: true,
+  },
+  {
+    id: 'rc-006',
+    code: 'RC-PKG',
+    description: 'Packaging Defect',
+    category: 'PROCESS',
+    applicableTo: 'FINAL',
+    isActive: true,
+  },
+  {
+    id: 'rc-007',
+    code: 'RC-DES',
+    description: 'Design Non-conformance',
+    category: 'DESIGN',
+    applicableTo: 'ALL',
+    isActive: true,
+  },
+  {
+    id: 'rc-008',
+    code: 'RC-EXP',
+    description: 'Expired Material',
+    category: 'MATERIAL',
+    applicableTo: 'INCOMING',
+    isActive: true,
+  },
+];
+
+export const mockWorkCenters: MockWorkCenter[] = [
+  {
+    id: 'wc-001',
+    name: 'Cutting Area',
+    type: 'MACHINE',
+    capacityPerHour: 120,
+    warehouseId: 'wh-005',
+    description: 'CNC cutting and precision machining area',
+    isActive: true,
+  },
+  {
+    id: 'wc-002',
+    name: 'Assembly Line 1',
+    type: 'BOTH',
+    capacityPerHour: 60,
+    warehouseId: 'wh-005',
+    description: 'Main assembly line for gear assemblies and pumps',
+    isActive: true,
+  },
+  {
+    id: 'wc-003',
+    name: 'Packing Zone',
+    type: 'LABOR',
+    capacityPerHour: 200,
+    warehouseId: 'wh-005',
+    description: 'Final packaging and labeling station',
+    isActive: true,
+  },
+];
+
+export const mockWorkOrders: MockWorkOrder[] = [
+  {
+    id: 'wo-001',
+    woNumber: 'WO-2024-001-1',
+    productionOrderId: 'prod-001',
+    productionOrderNumber: 'PRD-2024-001',
+    stageNumber: 1,
+    stageName: 'Incoming Inspection',
+    workCenterId: 'wc-003',
+    workCenterName: 'Packing Zone',
+    machineId: null,
+    machineName: null,
+    operatorId: null,
+    operatorName: null,
+    shiftId: null,
+    shiftName: null,
+    status: 'COMPLETED',
+    plannedQty: 5,
+    completedQty: 5,
+    rejectedQty: 0,
+    plannedStartDate: '2024-04-15',
+    plannedEndDate: '2024-04-15',
+    actualStartDate: '2024-04-15',
+    actualEndDate: '2024-04-15',
+    plannedTimeMinutes: 150,
+    actualTimeMinutes: 140,
+    notes: null,
+  },
+  {
+    id: 'wo-002',
+    woNumber: 'WO-2024-001-2',
+    productionOrderId: 'prod-001',
+    productionOrderNumber: 'PRD-2024-001',
+    stageNumber: 2,
+    stageName: 'Casting & Cutting',
+    workCenterId: 'wc-001',
+    workCenterName: 'Cutting Area',
+    machineId: 'mc-001',
+    machineName: 'CNC Machine 1',
+    operatorId: null,
+    operatorName: null,
+    shiftId: null,
+    shiftName: null,
+    status: 'COMPLETED',
+    plannedQty: 5,
+    completedQty: 5,
+    rejectedQty: 0,
+    plannedStartDate: '2024-04-16',
+    plannedEndDate: '2024-04-17',
+    actualStartDate: null,
+    actualEndDate: null,
+    plannedTimeMinutes: 375,
+    actualTimeMinutes: 390,
+    notes: null,
+  },
+  {
+    id: 'wo-003',
+    woNumber: 'WO-2024-001-3',
+    productionOrderId: 'prod-001',
+    productionOrderNumber: 'PRD-2024-001',
+    stageNumber: 3,
+    stageName: 'Machining',
+    workCenterId: 'wc-001',
+    workCenterName: 'Cutting Area',
+    machineId: 'mc-004',
+    machineName: 'Hydraulic Press 2',
+    operatorId: null,
+    operatorName: null,
+    shiftId: null,
+    shiftName: null,
+    status: 'IN_PROGRESS',
+    plannedQty: 5,
+    completedQty: 2,
+    rejectedQty: 0,
+    plannedStartDate: '2024-04-18',
+    plannedEndDate: '2024-04-20',
+    actualStartDate: null,
+    actualEndDate: null,
+    plannedTimeMinutes: 450,
+    actualTimeMinutes: null,
+    notes: null,
+  },
+  {
+    id: 'wo-004',
+    woNumber: 'WO-2024-001-4',
+    productionOrderId: 'prod-001',
+    productionOrderNumber: 'PRD-2024-001',
+    stageNumber: 4,
+    stageName: 'Assembly',
+    workCenterId: 'wc-002',
+    workCenterName: 'Assembly Line 1',
+    machineId: null,
+    machineName: null,
+    operatorId: null,
+    operatorName: null,
+    shiftId: null,
+    shiftName: null,
+    status: 'PENDING',
+    plannedQty: 5,
+    completedQty: 0,
+    rejectedQty: 0,
+    plannedStartDate: '2024-04-21',
+    plannedEndDate: '2024-04-22',
+    actualStartDate: null,
+    actualEndDate: null,
+    plannedTimeMinutes: 225,
+    actualTimeMinutes: null,
+    notes: null,
+  },
+  {
+    id: 'wo-005',
+    woNumber: 'WO-2024-001-5',
+    productionOrderId: 'prod-001',
+    productionOrderNumber: 'PRD-2024-001',
+    stageNumber: 5,
+    stageName: 'Final Inspection',
+    workCenterId: 'wc-003',
+    workCenterName: 'Packing Zone',
+    machineId: null,
+    machineName: null,
+    operatorId: null,
+    operatorName: null,
+    shiftId: null,
+    shiftName: null,
+    status: 'PENDING',
+    plannedQty: 5,
+    completedQty: 0,
+    rejectedQty: 0,
+    plannedStartDate: '2024-04-23',
+    plannedEndDate: '2024-04-23',
+    actualStartDate: null,
+    actualEndDate: null,
+    plannedTimeMinutes: 150,
+    actualTimeMinutes: null,
+    notes: null,
+  },
+  {
+    id: 'wo-006',
+    woNumber: 'WO-2024-001-6',
+    productionOrderId: 'prod-001',
+    productionOrderNumber: 'PRD-2024-001',
+    stageNumber: 6,
+    stageName: 'Packing',
+    workCenterId: 'wc-003',
+    workCenterName: 'Packing Zone',
+    machineId: null,
+    machineName: null,
+    operatorId: null,
+    operatorName: null,
+    shiftId: null,
+    shiftName: null,
+    status: 'PENDING',
+    plannedQty: 5,
+    completedQty: 0,
+    rejectedQty: 0,
+    plannedStartDate: '2024-04-24',
+    plannedEndDate: '2024-04-24',
+    actualStartDate: null,
+    actualEndDate: null,
+    plannedTimeMinutes: 100,
+    actualTimeMinutes: null,
+    notes: null,
+  },
+];
+
+export interface MockInspectionChecklist {
+  id: string;
+  name: string;
+  code: string;
+  applicableTo: 'INCOMING' | 'IN_PROCESS' | 'FINAL';
+  itemTypeTarget: 'RAW_MATERIAL' | 'SEMI_FINISHED' | 'FINISHED_GOOD' | 'ALL';
+  parameters: string[];
+  samplingPlan: 'ALL' | 'RANDOM_10' | 'RANDOM_20' | 'AQL';
+  isActive: boolean;
+}
+
+export const mockInspectionChecklists: MockInspectionChecklist[] = [
+  {
+    id: 'cl-001',
+    name: 'Raw Material Incoming Check',
+    code: 'CL-RM-IN',
+    applicableTo: 'INCOMING',
+    itemTypeTarget: 'RAW_MATERIAL',
+    parameters: ['qp-001', 'qp-003', 'qp-007'],
+    samplingPlan: 'RANDOM_10',
+    isActive: true,
+  },
+  {
+    id: 'cl-002',
+    name: 'Steel Rod Quality Check',
+    code: 'CL-SR-IP',
+    applicableTo: 'IN_PROCESS',
+    itemTypeTarget: 'RAW_MATERIAL',
+    parameters: ['qp-002', 'qp-005'],
+    samplingPlan: 'ALL',
+    isActive: true,
+  },
+  {
+    id: 'cl-003',
+    name: 'Finished Good Final Inspection',
+    code: 'CL-FG-FIN',
+    applicableTo: 'FINAL',
+    itemTypeTarget: 'FINISHED_GOOD',
+    parameters: ['qp-001', 'qp-004', 'qp-006'],
+    samplingPlan: 'RANDOM_20',
+    isActive: true,
+  },
+  {
+    id: 'cl-004',
+    name: 'Pump Assembly Check',
+    code: 'CL-PA-FIN',
+    applicableTo: 'FINAL',
+    itemTypeTarget: 'FINISHED_GOOD',
+    parameters: ['qp-001', 'qp-004', 'qp-005'],
+    samplingPlan: 'AQL',
+    isActive: true,
+  },
+];
+
+export interface MockMRPRun {
+  id: string;
+  runNumber: string;
+  runDate: string;
+  runBy: string;
+  fromDate: string;
+  toDate: string;
+  status: 'RUNNING' | 'COMPLETED' | 'FAILED';
+  demandOrders: number;
+  productionOrders: number;
+  itemsAnalyzed: number;
+  shortageItems: number;
+  purchaseSuggestions: number;
+  productionSuggestions: number;
+  totalPurchaseValue: number;
+  notes: string | null;
+  completedAt: string | null;
+}
+
+export interface MockMRPResult {
+  id: string;
+  mrpRunId: string;
+  itemId: string;
+  itemName: string;
+  itemCode: string;
+  itemType: string;
+  isVariant: boolean;
+  variantName: string | null;
+  unit: string;
+  grossRequirement: number;
+  currentStock: number;
+  reservedStock: number;
+  availableStock: number;
+  netRequirement: number;
+  scheduledReceipts: number;
+  finalShortage: number;
+  supplierLeadTimeDays: number;
+  orderDate: string;
+  requiredDate: string;
+  status: 'SUFFICIENT' | 'SHORT' | 'CRITICAL';
+  suggestedAction: 'NONE' | 'PURCHASE' | 'PRODUCE' | 'EXPEDITE';
+  suggestedQty: number;
+  estimatedCost: number;
+}
+
+export interface MockMRPSuggestion {
+  id: string;
+  mrpRunId: string;
+  type: 'PURCHASE' | 'PRODUCTION';
+  itemId: string;
+  itemName: string;
+  itemCode: string;
+  variantName: string | null;
+  suggestedQty: number;
+  unit: string;
+  requiredDate: string;
+  orderByDate: string;
+  estimatedCost: number;
+  supplierId: string | null;
+  supplierName: string | null;
+  leadTimeDays: number;
+  priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CONVERTED';
+  convertedDocId: string | null;
+  convertedDocNumber: string | null;
+  notes: string | null;
+}
+
+export const mockMRPSuggestions: MockMRPSuggestion[] = [
+  {
+    id: 'sug-001',
+    mrpRunId: 'mrp-002',
+    type: 'PRODUCTION',
+    itemId: 'itm-v002',
+    itemName: 'Industrial Pump X',
+    itemCode: 'ITM-0303-200',
+    variantName: 'Pump X-200 (200 LPM)',
+    suggestedQty: 3,
+    unit: 'Pcs',
+    requiredDate: '2024-05-15',
+    orderByDate: '2024-05-08',
+    estimatedCost: 126000,
+    supplierId: null,
+    supplierName: null,
+    leadTimeDays: 7,
+    priority: 'HIGH',
+    status: 'PENDING',
+    convertedDocId: null,
+    convertedDocNumber: null,
+    notes: null,
+  },
+  {
+    id: 'sug-002',
+    mrpRunId: 'mrp-002',
+    type: 'PURCHASE',
+    itemId: 'itm-016',
+    itemName: 'Steel Rod 10mm',
+    itemCode: 'ITM-0301',
+    variantName: null,
+    suggestedQty: 200,
+    unit: 'Kg',
+    requiredDate: '2024-05-20',
+    orderByDate: '2024-05-13',
+    estimatedCost: 17000,
+    supplierId: 'pty-002',
+    supplierName: 'TechSupply Co.',
+    leadTimeDays: 7,
+    priority: 'NORMAL',
+    status: 'PENDING',
+    convertedDocId: null,
+    convertedDocNumber: null,
+    notes: null,
+  },
+  {
+    id: 'sug-003',
+    mrpRunId: 'mrp-002',
+    type: 'PURCHASE',
+    itemId: 'itm-019',
+    itemName: 'Cutting Oil 5L',
+    itemCode: 'ITM-0304',
+    variantName: null,
+    suggestedQty: 40,
+    unit: 'Ltr',
+    requiredDate: '2024-05-20',
+    orderByDate: '2024-05-15',
+    estimatedCost: 18000,
+    supplierId: null,
+    supplierName: null,
+    leadTimeDays: 5,
+    priority: 'LOW',
+    status: 'APPROVED',
+    convertedDocId: null,
+    convertedDocNumber: null,
+    notes: null,
+  },
+  {
+    id: 'sug-004',
+    mrpRunId: 'mrp-002',
+    type: 'PRODUCTION',
+    itemId: 'itm-v001',
+    itemName: 'Industrial Pump X',
+    itemCode: 'ITM-0303-100',
+    variantName: 'Pump X-100 (100 LPM)',
+    suggestedQty: 2,
+    unit: 'Pcs',
+    requiredDate: '2024-05-25',
+    orderByDate: '2024-05-18',
+    estimatedCost: 70000,
+    supplierId: null,
+    supplierName: null,
+    leadTimeDays: 7,
+    priority: 'NORMAL',
+    status: 'PENDING',
+    convertedDocId: null,
+    convertedDocNumber: null,
+    notes: null,
+  },
+];
+
+export const mockMRPResults: MockMRPResult[] = [
+  {
+    id: 'mrp-res-001',
+    mrpRunId: 'mrp-002',
+    itemId: 'itm-016',
+    itemName: 'Steel Rod 10mm',
+    itemCode: 'ITM-0301',
+    itemType: 'RAW_MATERIAL',
+    isVariant: false,
+    variantName: null,
+    unit: 'Kg',
+    grossRequirement: 180,
+    currentStock: 350,
+    reservedStock: 18.9,
+    availableStock: 331.1,
+    netRequirement: 0,
+    scheduledReceipts: 0,
+    finalShortage: 0,
+    supplierLeadTimeDays: 7,
+    orderDate: '2024-04-24',
+    requiredDate: '2024-05-31',
+    status: 'SUFFICIENT',
+    suggestedAction: 'NONE',
+    suggestedQty: 0,
+    estimatedCost: 0,
+  },
+  {
+    id: 'mrp-res-002',
+    mrpRunId: 'mrp-002',
+    itemId: 'itm-019',
+    itemName: 'Cutting Oil 5L',
+    itemCode: 'ITM-0304',
+    itemType: 'CONSUMABLE',
+    isVariant: false,
+    variantName: null,
+    unit: 'Ltr',
+    grossRequirement: 25,
+    currentStock: 48,
+    reservedStock: 1.5,
+    availableStock: 46.5,
+    netRequirement: 0,
+    scheduledReceipts: 0,
+    finalShortage: 0,
+    supplierLeadTimeDays: 0,
+    orderDate: '2024-05-01',
+    requiredDate: '2024-05-31',
+    status: 'SUFFICIENT',
+    suggestedAction: 'NONE',
+    suggestedQty: 0,
+    estimatedCost: 0,
+  },
+  {
+    id: 'mrp-res-003',
+    mrpRunId: 'mrp-002',
+    itemId: 'itm-017',
+    itemName: 'Gear Assembly A',
+    itemCode: 'ITM-0302',
+    itemType: 'SEMI_FINISHED',
+    isVariant: false,
+    variantName: null,
+    unit: 'Pcs',
+    grossRequirement: 8,
+    currentStock: 22,
+    reservedStock: 1,
+    availableStock: 21,
+    netRequirement: 0,
+    scheduledReceipts: 0,
+    finalShortage: 0,
+    supplierLeadTimeDays: 0,
+    orderDate: '2024-05-01',
+    requiredDate: '2024-05-31',
+    status: 'SUFFICIENT',
+    suggestedAction: 'NONE',
+    suggestedQty: 0,
+    estimatedCost: 0,
+  },
+  {
+    id: 'mrp-res-004',
+    mrpRunId: 'mrp-002',
+    itemId: 'itm-v001',
+    itemName: 'Pump X-100',
+    itemCode: 'ITM-0303-100',
+    itemType: 'FINISHED_GOOD',
+    isVariant: true,
+    variantName: 'Pump X-100 (100 LPM)',
+    unit: 'Pcs',
+    grossRequirement: 7,
+    currentStock: 3,
+    reservedStock: 0,
+    availableStock: 3,
+    netRequirement: 4,
+    scheduledReceipts: 5,
+    finalShortage: 0,
+    supplierLeadTimeDays: 30,
+    orderDate: '2024-04-01',
+    requiredDate: '2024-05-31',
+    status: 'SUFFICIENT',
+    suggestedAction: 'NONE',
+    suggestedQty: 0,
+    estimatedCost: 0,
+  },
+  {
+    id: 'mrp-res-005',
+    mrpRunId: 'mrp-002',
+    itemId: 'itm-v002',
+    itemName: 'Pump X-200',
+    itemCode: 'ITM-0303-200',
+    itemType: 'FINISHED_GOOD',
+    isVariant: true,
+    variantName: 'Pump X-200 (200 LPM)',
+    unit: 'Pcs',
+    grossRequirement: 5,
+    currentStock: 2,
+    reservedStock: 0,
+    availableStock: 2,
+    netRequirement: 3,
+    scheduledReceipts: 0,
+    finalShortage: 3,
+    supplierLeadTimeDays: 30,
+    orderDate: '2024-04-01',
+    requiredDate: '2024-05-15',
+    status: 'CRITICAL',
+    suggestedAction: 'PRODUCE',
+    suggestedQty: 3,
+    estimatedCost: 126000,
+  },
+  {
+    id: 'mrp-res-006',
+    mrpRunId: 'mrp-002',
+    itemId: 'itm-020',
+    itemName: 'Cardboard Box',
+    itemCode: 'ITM-0305',
+    itemType: 'PACKAGING',
+    isVariant: false,
+    variantName: null,
+    unit: 'Box',
+    grossRequirement: 12,
+    currentStock: 500,
+    reservedStock: 1,
+    availableStock: 499,
+    netRequirement: 0,
+    scheduledReceipts: 0,
+    finalShortage: 0,
+    supplierLeadTimeDays: 0,
+    orderDate: '2024-05-01',
+    requiredDate: '2024-05-31',
+    status: 'SUFFICIENT',
+    suggestedAction: 'NONE',
+    suggestedQty: 0,
+    estimatedCost: 0,
+  },
+];
+
+export const mockMRPRuns: MockMRPRun[] = [
+  {
+    id: 'mrp-001',
+    runNumber: 'MRP-2024-001',
+    runDate: '2024-04-20',
+    runBy: 'Admin User',
+    fromDate: '2024-04-20',
+    toDate: '2024-05-20',
+    status: 'COMPLETED',
+    demandOrders: 5,
+    productionOrders: 3,
+    itemsAnalyzed: 12,
+    shortageItems: 4,
+    purchaseSuggestions: 3,
+    productionSuggestions: 2,
+    totalPurchaseValue: 485000,
+    notes: null,
+    completedAt: '2024-04-20T10:15:00Z',
+  },
+  {
+    id: 'mrp-002',
+    runNumber: 'MRP-2024-002',
+    runDate: '2024-05-01',
+    runBy: 'Admin User',
+    fromDate: '2024-05-01',
+    toDate: '2024-05-31',
+    status: 'COMPLETED',
+    demandOrders: 7,
+    productionOrders: 5,
+    itemsAnalyzed: 15,
+    shortageItems: 5,
+    purchaseSuggestions: 4,
+    productionSuggestions: 3,
+    totalPurchaseValue: 620000,
+    notes: 'Monthly MRP run',
+    completedAt: '2024-05-01T09:30:00Z',
+  },
+];
+
 
 // ─── Items ────────────────────────────────────────────────────────────────────
 export const mockItems = [
@@ -403,3 +2212,273 @@ export const mockUsers = [
     createdAt: '2024-08-20T00:00:00Z',
   },
 ];
+
+
+// ============================================
+// 🔴 ADD THIS AT THE END OF YOUR masters.ts FILE
+// ============================================
+
+// ─── BOM Types ─────────────────────────────────────────────────────────────────
+export interface MockBOM {
+  id: string;
+  code: string;
+  productId: string;
+  productName: string;
+  productCode: string;
+  version: string;
+  status: 'ACTIVE' | 'DRAFT' | 'OBSOLETE';
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
+  totalMaterialCost: number;
+  totalItems: number;
+  levels: number;
+  isVariantBOM: boolean;
+  parentBOMId: string | null;
+  variantName: string | null;
+  notes: string | null;
+  createdAt: string;
+  isActive: boolean;
+}
+
+export interface MockBOMItem {
+  id: string;
+  parentId: string | null;
+  bomId: string;
+  itemId: string;
+  itemName: string;
+  itemType: string;
+  itemCode: string;
+  qtyPerUnit: number;
+  unit: string;
+  scrapPct: number;
+  effectiveQty: number;
+  standardCost: number;
+  totalCost: number;
+  level: number;
+  hasSubBOM: boolean;
+  subBOMId: string | null;
+  isAlternate: boolean;
+  alternateForId: string | null;
+  notes: string | null;
+}
+
+// ─── BOM Data ─────────────────────────────────────────────────────────────────
+export let mockBOMs: MockBOM[] = [
+  {
+    id: 'bom-001',
+    code: 'BOM-LPT-001',
+    productId: 'itm-001',
+    productName: 'Laptop 15" Core i7',
+    productCode: 'ITM-0001',
+    version: '1.0',
+    status: 'ACTIVE',
+    effectiveFrom: '2024-01-01',
+    effectiveTo: null,
+    totalMaterialCost: 62000,
+    totalItems: 5,
+    levels: 2,
+    isVariantBOM: false,
+    parentBOMId: null,
+    variantName: null,
+    notes: null,
+    createdAt: '2024-01-01T00:00:00Z',
+    isActive: true,
+  },
+  {
+    id: 'bom-002',
+    code: 'BOM-KB-001',
+    productId: 'itm-004',
+    productName: 'Mechanical Keyboard RGB',
+    productCode: 'ITM-0004',
+    version: '2.1',
+    status: 'ACTIVE',
+    effectiveFrom: '2024-02-01',
+    effectiveTo: null,
+    totalMaterialCost: 3800,
+    totalItems: 8,
+    levels: 2,
+    isVariantBOM: false,
+    parentBOMId: null,
+    variantName: null,
+    notes: 'Cherry MX Red switches variant',
+    createdAt: '2024-02-01T00:00:00Z',
+    isActive: true,
+  },
+  {
+    id: 'bom-003',
+    code: 'BOM-MON-001',
+    productId: 'itm-005',
+    productName: 'Monitor 24" Full HD IPS',
+    productCode: 'ITM-0045',
+    version: '1.0',
+    status: 'ACTIVE',
+    effectiveFrom: '2024-01-15',
+    effectiveTo: null,
+    totalMaterialCost: 9800,
+    totalItems: 6,
+    levels: 2,
+    isVariantBOM: false,
+    parentBOMId: null,
+    variantName: null,
+    notes: null,
+    createdAt: '2024-01-15T00:00:00Z',
+    isActive: true,
+  },
+  {
+    id: 'bom-004',
+    code: 'BOM-RTR-001',
+    productId: 'itm-012',
+    productName: 'Wi-Fi 6 Router AX1800',
+    productCode: 'ITM-0230',
+    version: '1.0',
+    status: 'ACTIVE',
+    effectiveFrom: '2024-03-01',
+    effectiveTo: null,
+    totalMaterialCost: 3200,
+    totalItems: 7,
+    levels: 2,
+    isVariantBOM: false,
+    parentBOMId: null,
+    variantName: null,
+    notes: null,
+    createdAt: '2024-03-01T00:00:00Z',
+    isActive: true,
+  },
+  {
+    id: 'bom-005',
+    code: 'BOM-PMP-001',
+    productId: 'itm-018',
+    productName: 'Industrial Pump X',
+    productCode: 'ITM-0303',
+    version: '3.2',
+    status: 'ACTIVE',
+    effectiveFrom: '2024-01-01',
+    effectiveTo: null,
+    totalMaterialCost: 38500,
+    totalItems: 12,
+    levels: 3,
+    isVariantBOM: false,
+    parentBOMId: null,
+    variantName: null,
+    notes: 'Standard industrial pump assembly',
+    createdAt: '2024-01-01T00:00:00Z',
+    isActive: true,
+  },
+  {
+    id: 'bom-v001',
+    code: 'BOM-IP-100-001',
+    productId: 'itm-v001',
+    productName: 'Industrial Pump X — Pump X-100',
+    productCode: 'ITM-0303-100',
+    version: '1.0',
+    status: 'ACTIVE',
+    effectiveFrom: '2024-01-01',
+    effectiveTo: null,
+    totalMaterialCost: 35000,
+    totalItems: 5,
+    levels: 2,
+    isVariantBOM: true,
+    parentBOMId: null,
+    variantName: 'Pump X-100 (100 LPM)',
+    notes: '100 LPM variant with smaller impeller',
+    createdAt: '2024-01-01T00:00:00Z',
+    isActive: true,
+  },
+  {
+    id: 'bom-v002',
+    code: 'BOM-IP-200-001',
+    productId: 'itm-v002',
+    productName: 'Industrial Pump X — Pump X-200',
+    productCode: 'ITM-0303-200',
+    version: '1.0',
+    status: 'ACTIVE',
+    effectiveFrom: '2024-01-01',
+    effectiveTo: null,
+    totalMaterialCost: 42000,
+    totalItems: 5,
+    levels: 2,
+    isVariantBOM: true,
+    parentBOMId: null,
+    variantName: 'Pump X-200 (200 LPM)',
+    notes: '200 LPM variant with medium impeller',
+    createdAt: '2024-01-01T00:00:00Z',
+    isActive: true,
+  },
+  {
+    id: 'bom_pending',
+    code: 'BOM-GA-001',
+    productId: 'itm-017',
+    productName: 'Gear Assembly A',
+    productCode: 'ITM-0302',
+    version: '0.1',
+    status: 'DRAFT',
+    effectiveFrom: '2024-03-01',
+    effectiveTo: null,
+    totalMaterialCost: 1850,
+    totalItems: 4,
+    levels: 2,
+    isVariantBOM: false,
+    parentBOMId: null,
+    variantName: null,
+    notes: 'Draft — pending review',
+    createdAt: '2024-03-01T00:00:00Z',
+    isActive: true,
+  },
+];
+
+export let mockBOMItems: MockBOMItem[] = [
+  // ── bom-001: Laptop 15" Core i7 ──
+  { id: 'bi-401', parentId: null, bomId: 'bom-001', itemId: 'itm-001', itemName: 'Laptop 15" Core i7', itemType: 'FINISHED_GOOD', itemCode: 'ITM-0001', qtyPerUnit: 1, unit: 'Pcs', scrapPct: 0, effectiveQty: 1, standardCost: 85000, totalCost: 85000, level: 0, hasSubBOM: false, subBOMId: null, isAlternate: false, alternateForId: null, notes: 'Finished product root' },
+  { id: 'bi-402', parentId: 'bi-401', bomId: 'bom-001', itemId: 'itm-009', itemName: 'SSD 1TB NVMe Samsung', itemType: 'FINISHED_GOOD', itemCode: 'ITM-0200', qtyPerUnit: 1, unit: 'Pcs', scrapPct: 0, effectiveQty: 1, standardCost: 8500, totalCost: 8500, level: 1, hasSubBOM: false, subBOMId: null, isAlternate: false, alternateForId: null, notes: 'Primary storage' },
+  { id: 'bi-403', parentId: 'bi-401', bomId: 'bom-001', itemId: 'itm-010', itemName: 'RAM 16GB DDR5 3200MHz', itemType: 'FINISHED_GOOD', itemCode: 'ITM-0201', qtyPerUnit: 2, unit: 'Pcs', scrapPct: 0, effectiveQty: 2, standardCost: 5500, totalCost: 11000, level: 1, hasSubBOM: false, subBOMId: null, isAlternate: false, alternateForId: null, notes: 'Memory modules' },
+  { id: 'bi-404', parentId: 'bi-401', bomId: 'bom-001', itemId: 'itm-005', itemName: 'Monitor 24" Full HD IPS', itemType: 'FINISHED_GOOD', itemCode: 'ITM-0045', qtyPerUnit: 1, unit: 'Pcs', scrapPct: 0, effectiveQty: 1, standardCost: 30000, totalCost: 30000, level: 1, hasSubBOM: false, subBOMId: null, isAlternate: false, alternateForId: null, notes: '15.6" display panel assembly' },
+  { id: 'bi-405', parentId: 'bi-401', bomId: 'bom-001', itemId: 'itm-012', itemName: 'Wi-Fi 6 Router AX1800', itemType: 'FINISHED_GOOD', itemCode: 'ITM-0230', qtyPerUnit: 1, unit: 'Pcs', scrapPct: 0, effectiveQty: 1, standardCost: 12500, totalCost: 12500, level: 1, hasSubBOM: false, subBOMId: null, isAlternate: false, alternateForId: null, notes: 'Wi-Fi 6 module and antenna assembly' },
+
+  // ── bom-v001: Pump X-100 ──
+  { id: 'bi-101', parentId: null, bomId: 'bom-v001', itemId: 'itm-v001', itemName: 'Pump X-100', itemType: 'FINISHED_GOOD', itemCode: 'ITM-0303-100', qtyPerUnit: 1, unit: 'Pcs', scrapPct: 0, effectiveQty: 1, standardCost: 52000, totalCost: 52000, level: 0, hasSubBOM: false, subBOMId: null, isAlternate: false, alternateForId: null, notes: 'Finished product root' },
+  { id: 'bi-102', parentId: 'bi-101', bomId: 'bom-v001', itemId: 'itm-016', itemName: 'Steel Rod 10mm', itemType: 'RAW_MATERIAL', itemCode: 'ITM-0301', qtyPerUnit: 12, unit: 'Kg', scrapPct: 5, effectiveQty: 12.6, standardCost: 2000, totalCost: 25200, level: 1, hasSubBOM: false, subBOMId: null, isAlternate: false, alternateForId: null, notes: 'Pump body casting material' },
+  { id: 'bi-103', parentId: 'bi-101', bomId: 'bom-v001', itemId: 'itm-019', itemName: 'Cutting Oil 5L', itemType: 'CONSUMABLE', itemCode: 'ITM-0304', qtyPerUnit: 1.5, unit: 'Ltr', scrapPct: 0, effectiveQty: 1.5, standardCost: 3000, totalCost: 4500, level: 1, hasSubBOM: false, subBOMId: null, isAlternate: false, alternateForId: null, notes: 'Machining lubricant' },
+  { id: 'bi-104', parentId: 'bi-101', bomId: 'bom-v001', itemId: 'itm-017', itemName: 'Gear Assembly A', itemType: 'SEMI_FINISHED', itemCode: 'ITM-0302', qtyPerUnit: 1, unit: 'Pcs', scrapPct: 2, effectiveQty: 1.02, standardCost: 5000, totalCost: 5100, level: 1, hasSubBOM: true, subBOMId: 'bom_pending', isAlternate: false, alternateForId: null, notes: 'Main drive gear assembly' },
+  { id: 'bi-105', parentId: 'bi-101', bomId: 'bom-v001', itemId: 'itm-020', itemName: 'Cardboard Box 30x20', itemType: 'PACKAGING', itemCode: 'ITM-0305', qtyPerUnit: 1, unit: 'Box', scrapPct: 0, effectiveQty: 1, standardCost: 200, totalCost: 200, level: 1, hasSubBOM: false, subBOMId: null, isAlternate: false, alternateForId: null, notes: 'Shipping packaging' },
+
+  // ── bom-v002: Pump X-200 ──
+  { id: 'bi-201', parentId: null, bomId: 'bom-v002', itemId: 'itm-v002', itemName: 'Pump X-200', itemType: 'FINISHED_GOOD', itemCode: 'ITM-0303-200', qtyPerUnit: 1, unit: 'Pcs', scrapPct: 0, effectiveQty: 1, standardCost: 62000, totalCost: 62000, level: 0, hasSubBOM: false, subBOMId: null, isAlternate: false, alternateForId: null, notes: 'Finished product root' },
+  { id: 'bi-202', parentId: 'bi-201', bomId: 'bom-v002', itemId: 'itm-016', itemName: 'Steel Rod 10mm', itemType: 'RAW_MATERIAL', itemCode: 'ITM-0301', qtyPerUnit: 18, unit: 'Kg', scrapPct: 5, effectiveQty: 18.9, standardCost: 1500, totalCost: 28350, level: 1, hasSubBOM: false, subBOMId: null, isAlternate: false, alternateForId: null, notes: 'Heavier pump body material' },
+  { id: 'bi-203', parentId: 'bi-201', bomId: 'bom-v002', itemId: 'itm-019', itemName: 'Cutting Oil 5L', itemType: 'CONSUMABLE', itemCode: 'ITM-0304', qtyPerUnit: 2, unit: 'Ltr', scrapPct: 0, effectiveQty: 2, standardCost: 3000, totalCost: 6000, level: 1, hasSubBOM: false, subBOMId: null, isAlternate: false, alternateForId: null, notes: 'Extended machining lubricant' },
+  { id: 'bi-204', parentId: 'bi-201', bomId: 'bom-v002', itemId: 'itm-017', itemName: 'Gear Assembly A', itemType: 'SEMI_FINISHED', itemCode: 'ITM-0302', qtyPerUnit: 2, unit: 'Pcs', scrapPct: 2, effectiveQty: 2.04, standardCost: 3000, totalCost: 6120, level: 1, hasSubBOM: true, subBOMId: 'bom_pending', isAlternate: false, alternateForId: null, notes: 'Two gear assemblies for heavier pump' },
+  { id: 'bi-205', parentId: 'bi-201', bomId: 'bom-v002', itemId: 'itm-020', itemName: 'Cardboard Box 30x20', itemType: 'PACKAGING', itemCode: 'ITM-0305', qtyPerUnit: 1, unit: 'Box', scrapPct: 0, effectiveQty: 1, standardCost: 1530, totalCost: 1530, level: 1, hasSubBOM: false, subBOMId: null, isAlternate: false, alternateForId: null, notes: 'Shipping packaging' },
+
+  // ── bom_pending: Gear Assembly A ──
+  { id: 'bi-301', parentId: null, bomId: 'bom_pending', itemId: 'itm-017', itemName: 'Gear Assembly A', itemType: 'SEMI_FINISHED', itemCode: 'ITM-0302', qtyPerUnit: 1, unit: 'Pcs', scrapPct: 0, effectiveQty: 1, standardCost: 3200, totalCost: 3200, level: 0, hasSubBOM: false, subBOMId: null, isAlternate: false, alternateForId: null, notes: 'Semi-finished product root' },
+  { id: 'bi-302', parentId: 'bi-301', bomId: 'bom_pending', itemId: 'itm-016', itemName: 'Steel Rod 10mm', itemType: 'RAW_MATERIAL', itemCode: 'ITM-0301', qtyPerUnit: 3, unit: 'Kg', scrapPct: 8, effectiveQty: 3.24, standardCost: 500, totalCost: 1620, level: 1, hasSubBOM: false, subBOMId: null, isAlternate: false, alternateForId: null, notes: 'Gear blank material' },
+  { id: 'bi-303', parentId: 'bi-301', bomId: 'bom_pending', itemId: 'itm-019', itemName: 'Cutting Oil 5L', itemType: 'CONSUMABLE', itemCode: 'ITM-0304', qtyPerUnit: 0.5, unit: 'Ltr', scrapPct: 0, effectiveQty: 0.5, standardCost: 300, totalCost: 150, level: 1, hasSubBOM: false, subBOMId: null, isAlternate: false, alternateForId: null, notes: 'Machining lubricant' },
+  { id: 'bi-304', parentId: 'bi-301', bomId: 'bom_pending', itemId: 'itm-020', itemName: 'Cardboard Box 30x20', itemType: 'PACKAGING', itemCode: 'ITM-0305', qtyPerUnit: 1, unit: 'Box', scrapPct: 0, effectiveQty: 1, standardCost: 80, totalCost: 80, level: 1, hasSubBOM: false, subBOMId: null, isAlternate: false, alternateForId: null, notes: 'Inter-warehouse transit box' },
+];
+
+// ─── Helper function to update Item Master BOM link ──────────────────────────
+export function updateItemBOMLink(itemId: string, bomId: string | null, bomVersion: string | null) {
+  const itemIndex = mockItems.findIndex(i => i.id === itemId);
+  if (itemIndex !== -1) {
+    (mockItems[itemIndex] as any).bomId = bomId;
+    (mockItems[itemIndex] as any).bomVersion = bomVersion;
+  }
+}
+
+export type MockItem = (typeof mockItems)[number];
+
+// ─── Re-export MockItem type with additional BOM fields ──────────────────────
+// Update MockItem type to include BOM fields (add these to your existing mockItems array items)
+// For existing items, add these fields manually or use this type augmentation
+export interface MockItemWithBOM extends MockItem {
+  bomId?: string | null;
+  bomVersion?: string | null;
+  isVariant?: boolean;
+  isParent?: boolean;
+  parentItemId?: string | null;
+  variantName?: string | null;
+  variantAttributes?: Record<string, string>;
+  variantSku?: string | null;
+  standardCost?: number;
+  hasVariants?: boolean;
+  variantCount?: number;
+}
