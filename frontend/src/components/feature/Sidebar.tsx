@@ -149,7 +149,7 @@ const manufacturingGroup: NavGroup = {
         },
         {
           label: 'Purchase Suggest',
-          path: '/manufacturing/mrp/purchase-suggest',
+          path: '/manufacturing/mrp/purchase',
           icon: 'ri-shopping-cart-line',
         },
       ],
@@ -223,9 +223,10 @@ const manufacturingGroup: NavGroup = {
           path: '/manufacturing/costing/variance-report',
           icon: 'ri-bar-chart-2-line',
         },
-        
       ],
-    }]}
+    },
+  ],
+};
 const reportsGroup: NavGroup = {
   label: 'Reports', icon: 'ri-bar-chart-2-line', basePath: '/reports',
    items: [
@@ -451,113 +452,126 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   };
 
 
-  const RecursiveMenuItem = ({ item }: { item: NavItem }) => {
-    const [open, setOpen] = useState(false);
+const RecursiveMenuItem = ({ item }: { item: NavItem }) => {
+  const hasChildren = !!item.items?.length;
 
-    const hasChildren = !!item.items?.length;
-
-    return (
-      <li>
-        {hasChildren ? (
-          <>
-            <button
-              onClick={() => setOpen(!open)}
-              className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-slate-300 hover:bg-white/10"
-            >
-              <div className="flex items-center gap-2.5">
-                {item.icon && <i className={item.icon} />}
-                <span>{item.label}</span>
-              </div>
-
-              <i
-                className={
-                  open ? 'ri-arrow-down-s-line' : 'ri-arrow-right-s-line'
-                }
-              />
-            </button>
-
-            {open && (
-              <ul className="ml-4 border-l border-white/10 pl-3 mt-1 space-y-1">
-                {item.items?.map((child) => (
-                  <RecursiveMenuItem
-                    key={child.path || child.label}
-                    item={child}
-                  />
-                ))}
-              </ul>
-            )}
-          </>
-        ) : (
-          <NavLink
-            to={item.path || '#'}
-            className={({ isActive }) =>
-              `flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm ${
-                isActive
-                  ? 'bg-[#4f46e5] text-white'
-                  : 'text-slate-400 hover:bg-white/10 hover:text-white'
-              }`
-            }
-          >
-            {item.icon && <i className={item.icon} />}
-            <span>{item.label}</span>
-          </NavLink>
-        )}
-      </li>
+  // ✅ Auto-open if current path is inside this item's subtree
+  const [open, setOpen] = useState(() => {
+    if (!hasChildren) return false;
+    return item.items!.some((child) =>
+      child.path ? location.pathname.startsWith(child.path) : false,
     );
-  };
+  });
 
-  const CollapseGroup = ({
-    group, open, setOpen,
-  }: { group: NavGroup; open: boolean; setOpen: (v: boolean) => void }) => {
-    const isGroupActive = location.pathname.startsWith(group.basePath);
-    if (group.items.length === 0) return null;
-    return (
-      <div className="px-2 mt-1">
-        <button
-          onClick={() =>
-            collapsed ? navigate(group.items[0]?.path || '/') : setOpen(!open)
-          }
-          title={collapsed ? group.label : undefined}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer ${isGroupActive ? 'bg-white/15 text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white'
+  const isParentActive =
+    hasChildren &&
+    item.items!.some((child) =>
+      child.path ? location.pathname.startsWith(child.path) : false,
+    );
+
+  return (
+    <li>
+      {hasChildren ? (
+        <>
+          <button
+            onClick={() => setOpen(!open)}
+            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg hover:bg-white/10 ${
+              isParentActive ? 'text-white' : 'text-slate-300' // ✅ Parent highlight
             }`}
-        >
-          <div className="w-5 h-5 flex items-center justify-center shrink-0">
-            <i className={`${group.icon} text-lg leading-none`} />
-          </div>
-          {!collapsed && (
-            <>
-              <span className="text-sm font-medium whitespace-nowrap flex-1 text-left">
-                {group.label}
-              </span>
-              <i
-                className={`text-slate-400 text-sm transition-transform duration-200 ${open ? 'ri-arrow-down-s-line' : 'ri-arrow-right-s-line'}`}
-              />
-            </>
+          >
+            <div className="flex items-center gap-2.5">
+              {item.icon && <i className={item.icon} />}
+              <span className="text-sm">{item.label}</span>
+            </div>
+            <i
+              className={
+                open ? 'ri-arrow-down-s-line' : 'ri-arrow-right-s-line'
+              }
+            />
+          </button>
+
+          {open && (
+            <ul className="ml-4 border-l border-white/10 pl-3 mt-1 space-y-1">
+              {item.items?.map((child) => (
+                <RecursiveMenuItem
+                  key={child.path || child.label}
+                  item={child}
+                />
+              ))}
+            </ul>
           )}
-        </button>
-        {!collapsed && open && (
-          <ul className="mt-1 ml-4 border-l border-white/10 pl-3 space-y-1">
-            {group.items.map((item) => (
-              <li key={item.path}>
-                <NavLink
-                  to={item.path}
-                  className={({ isActive: a }) =>
-                    `flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all text-sm cursor-pointer ${a ? 'bg-[#4f46e5] text-white font-medium' : 'text-slate-400 hover:bg-white/10 hover:text-white'
-                    }`
-                  }
-                >
-                  <div className="w-4 h-4 flex items-center justify-center shrink-0">
-                    <i className={`${item.icon} text-sm leading-none`} />
-                  </div>
-                  <span className="whitespace-nowrap">{item.label}</span>
-                </NavLink>
-              </li>
-            ))}
-          </ul>
+        </>
+      ) : (
+        <NavLink
+          to={item.path || '#'}
+          className={({ isActive }) =>
+            `flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm ${
+              isActive
+                ? 'bg-[#4f46e5] text-white'
+                : 'text-slate-400 hover:bg-white/10 hover:text-white'
+            }`
+          }
+        >
+          {item.icon && <i className={item.icon} />}
+          <span>{item.label}</span>
+        </NavLink>
+      )}
+    </li>
+  );
+};
+
+const CollapseGroup = ({
+  group,
+  open,
+  setOpen,
+}: {
+  group: NavGroup;
+  open: boolean;
+  setOpen: (v: boolean) => void;
+}) => {
+  const isGroupActive = location.pathname.startsWith(group.basePath);
+  if (group.items.length === 0) return null;
+  return (
+    <div className="px-2 mt-1">
+      <button
+        onClick={() =>
+          collapsed ? navigate(group.items[0]?.path || '/') : setOpen(!open)
+        }
+        title={collapsed ? group.label : undefined}
+        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer ${
+          isGroupActive
+            ? 'bg-white/15 text-white'
+            : 'text-slate-300 hover:bg-white/10 hover:text-white'
+        }`}
+      >
+        <div className="w-5 h-5 flex items-center justify-center shrink-0">
+          <i className={`${group.icon} text-lg leading-none`} />
+        </div>
+        {!collapsed && (
+          <>
+            <span className="text-sm font-medium whitespace-nowrap flex-1 text-left">
+              {group.label}
+            </span>
+            <i
+              className={`text-slate-400 text-sm transition-transform duration-200 ${
+                open ? 'ri-arrow-down-s-line' : 'ri-arrow-right-s-line'
+              }`}
+            />
+          </>
         )}
-      </div>
-    );
-  };
+      </button>
+
+      {/* ✅ RecursiveMenuItem use karo — nested items support ke liye */}
+      {!collapsed && open && (
+        <ul className="mt-1 ml-4 border-l border-white/10 pl-3 space-y-1">
+          {group.items.map((item) => (
+            <RecursiveMenuItem key={item.path || item.label} item={item} />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
 
   const SectionLabel = ({ label }: { label: string }) =>
     !collapsed ? (
