@@ -155,6 +155,9 @@ const routes: RouteObject[] = [
   { path: '/login', element: <LoginPage /> },
   { path: '/forgot-password', element: <ForgetPasswordPage /> },
   { path: '/reset-password/:token', element: <ResetPasswordPage /> },
+ 
+ 
+  { path: '/', element: (<P><Dashboard /></P>),},
 
   {
     path: '/settings',
