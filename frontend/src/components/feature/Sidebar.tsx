@@ -227,6 +227,8 @@ const manufacturingGroup: NavGroup = {
     },
   ],
 };
+
+
 const reportsGroup: NavGroup = {
   label: 'Reports', icon: 'ri-bar-chart-2-line', basePath: '/reports',
    items: [
@@ -678,7 +680,10 @@ const CollapseGroup = ({
                 to="/"
                 end
                 className={({ isActive: a }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer ${a ? 'bg-[#4f46e5] text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer ${
+                    a
+                      ? 'bg-[#4f46e5] text-white'
+                      : 'text-slate-300 hover:bg-white/10 hover:text-white'
                   }`
                 }
                 title={collapsed ? 'Dashboard' : undefined}
@@ -694,7 +699,6 @@ const CollapseGroup = ({
               </NavLink>
             </li>
           </ul>
-
           {canSeeMasters && (
             <>
               <SectionLabel label="Masters" />
@@ -705,12 +709,30 @@ const CollapseGroup = ({
               />
             </>
           )}
-
-          {(canSeeSales || canSeePurchase || canSeeInventory) && <SectionLabel label="Transactions" />}
-          {canSeeSales && <CollapseGroup group={visibleSalesGroup} open={salesOpen} setOpen={setSalesOpen} />}
-          {canSeePurchase && <CollapseGroup group={visiblePurchaseGroup} open={purchaseOpen} setOpen={setPurchaseOpen} />}
-          {canSeeInventory && <CollapseGroup group={visibleInventoryGroup} open={inventoryOpen} setOpen={setInventoryOpen} />}
-
+          {(canSeeSales || canSeePurchase || canSeeInventory) && (
+            <SectionLabel label="Transactions" />
+          )}
+          {canSeeSales && (
+            <CollapseGroup
+              group={visibleSalesGroup}
+              open={salesOpen}
+              setOpen={setSalesOpen}
+            />
+          )}
+          {canSeePurchase && (
+            <CollapseGroup
+              group={visiblePurchaseGroup}
+              open={purchaseOpen}
+              setOpen={setPurchaseOpen}
+            />
+          )}
+          {canSeeInventory && (
+            <CollapseGroup
+              group={visibleInventoryGroup}
+              open={inventoryOpen}
+              setOpen={setInventoryOpen}
+            />
+          )}
           {canSeePrint && (
             <>
               <SectionLabel label="Print" />
@@ -721,21 +743,49 @@ const CollapseGroup = ({
               />
             </>
           )}
-
           <SectionLabel label="Manufacturing" />
-
           <CollapseGroup
             group={manufacturingGroup}
             open={manufacturingOpen}
             setOpen={setManufacturingOpen}
           />
-
+         
+          {canSeeReports && (
+            <>
+              <SectionLabel label="Reports" />
+              <CollapseGroup
+                group={visibleReportsGroup}
+                open={reportsOpen}
+                setOpen={setReportsOpen}
+              />
+            </>
+          )}
           {(canSeeUsers || canSeeSettings) && (
             <>
               <SectionLabel label="System" />
               <ul className="space-y-0.5 px-2 mt-1">
-                {canSeeUsers && <li><NavBtn item={{ label: 'Users', path: '/users', icon: 'ri-team-line' }} /></li>}
-                {canSeeSettings && <li><NavBtn item={{ label: 'Settings', path: '/settings', icon: 'ri-settings-3-line' }} /></li>}
+                {canSeeUsers && (
+                  <li>
+                    <NavBtn
+                      item={{
+                        label: 'Users',
+                        path: '/users',
+                        icon: 'ri-team-line',
+                      }}
+                    />
+                  </li>
+                )}
+                {canSeeSettings && (
+                  <li>
+                    <NavBtn
+                      item={{
+                        label: 'Settings',
+                        path: '/settings',
+                        icon: 'ri-settings-3-line',
+                      }}
+                    />
+                  </li>
+                )}
               </ul>
             </>
           )}
