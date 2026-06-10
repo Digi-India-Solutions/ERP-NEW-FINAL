@@ -2,11 +2,28 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/feature/AppLayout';
 import ConfirmDialog from '@/components/feature/ConfirmDialog';
-import { mockWorkCenters, mockWarehouses, type MockWorkCenter } from '@/mocks/masters';
 import { useToast } from '@/contexts/ToastContext';
 import { MasterFilters, MasterSummaryCards, MasterStatsRow } from '@/pages/masters/common/CommonComponets';
+import {
+  createWorkCenter,
+  getAllWorkCenters,
+  updateWorkCenter,
+  deleteWorkCenter,
+  type WorkCenterResponse
+} from '@/api/workcenter.api';
+import { getAllWarehouses } from '@/api/warehouse.api';
 
 type WCType = 'MACHINE' | 'LABOR' | 'BOTH';
+
+interface WorkCenter {
+  id: string;
+  name: string;
+  type: WCType;
+  capacityPerHour: number;
+  warehouseId: string | null;
+  description: string;
+  isActive: boolean;
+}
 
 interface WCForm {
   name: string;
@@ -36,12 +53,13 @@ const emptyForm: WCForm = {
 // ─── Slide-Over Form ──────────────────────────────────────────────────────────
 interface SlideOverProps {
   open: boolean;
-  editing: MockWorkCenter | null;
+  editing: WorkCenter | null;
   onClose: () => void;
-  onSave: (form: WCForm) => void;
+  onSave: (form: WCForm) => Promise<void>;
+  warehouses: { id: string; name: string; is_active: boolean }[];
 }
 
-function WorkCenterSlideOver({ open, editing, onClose, onSave }: SlideOverProps) {
+function WorkCenterSlideOver({ open, editing, onClose, onSave, warehouses }: SlideOverProps) {
   const [form, setForm] = useState<WCForm>({ ...emptyForm });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -88,13 +106,17 @@ function WorkCenterSlideOver({ open, editing, onClose, onSave }: SlideOverProps)
     return Object.keys(e).length === 0;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
     setIsSaving(true);
-    setTimeout(() => {
-      onSave(form);
+    try {
+      await onSave(form);
+    } catch (error) {
+      // Keep SlideOver open to let user correct any server validation issues
+      console.error(error);
+    } finally {
       setIsSaving(false);
-    }, 300);
+    }
   };
 
   if (!open) return null;
@@ -186,7 +208,7 @@ function WorkCenterSlideOver({ open, editing, onClose, onSave }: SlideOverProps)
               className="w-full h-10 px-3 rounded-lg border border-[#e2e8f0] text-sm bg-white focus:outline-none focus:border-[#4f46e5] focus:ring-2 focus:ring-[#4f46e5]/20 cursor-pointer"
             >
               <option value="">— Select Warehouse —</option>
-              {mockWarehouses.filter((w) => w.isActive).map((w) => (
+              {warehouses.filter((w) => w.is_active !== false).map((w) => (
                 <option key={w.id} value={w.id}>{w.name}</option>
               ))}
             </select>
@@ -240,12 +262,48 @@ function WorkCenterSlideOver({ open, editing, onClose, onSave }: SlideOverProps)
 export default function WorkCentersPage() {
   const navigate = useNavigate();
   const toast = useToast();
-  const [workCenters, setWorkCenters] = useState<MockWorkCenter[]>([...mockWorkCenters]);
+  const [workCenters, setWorkCenters] = useState<WorkCenter[]>([]);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<WCType | 'ALL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
-  const [slideOver, setSlideOver] = useState<{ open: boolean; editing: MockWorkCenter | null }>({ open: false, editing: null });
-  const [deleteConfirm, setDeleteConfirm] = useState<MockWorkCenter | null>(null);
+  const [slideOver, setSlideOver] = useState<{ open: boolean; editing: WorkCenter | null }>({ open: false, editing: null });
+  const [deleteConfirm, setDeleteConfirm] = useState<WorkCenter | null>(null);
+
+  const mapApiToWorkCenter = (wc: WorkCenterResponse): WorkCenter => ({
+    id: wc.id,
+    name: wc.name,
+    type: wc.type,
+    capacityPerHour: Number(wc.capacity_per_hour),
+    warehouseId: wc.warehouse_id,
+    description: wc.description || '',
+    isActive: wc.is_active,
+  });
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const [wcRes, whRes] = await Promise.all([
+        getAllWorkCenters(),
+        getAllWarehouses()
+      ]);
+      if (wcRes.success && wcRes.data) {
+        setWorkCenters(wcRes.data.map(mapApiToWorkCenter));
+      }
+      if (whRes.success && whRes.data) {
+        setWarehouses(whRes.data);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const filtered = workCenters.filter((wc) => {
     const q = search.toLowerCase();
@@ -256,58 +314,79 @@ export default function WorkCentersPage() {
   });
 
   const openAdd = () => setSlideOver({ open: true, editing: null });
-  const openEdit = (wc: MockWorkCenter) => setSlideOver({ open: true, editing: wc });
+  const openEdit = (wc: WorkCenter) => setSlideOver({ open: true, editing: wc });
   const closeSlideOver = () => setSlideOver({ open: false, editing: null });
 
-  const handleSave = (form: WCForm) => {
-    if (slideOver.editing) {
-      setWorkCenters((prev) =>
-        prev.map((wc) =>
-          wc.id === slideOver.editing!.id
-            ? {
-              ...wc,
-              name: form.name,
-              type: form.type,
-              capacityPerHour: Number(form.capacityPerHour),
-              warehouseId: form.warehouseId || null,
-              description: form.description,
-              isActive: form.isActive,
-            }
-            : wc,
-        ),
-      );
-      toast.success('Work center updated successfully');
-    } else {
-      const newWc: MockWorkCenter = {
-        id: `wc-${Date.now()}`,
-        name: form.name,
-        type: form.type,
-        capacityPerHour: Number(form.capacityPerHour),
-        warehouseId: form.warehouseId || null,
-        description: form.description,
-        isActive: form.isActive,
-      };
-      setWorkCenters((prev) => [...prev, newWc]);
-      toast.success('Work center created successfully');
+  const handleSave = async (form: WCForm) => {
+    try {
+      if (slideOver.editing) {
+        const res = await updateWorkCenter(slideOver.editing.id, {
+          name: form.name,
+          type: form.type,
+          capacityPerHour: Number(form.capacityPerHour),
+          warehouseId: form.warehouseId || null,
+          description: form.description,
+          isActive: form.isActive,
+        });
+        if (res.success && res.data) {
+          setWorkCenters((prev) =>
+            prev.map((wc) =>
+              wc.id === slideOver.editing!.id
+                ? mapApiToWorkCenter(res.data!)
+                : wc,
+            ),
+          );
+          toast.success('Work center updated successfully');
+        }
+      } else {
+        const res = await createWorkCenter({
+          name: form.name,
+          type: form.type,
+          capacityPerHour: Number(form.capacityPerHour),
+          warehouseId: form.warehouseId || null,
+          description: form.description,
+          isActive: form.isActive,
+        });
+        if (res.success && res.data) {
+          setWorkCenters((prev) => [mapApiToWorkCenter(res.data!), ...prev]);
+          toast.success('Work center created successfully');
+        }
+      }
+      closeSlideOver();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save work center');
+      throw err;
     }
-    closeSlideOver();
   };
 
-  const handleToggleActive = (wc: MockWorkCenter) => {
+  const handleToggleActive = async (wc: WorkCenter) => {
+    // Optimistic update
     setWorkCenters((prev) => prev.map((w) => w.id === wc.id ? { ...w, isActive: !w.isActive } : w));
-    toast.success(`${wc.name} ${wc.isActive ? 'deactivated' : 'activated'}`);
+    try {
+      await updateWorkCenter(wc.id, { isActive: !wc.isActive });
+      toast.success(`${wc.name} ${wc.isActive ? 'deactivated' : 'activated'}`);
+    } catch (err) {
+      // Rollback
+      setWorkCenters((prev) => prev.map((w) => w.id === wc.id ? { ...w, isActive: wc.isActive } : w));
+      toast.error(err instanceof Error ? err.message : 'Failed to update status');
+    }
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteConfirm) return;
-    setWorkCenters((prev) => prev.filter((w) => w.id !== deleteConfirm.id));
-    toast.success(`"${deleteConfirm.name}" removed`);
-    setDeleteConfirm(null);
+    try {
+      await deleteWorkCenter(deleteConfirm.id);
+      setWorkCenters((prev) => prev.filter((w) => w.id !== deleteConfirm.id));
+      toast.success(`"${deleteConfirm.name}" removed`);
+      setDeleteConfirm(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete work center');
+    }
   };
 
   const getWarehouseName = (id: string | null) => {
     if (!id) return '—';
-    const wh = mockWarehouses.find((w) => w.id === id);
+    const wh = warehouses.find((w) => w.id === id);
     return wh ? wh.name : id;
   };
 
@@ -405,7 +484,14 @@ export default function WorkCentersPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((wc, idx) => {
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-12 text-center">
+                    <i className="ri-loader-4-line text-4xl text-[#4f46e5] animate-spin block mb-2" />
+                    <p className="text-[#94a3b8] text-sm">Loading work centers...</p>
+                  </td>
+                </tr>
+              ) : filtered.map((wc, idx) => {
                 const badge = TYPE_BADGE[wc.type];
                 return (
                   <tr key={wc.id} className={`border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors ${idx % 2 !== 0 ? 'bg-[#f8fafc]/40' : ''}`}>
@@ -454,7 +540,7 @@ export default function WorkCentersPage() {
                   </tr>
                 );
               })}
-              {filtered.length === 0 && (
+              {!isLoading && filtered.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center">
                     <i className="ri-building-2-line text-4xl text-[#e2e8f0] block mb-2" />
@@ -475,6 +561,7 @@ export default function WorkCentersPage() {
         editing={slideOver.editing}
         onClose={closeSlideOver}
         onSave={handleSave}
+        warehouses={warehouses}
       />
 
       <ConfirmDialog

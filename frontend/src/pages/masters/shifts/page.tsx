@@ -2,11 +2,27 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/feature/AppLayout';
 import ConfirmDialog from '@/components/feature/ConfirmDialog';
-import { mockShifts, type MockShift } from '@/mocks/masters';
 import { useToast } from '@/contexts/ToastContext';
 import { MasterFilters, MasterStatsRow } from '@/pages/masters/common/CommonComponets';
+import {
+    createShift,
+    getAllShifts,
+    updateShift,
+    deleteShift,
+    type ShiftResponse
+} from '@/api/shift.api';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+
+interface Shift {
+    id: string;
+    name: string;
+    startTime: string; // HH:MM
+    endTime: string; // HH:MM
+    breakMinutes: number;
+    workingDays: string[];
+    isActive: boolean;
+}
 
 interface ShiftForm {
     name: string;
@@ -44,9 +60,9 @@ function calcEffectiveMinutes(start: string, end: string, breakMins: number): nu
 // ─── Slide-Over Form ──────────────────────────────────────────────────────────
 interface SlideOverProps {
     open: boolean;
-    editing: MockShift | null;
+    editing: Shift | null;
     onClose: () => void;
-    onSave: (form: ShiftForm) => void;
+    onSave: (form: ShiftForm) => Promise<void>;
 }
 
 function ShiftSlideOver({ open, editing, onClose, onSave }: SlideOverProps) {
@@ -109,10 +125,16 @@ function ShiftSlideOver({ open, editing, onClose, onSave }: SlideOverProps) {
         return Object.keys(e).length === 0;
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!validate()) return;
         setIsSaving(true);
-        setTimeout(() => { onSave(form); setIsSaving(false); }, 300);
+        try {
+            await onSave(form);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const effectiveMins = calcEffectiveMinutes(form.startTime, form.endTime, Number(form.breakMinutes || 0));
@@ -270,11 +292,49 @@ function ShiftSlideOver({ open, editing, onClose, onSave }: SlideOverProps) {
 export default function ShiftsPage() {
     const navigate = useNavigate();
     const toast = useToast();
-    const [shifts, setShifts] = useState<MockShift[]>([...mockShifts]);
+    const [shifts, setShifts] = useState<Shift[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
-    const [slideOver, setSlideOver] = useState<{ open: boolean; editing: MockShift | null }>({ open: false, editing: null });
-    const [deleteConfirm, setDeleteConfirm] = useState<MockShift | null>(null);
+    const [slideOver, setSlideOver] = useState<{ open: boolean; editing: Shift | null }>({ open: false, editing: null });
+    const [deleteConfirm, setDeleteConfirm] = useState<Shift | null>(null);
+
+    const parseTime = (t: string): string => {
+        if (!t) return '';
+        const parts = t.split(':');
+        if (parts.length >= 2) {
+            return `${parts[0]}:${parts[1]}`;
+        }
+        return t;
+    };
+
+    const mapApiToShift = (s: ShiftResponse): Shift => ({
+        id: s.id,
+        name: s.name,
+        startTime: parseTime(s.start_time),
+        endTime: parseTime(s.end_time),
+        breakMinutes: Number(s.break_minutes || 0),
+        workingDays: s.working_days || [],
+        isActive: s.is_active,
+    });
+
+    const fetchShifts = async () => {
+        setIsLoading(true);
+        try {
+            const res = await getAllShifts();
+            if (res.success && res.data) {
+                setShifts(res.data.map(mapApiToShift));
+            }
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to fetch shifts');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchShifts();
+    }, []);
 
     const filtered = shifts.filter((s) => {
         const q = search.toLowerCase();
@@ -284,53 +344,74 @@ export default function ShiftsPage() {
     });
 
     const openAdd = () => setSlideOver({ open: true, editing: null });
-    const openEdit = (s: MockShift) => setSlideOver({ open: true, editing: s });
+    const openEdit = (s: Shift) => setSlideOver({ open: true, editing: s });
     const closeSlideOver = () => setSlideOver({ open: false, editing: null });
 
-    const handleSave = (form: ShiftForm) => {
-        if (slideOver.editing) {
-            setShifts((prev) =>
-                prev.map((s) =>
-                    s.id === slideOver.editing!.id
-                        ? {
-                            ...s,
-                            name: form.name,
-                            startTime: form.startTime,
-                            endTime: form.endTime,
-                            breakMinutes: Number(form.breakMinutes),
-                            workingDays: [...form.workingDays],
-                            isActive: form.isActive,
-                        }
-                        : s,
-                ),
-            );
-            toast.success('Shift updated successfully');
-        } else {
-            const newShift: MockShift = {
-                id: `sh-${Date.now()}`,
-                name: form.name,
-                startTime: form.startTime,
-                endTime: form.endTime,
-                breakMinutes: Number(form.breakMinutes),
-                workingDays: [...form.workingDays],
-                isActive: form.isActive,
-            };
-            setShifts((prev) => [...prev, newShift]);
-            toast.success('Shift created successfully');
+    const handleSave = async (form: ShiftForm) => {
+        try {
+            if (slideOver.editing) {
+                const res = await updateShift(slideOver.editing.id, {
+                    name: form.name,
+                    startTime: form.startTime,
+                    endTime: form.endTime,
+                    breakMinutes: Number(form.breakMinutes),
+                    workingDays: form.workingDays,
+                    isActive: form.isActive,
+                });
+                if (res.success && res.data) {
+                    setShifts((prev) =>
+                        prev.map((s) =>
+                            s.id === slideOver.editing!.id
+                                ? mapApiToShift(res.data!)
+                                : s,
+                        ),
+                    );
+                    toast.success('Shift updated successfully');
+                }
+            } else {
+                const res = await createShift({
+                    name: form.name,
+                    startTime: form.startTime,
+                    endTime: form.endTime,
+                    breakMinutes: Number(form.breakMinutes),
+                    workingDays: form.workingDays,
+                    isActive: form.isActive,
+                });
+                if (res.success && res.data) {
+                    setShifts((prev) => [mapApiToShift(res.data!), ...prev]);
+                    toast.success('Shift created successfully');
+                }
+            }
+            closeSlideOver();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to save shift');
+            throw err;
         }
-        closeSlideOver();
     };
 
-    const handleToggleActive = (s: MockShift) => {
+    const handleToggleActive = async (s: Shift) => {
+        // Optimistic update
         setShifts((prev) => prev.map((x) => x.id === s.id ? { ...x, isActive: !x.isActive } : x));
-        toast.success(`${s.name} ${s.isActive ? 'deactivated' : 'activated'}`);
+        try {
+            await updateShift(s.id, { isActive: !s.isActive });
+            toast.success(`${s.name} ${s.isActive ? 'deactivated' : 'activated'}`);
+        } catch (err) {
+            // Rollback
+            setShifts((prev) => prev.map((x) => x.id === s.id ? { ...x, isActive: s.isActive } : x));
+            toast.error(err instanceof Error ? err.message : 'Failed to update status');
+        }
     };
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
         if (!deleteConfirm) return;
-        setShifts((prev) => prev.filter((s) => s.id !== deleteConfirm.id));
-        toast.success(`"${deleteConfirm.name}" removed`);
-        setDeleteConfirm(null);
+        try {
+            await deleteShift(deleteConfirm.id);
+            setShifts((prev) => prev.filter((s) => s.id !== deleteConfirm.id));
+            toast.success(`"${deleteConfirm.name}" removed`);
+            setDeleteConfirm(null);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to delete shift');
+        }
     };
 
     return (
@@ -362,7 +443,7 @@ export default function ShiftsPage() {
                     filters={[
                         {
                             value: statusFilter,
-                            onChange: (val) => setStatusFilter(val),
+                            onChange: (val) => setStatusFilter(val as 'ALL' | 'ACTIVE' | 'INACTIVE'),
                             options: [
                                 { value: 'ALL', label: 'All Status' },
                                 { value: 'ACTIVE', label: 'Active' },
@@ -397,7 +478,14 @@ export default function ShiftsPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {filtered.map((s, idx) => {
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan={8} className="px-4 py-12 text-center">
+                                        <i className="ri-loader-4-line text-4xl text-[#4f46e5] animate-spin block mb-2" />
+                                        <p className="text-[#94a3b8] text-sm">Loading shifts...</p>
+                                    </td>
+                                </tr>
+                            ) : filtered.map((s, idx) => {
                                 const effMins = calcEffectiveMinutes(s.startTime, s.endTime, s.breakMinutes);
                                 const isOvernight = timeToMinutes(s.endTime) < timeToMinutes(s.startTime);
                                 return (
@@ -465,7 +553,7 @@ export default function ShiftsPage() {
                                     </tr>
                                 );
                             })}
-                            {filtered.length === 0 && (
+                            {!isLoading && filtered.length === 0 && (
                                 <tr>
                                     <td colSpan={8} className="px-4 py-12 text-center">
                                         <i className="ri-time-line text-4xl text-[#e2e8f0] block mb-2" />

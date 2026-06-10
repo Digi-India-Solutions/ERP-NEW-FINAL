@@ -94,6 +94,10 @@ import dashboardRouter from "./src/dashboard/dashboard-routes.js";
 import invoiceSettingsRouter from "./src/system-settings/invoice-settings/invoice-routes.js";
 import reportsRouter from "./src/reports/reports-routes.js";
 import barcodeRouter from "./src/barCodePrint/barCodePrint-routes.js"
+import workcenterRouter from "./src/masters/workcenter/workcenter-routes.js"
+import machineRouter from "./src/masters/machines/machines-routes.js"
+import shiftRouter from "./src/masters/shifts/shifts-router.js"
+
 app.use('/backups', express.static(path.join(process.cwd(), 'backups')));
 app.use("/api/v1/reports", reportsRouter);
 app.use("/api/v1/auth", adminRouter);
@@ -104,6 +108,9 @@ app.use("/api/v1/warehouse", warehouseRouter);
 app.use("/api/v1/party", partyRouter);
 app.use("/api/v1/item", itemRouter);
 app.use("/api/v1/unit", unitRouter);
+app.use("/api/v1/work-centers", workcenterRouter)
+app.use("/api/v1/machines", machineRouter)
+app.use("/api/v1/shifts", shiftRouter)
 app.use("/api/v1/sales-invoices", salesInvoiceRoutes);
 app.use("/api/v1/challans", challanRoutes);
 app.use("/api/v1/sale-returns", saleReturnRoutes);
