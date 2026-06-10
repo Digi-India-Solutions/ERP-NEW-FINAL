@@ -196,6 +196,18 @@ export const MODULES = {
   WAREHOUSES:  'warehouses',
   CATEGORIES:  'categories',    // ✅ was missing in permissions.ts (doc 15)
   UNITS:       'units',
+  WORK_CENTERS: 'work_centers', // ✅ was missing in permissions.ts (doc 15) 
+  MACHINE:     'machines',     
+  SHIFT:       'shifts',       
+  OPERATOR:    'operators',    
+  COST_CENTRE: 'cost_centers', 
+  COMPANY:     'company',
+  REJECTION_CODE: 'rejection_codes',
+  DOWNTIME_CODE: 'downtime_codes',   
+  QUALITY_PARAMETER: 'quality_parameters', 
+  INSPECTION_CHECKLIST: 'inspection_checklists',
+  ROUTING: 'routing',
+ 
 
   // Sales
   SALES_INVOICE: 'sales_invoice',
@@ -232,6 +244,10 @@ export const MODULES = {
   REPORT_OUTSTANDING:   'report_outstanding',
   REPORT_DAY_BOOK:      'report_day_book',
   REPORT_PARTY_LEDGER:  'report_party_ledger',
+  REPORT_MANUFACTURING: 'report_manufacturing', 
+  REPORT_FINANCE: 'report_finance',             
+  REPORT_GST: 'report_gst',                    
+  REPORT_DASHBOARD: 'report_dashboard',         
 
   // System
   SETTINGS: 'settings',

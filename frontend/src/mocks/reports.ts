@@ -19,15 +19,15 @@ export const mockStockSummary = [
 export const mockStockLedger = [
   { id: 'sl-000', date: '2024-04-01', voucherType: 'Opening', voucherNo: 'DSE-2024-0001', party: '—', source: 'DSE-2024-0001 | Opening Stock', inQty: 25, outQty: 0, balance: 25, rate: 72000, value: 1800000 },
   { id: 'sl-001', date: '2024-04-08', voucherType: 'Purchase', voucherNo: 'GRN-2024-0004', party: 'TechSupply Co.', source: 'GRN-2024-0004 | TechSupply Co.', inQty: 20, outQty: 0, balance: 45, rate: 72000, value: 3240000 },
-  { id: 'sl-002', date: '2024-04-12', voucherType: 'Sale', voucherNo: 'INV-2024-003', party: 'Ramesh Electronics', source: 'INV-2024-003 | Ramesh Electronics', inQty: 0, outQty: 5, balance: 40, rate: 86000, value: 3400000 },
-  { id: 'sl-003', date: '2024-04-18', voucherType: 'Sale', voucherNo: 'INV-2024-007', party: 'Priya Computers', source: 'INV-2024-007 | Priya Computers', inQty: 0, outQty: 8, balance: 32, rate: 86000, value: 2720000 },
+  { id: 'sl-002', date: '2024-04-12', voucherType: 'Sale', voucherNo: 'INV-2024-003', party: 'Ramesh Electronics', source: 'INV-2024-003 | Ramesh Electronics', inQty: 0, outQty: 5, balance: 40, rate: 85000, value: 3400000 },
+  { id: 'sl-003', date: '2024-04-18', voucherType: 'Sale', voucherNo: 'INV-2024-007', party: 'Priya Computers', source: 'INV-2024-007 | Priya Computers', inQty: 0, outQty: 8, balance: 32, rate: 85000, value: 2720000 },
   { id: 'sl-004', date: '2024-04-25', voucherType: 'Purchase', voucherNo: 'GRN-2024-0008', party: 'TechSupply Co.', source: 'GRN-2024-0008 | TechSupply Co.', inQty: 20, outQty: 0, balance: 52, rate: 72000, value: 3744000 },
-  { id: 'sl-005', date: '2024-05-02', voucherType: 'Sale', voucherNo: 'INV-2024-011', party: 'Global IT Solutions', source: 'INV-2024-011 | Global IT Solutions', inQty: 0, outQty: 10, balance: 42, rate: 86000, value: 3570010 },
-  { id: 'sl-006', date: '2024-05-10', voucherType: 'Sale Return', voucherNo: 'SRTN-2024-002', party: 'Ramesh Electronics', source: 'SRTN-2024-002 | Ramesh Electronics', inQty: 2, outQty: 0, balance: 44, rate: 86000, value: 3740000 },
+  { id: 'sl-005', date: '2024-05-02', voucherType: 'Sale', voucherNo: 'INV-2024-011', party: 'Global IT Solutions', source: 'INV-2024-011 | Global IT Solutions', inQty: 0, outQty: 10, balance: 42, rate: 85000, value: 3570000 },
+  { id: 'sl-006', date: '2024-05-10', voucherType: 'Sale Return', voucherNo: 'SRTN-2024-002', party: 'Ramesh Electronics', source: 'SRTN-2024-002 | Ramesh Electronics', inQty: 2, outQty: 0, balance: 44, rate: 85000, value: 3740000 },
   { id: 'sl-007', date: '2024-05-15', voucherType: 'Adj-Out', voucherNo: 'ADJ-2024-003', party: '—', source: 'ADJ-2024-003 | Damage Write-off', inQty: 0, outQty: 3, balance: 41, rate: 72000, value: 2952000 },
   { id: 'sl-008', date: '2024-05-18', voucherType: 'Adj-In', voucherNo: 'DSE-2024-0003', party: '—', source: 'DSE-2024-0003 | Stock Audit Found', inQty: 4, outQty: 0, balance: 45, rate: 72000, value: 3240000 },
   { id: 'sl-009', date: '2024-05-22', voucherType: 'Transfer In', voucherNo: 'TRF-2024-002', party: 'North Branch', source: 'TRF-2024-002 | North Branch', inQty: 5, outQty: 0, balance: 50, rate: 72000, value: 3600000 },
-  { id: 'sl-010', date: '2024-05-28', voucherType: 'Sale', voucherNo: 'INV-2024-019', party: 'Apex Hardware', source: 'INV-2024-019 | Apex Hardware', inQty: 0, outQty: 8, balance: 42, rate: 86000, value: 3570010 },
+  { id: 'sl-010', date: '2024-05-28', voucherType: 'Sale', voucherNo: 'INV-2024-019', party: 'Apex Hardware', source: 'INV-2024-019 | Apex Hardware', inQty: 0, outQty: 8, balance: 42, rate: 85000, value: 3570000 },
 ];
 
 // ─── Low Stock ────────────────────────────────────────────────────────────────
@@ -95,7 +95,7 @@ export const mockOutstanding = [
   { id: 'oi-004', customer: 'Global IT Solutions', gstin: '07AABCG5678H1ZP', invoiceNo: 'INV-2024-007', invoiceDate: '2024-03-12', dueDate: '2024-04-11', invoiceAmount: 52180, paid: 0, balance: 52180, agingDays: 19, agingBucket: '0-30' as const },
   { id: 'oi-005', customer: 'Priya Computers', gstin: '27AAACP1234Q1ZA', invoiceNo: 'INV-2024-015', invoiceDate: '2024-02-14', dueDate: '2024-03-15', invoiceAmount: 24800, paid: 10000, balance: 14800, agingDays: 47, agingBucket: '31-60' as const },
   { id: 'oi-006', customer: 'Ramesh Electronics', gstin: '27AADCR4849M1ZV', invoiceNo: 'INV-2024-018', invoiceDate: '2024-02-10', dueDate: '2024-03-11', invoiceAmount: 42600, paid: 0, balance: 42600, agingDays: 51, agingBucket: '31-60' as const },
-  { id: 'oi-007', customer: 'Priya Computers', gstin: '27AAACP1234Q1ZA', invoiceNo: 'INV-2024-009', invoiceDate: '2024-01-12', dueDate: '2024-02-11', invoiceAmount: 18400, paid: 6000, balance: 13400, agingDays: 79, agingBucket: '61-90' as const },
+  { id: 'oi-007', customer: 'Priya Computers', gstin: '27AAACP1234Q1ZA', invoiceNo: 'INV-2024-009', invoiceDate: '2024-01-12', dueDate: '2024-02-11', invoiceAmount: 18400, paid: 5000, balance: 13400, agingDays: 79, agingBucket: '61-90' as const },
   { id: 'oi-008', customer: 'Kumar Enterprises', gstin: '19AABCK1234P1ZX', invoiceNo: 'INV-2023-142', invoiceDate: '2023-12-01', dueDate: '2023-12-31', invoiceAmount: 67800, paid: 20000, balance: 47800, agingDays: 110, agingBucket: '90+' as const },
   { id: 'oi-009', customer: 'Bharat Infotech', gstin: '24AABCB5678Q1ZR', invoiceNo: 'INV-2023-128', invoiceDate: '2023-11-15', dueDate: '2023-12-15', invoiceAmount: 31200, paid: 0, balance: 31200, agingDays: 126, agingBucket: '90+' as const },
 ];
@@ -130,5 +130,5 @@ export const mockCustomerSummary = [
   { id: 'pty-003', name: 'Global IT Solutions', gstin: '07AABCG5678H1ZP', totalInvoices: 8, totalAmount: 284600, totalPaid: 182500, balanceDue: 102100 },
   { id: 'pty-004', name: 'Priya Computers', gstin: '27AAACP1234Q1ZA', totalInvoices: 9, totalAmount: 168300, totalPaid: 140100, balanceDue: 28200 },
   { id: 'pty-007', name: 'Kumar Enterprises', gstin: '19AABCK1234P1ZX', totalInvoices: 5, totalAmount: 128400, totalPaid: 80600, balanceDue: 47800 },
-  { id: 'pty-008', name: 'Bharat Infotech', gstin: '24AABCB5678Q1ZR', totalInvoices: 4, totalAmount: 86200, totalPaid: 56000, balanceDue: 31200 },
+  { id: 'pty-008', name: 'Bharat Infotech', gstin: '24AABCB5678Q1ZR', totalInvoices: 4, totalAmount: 86200, totalPaid: 55000, balanceDue: 31200 },
 ];

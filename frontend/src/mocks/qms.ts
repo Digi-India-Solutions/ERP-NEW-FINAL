@@ -11,16 +11,11 @@ export function calcAQLSampleSize(totalQty: number): number {
 
 export function calcSampleQty(plan: string, total: number): number {
   switch (plan) {
-    case 'ALL':
-      return total;
-    case 'RANDOM_10':
-      return Math.ceil(total * 0.1);
-    case 'RANDOM_20':
-      return Math.ceil(total * 0.2);
-    case 'AQL':
-      return calcAQLSampleSize(total);
-    default:
-      return total;
+    case 'ALL': return total;
+    case 'RANDOM_10': return Math.ceil(total * 0.1);
+    case 'RANDOM_20': return Math.ceil(total * 0.2);
+    case 'AQL': return calcAQLSampleSize(total);
+    default: return total;
   }
 }
 
@@ -148,12 +143,7 @@ export interface MockNCR {
   defectDescription: string;
   defectQty: number;
   unit: string;
-  dispositionAction:
-    | 'REJECT'
-    | 'REWORK'
-    | 'USE_AS_IS'
-    | 'RETURN_TO_SUPPLIER'
-    | 'PENDING';
+  dispositionAction: 'REJECT' | 'REWORK' | 'USE_AS_IS' | 'RETURN_TO_SUPPLIER' | 'PENDING';
   assignedTo: string | null;
   assignedToName: string | null;
   dueDate: string | null;
@@ -171,13 +161,7 @@ export interface MockCAPA {
   ncrNumber: string;
   type: 'CORRECTIVE' | 'PREVENTIVE';
   rootCause: string;
-  rootCauseCategory:
-    | 'MATERIAL'
-    | 'MACHINE'
-    | 'METHOD'
-    | 'MANPOWER'
-    | 'MEASUREMENT'
-    | 'ENVIRONMENT';
+  rootCauseCategory: 'MATERIAL' | 'MACHINE' | 'METHOD' | 'MANPOWER' | 'MEASUREMENT' | 'ENVIRONMENT';
   correctiveAction: string;
   preventiveAction: string;
   targetDate: string;

@@ -13,6 +13,18 @@ import WarehousesPage from '@/pages/masters/warehouses/page';
 import PartiesPage from '@/pages/masters/parties/page';
 import ItemsPage from '@/pages/masters/items/page';
 import CategoriesUnitsPage from '@/pages/masters/categories/page';
+import WorkCentersPage from '@/pages/masters/work-centers/page';
+import MachinesPage from '@/pages/masters/machines/page';
+import ShiftsPage from '@/pages/masters/shifts/page';
+import OperatorsPage from '@/pages/masters/operators/page';
+import CostCentersPage from '@/pages/masters/cost-centers/page';
+import CompanyPage from '@/pages/masters/company/page';
+import InspectionChecklistsPage from '@/pages/masters/inspection-checklists/page';
+import DowntimeCodesPage from '@/pages/masters/downtime-codes/page';
+import QualityParametersPage from '@/pages/masters/quality-parameters/page';
+import RejectionCodesPage from '@/pages/masters/rejection-codes/page';
+import RoutingPage from '@/pages/masters/routing/page';
+import RoutingFormPage from '@/pages/masters/routing/form/page';
 import SalesInvoiceListPage from '@/pages/sales/invoices/page';
 import SalesInvoiceNewPage from '@/pages/sales/invoices/new/page';
 import SaleReturnsPage from '@/pages/sales/returns/page';
@@ -54,6 +66,11 @@ import GSTSalesReport from '@/pages/reports/gst-sales/page';
 import OutstandingReport from '@/pages/reports/outstanding/page';
 import DayBookReport from '@/pages/reports/day-book/page';
 import PartyLedgerReport from '@/pages/reports/party-ledger/page';
+import ManufacturingReportsPage from '@/pages/reports/manufacturing/page';
+import FinanceReportsPage from '@/pages/reports/finance/page';
+import GSTReportsPage from '@/pages/reports/gst/page';
+import ExecutiveDashboardPage from '@/pages/reports/dashboard/page';
+      
 import ResetPasswordPage from '@/pages/reset-password/page';
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -69,6 +86,7 @@ import MaterialShortagePage from '@/pages/manifacturing/mrp/shortage/page';
 import ProductionEntryPage from '@/pages/manifacturing/shop-floor/page';
 import DowntimeEntryPage from '@/pages/manifacturing/downtime/page';
 import LiveDashboardPage from '@/pages/manifacturing/live/page';
+
 
 const P = ({
   children,
@@ -104,9 +122,9 @@ const Perm = ({
 }: {
   children: React.ReactNode;
   module: string;
-  action: string;
+  action: 'create' | 'view' | 'edit' | 'delete';
   override?: (args: {
-    hasPermission: (m: string, a: string) => boolean;
+    hasPermission: (m: string, a: 'create' | 'view' | 'edit' | 'delete') => boolean;
     hasControl: (c: string) => boolean;
   }) => boolean;
 }) => {
@@ -138,22 +156,14 @@ const routes: RouteObject[] = [
   { path: '/reset-password/:token', element: <ResetPasswordPage /> },
 
   {
-    path: '/',
-    element: (
-      <P>
-        <Dashboard />
-      </P>
-    ),
-  },
-  {
     path: '/settings',
     element: (
       <Perm
         module={MODULES.SETTINGS}
         action="view"
         override={({ hasPermission, hasControl }) =>
-          hasPermission(MODULES.SETTINGS, 'view') ||
-          hasControl('manageUserPermissions')
+          hasPermission(MODULES.SETTINGS, "view") ||
+          hasControl("manageUserPermissions")
         }
       >
         <Settings />
@@ -167,8 +177,8 @@ const routes: RouteObject[] = [
         module={MODULES.USERS}
         action="view"
         override={({ hasPermission, hasControl }) =>
-          hasPermission(MODULES.USERS, 'view') ||
-          hasControl('manageUserPermissions')
+          hasPermission(MODULES.USERS, "view") ||
+          hasControl("manageUserPermissions")
         }
       >
         <Users />
@@ -195,22 +205,110 @@ const routes: RouteObject[] = [
       </Perm>
     ),
   },
+  { path: '/masters/items', element: <P><ItemsPage /></P> },
   {
-    path: '/masters/items',
-    element: (
-      <P>
-        <ItemsPage />
-      </P>
-    ),
-  },
-  {
-    path: '/masters/categories',
-    element: (
+    path: '/masters/categories', element: (
       <Perm module={MODULES.CATEGORIES} action="view">
         <CategoriesUnitsPage />
       </Perm>
-    ),
+    )
   },
+  {
+    path: '/masters/work-centers', element: (
+      <Perm module={MODULES.WORK_CENTERS} action="view">
+        <WorkCentersPage />
+      </Perm>
+    )
+  },
+  {
+    path: '/masters/machines', element: (
+      <Perm module={MODULES.MACHINE} action="view">
+        <MachinesPage />
+      </Perm>
+    )
+  },
+  {
+    path: '/masters/shifts', element: (
+      <Perm module={MODULES.SHIFT} action="view">
+        <ShiftsPage />
+      </Perm>)
+  },
+  {
+    path: '/masters/operators', element: (
+      <Perm module={MODULES.OPERATOR} action="view">
+        <OperatorsPage />
+      </Perm>)
+  },
+  {
+    path: '/masters/cost-centers', element: (
+      <Perm module={MODULES.COST_CENTRE} action="view">
+        <CostCentersPage />
+      </Perm>)
+  },
+  {
+    path :'masters/company',
+    element :(
+      <Perm module= {
+        MODULES.COMPANY} action = "view">
+          <CompanyPage/>
+        </Perm>
+    )
+      },
+
+      {
+        path:'/masters/inspection-checklists',
+        element :(
+          <Perm module={
+            MODULES.INSPECTION_CHECKLIST} action = "view" >
+              <InspectionChecklistsPage/>
+            </Perm>
+        )
+      },
+
+      {
+        path :'masters/downtime-codes',
+        element :(
+          <Perm module={
+            MODULES.DOWNTIME_CODE} action = "view" >
+              <DowntimeCodesPage/>
+            </Perm>
+        )
+      },
+
+      {
+        path :'masters/quality-parameters',
+        element :(
+          <Perm module={
+            MODULES.QUALITY_PARAMETER} action = "view" >
+              <QualityParametersPage/>
+            </Perm>
+        )
+      },
+
+      {
+        path: 'masters/rejection-codes',
+        element: (
+          <Perm module={MODULES.REJECTION_CODE} action="view">
+            <RejectionCodesPage />
+          </Perm>
+        )
+      },
+      {
+        path: 'masters/routing',
+        element: (
+          <Perm module={MODULES.ROUTING} action="view">
+            <RoutingPage />
+          </Perm>
+        )
+      },
+      {
+        path: 'masters/routing/new',
+        element: (
+          <Perm module={MODULES.ROUTING} action="create">
+            <RoutingFormPage />
+          </Perm>
+        )
+      },
 
   // ── Sales ─────────────────────────────────────────────────────────────────
   { path: '/sales', element: <Navigate to="/sales/invoices" replace /> },
@@ -380,8 +478,8 @@ const routes: RouteObject[] = [
         module={MODULES.STOCK_ADJUSTMENT}
         action="view"
         override={({ hasPermission, hasControl }) =>
-          hasPermission(MODULES.STOCK_ADJUSTMENT, 'view') ||
-          hasControl('approveStockAdjustment')
+          hasPermission(MODULES.STOCK_ADJUSTMENT, "view") ||
+          hasControl("approveStockAdjustment")
         }
       >
         <StockAdjustmentPage />
@@ -554,21 +652,13 @@ const routes: RouteObject[] = [
 
   // ── Reports ───────────────────────────────────────────────────────────────
   {
-    path: '/reports',
-    element: (
-      <P>
-        <ReportsLanding />
-      </P>
-    ),
-  },
-  {
     path: '/reports/stock-summary',
     element: (
       <Perm
         module={MODULES.REPORT_STOCK_SUMMARY}
         action="view"
         override={({ hasPermission, hasControl }) =>
-          hasPermission(MODULES.REPORT_STOCK_SUMMARY, 'view') ||
+          hasPermission(MODULES.REPORT_STOCK_SUMMARY, "view") ||
           hasControl('viewFinancialReports')
         }
       >
@@ -583,7 +673,7 @@ const routes: RouteObject[] = [
         module={MODULES.REPORT_PARTY_LEDGER}
         action="view"
         override={({ hasPermission, hasControl }) =>
-          hasPermission(MODULES.REPORT_PARTY_LEDGER, 'view') ||
+          hasPermission(MODULES.REPORT_PARTY_LEDGER, "view") ||
           hasControl('viewFinancialReports')
         }
       >
@@ -598,7 +688,7 @@ const routes: RouteObject[] = [
         module={MODULES.REPORT_LOW_STOCK}
         action="view"
         override={({ hasPermission, hasControl }) =>
-          hasPermission(MODULES.REPORT_LOW_STOCK, 'view') ||
+          hasPermission(MODULES.REPORT_LOW_STOCK, "view") ||
           hasControl('viewFinancialReports')
         }
       >
@@ -613,7 +703,7 @@ const routes: RouteObject[] = [
         module={MODULES.REPORT_PURCHASE_REG}
         action="view"
         override={({ hasPermission, hasControl }) =>
-          hasPermission(MODULES.REPORT_PURCHASE_REG, 'view') ||
+          hasPermission(MODULES.REPORT_PURCHASE_REG, "view") ||
           hasControl('viewFinancialReports')
         }
       >
@@ -628,7 +718,7 @@ const routes: RouteObject[] = [
         module={MODULES.REPORT_GST_PURCHASE}
         action="view"
         override={({ hasPermission, hasControl }) =>
-          hasPermission(MODULES.REPORT_GST_PURCHASE, 'view') ||
+          hasPermission(MODULES.REPORT_GST_PURCHASE, "view") ||
           hasControl('viewFinancialReports')
         }
       >
@@ -643,7 +733,7 @@ const routes: RouteObject[] = [
         module={MODULES.REPORT_STOCK_LEDGER}
         action="view"
         override={({ hasPermission, hasControl }) =>
-          hasPermission(MODULES.REPORT_STOCK_LEDGER, 'view') ||
+          hasPermission(MODULES.REPORT_STOCK_LEDGER, "view") ||
           hasControl('viewFinancialReports')
         }
       >
@@ -658,7 +748,7 @@ const routes: RouteObject[] = [
         module={MODULES.REPORT_DAY_BOOK}
         action="view"
         override={({ hasPermission, hasControl }) =>
-          hasPermission(MODULES.REPORT_DAY_BOOK, 'view') ||
+          hasPermission(MODULES.REPORT_DAY_BOOK, "view") ||
           hasControl('viewFinancialReports')
         }
       >
@@ -673,7 +763,7 @@ const routes: RouteObject[] = [
         module={MODULES.REPORT_OUTSTANDING}
         action="view"
         override={({ hasPermission, hasControl }) =>
-          hasPermission(MODULES.REPORT_OUTSTANDING, 'view') ||
+          hasPermission(MODULES.REPORT_OUTSTANDING, "view") ||
           hasControl('viewFinancialReports')
         }
       >
@@ -688,7 +778,7 @@ const routes: RouteObject[] = [
         module={MODULES.REPORT_GST_SALES}
         action="view"
         override={({ hasPermission, hasControl }) =>
-          hasPermission(MODULES.REPORT_GST_SALES, 'view') ||
+          hasPermission(MODULES.REPORT_GST_SALES, "view") ||
           hasControl('viewFinancialReports')
         }
       >
@@ -703,7 +793,7 @@ const routes: RouteObject[] = [
         module={MODULES.REPORT_SALES_REG}
         action="view"
         override={({ hasPermission, hasControl }) =>
-          hasPermission(MODULES.REPORT_SALES_REG, 'view') ||
+          hasPermission(MODULES.REPORT_SALES_REG, "view") ||
           hasControl('viewFinancialReports')
         }
       >
@@ -711,6 +801,67 @@ const routes: RouteObject[] = [
       </Perm>
     ),
   },
+  {
+    path: '/reports/manufacturing',
+    element: (
+      <Perm
+        module={MODULES.REPORT_MANUFACTURING}
+        action="view"
+        override={({ hasPermission, hasControl }) =>
+          hasPermission(MODULES.REPORT_MANUFACTURING, "view") ||
+          hasControl('viewFinancialReports')
+        }
+      >
+        <ManufacturingReportsPage />
+      </Perm>
+    ),
+  },
+  {
+    path: '/reports/finance',
+    element: (
+      <Perm
+        module={MODULES.REPORT_FINANCE}
+        action="view"
+        override={({ hasPermission, hasControl }) =>
+          hasPermission(MODULES.REPORT_FINANCE, "view") ||
+          hasControl('viewFinancialReports')
+        }
+      >
+        <FinanceReportsPage />
+      </Perm>
+    ),
+  },
+  {
+    path: '/reports/gst',
+    element: (
+      <Perm
+        module={MODULES.REPORT_GST}
+        action="view"
+        override={({ hasPermission, hasControl }) =>
+          hasPermission(MODULES.REPORT_GST, "view") ||
+          hasControl('viewFinancialReports')
+        }
+      >
+        <GSTReportsPage />
+      </Perm>
+    ),
+  },
+  {
+    path: '/reports/dashboard',
+    element: (
+      <Perm
+        module={MODULES.REPORT_DASHBOARD}
+        action="view"
+        override={({ hasPermission, hasControl }) =>
+          hasPermission(MODULES.REPORT_DASHBOARD, "view") ||
+          hasControl('viewFinancialReports')
+        }
+      >
+        <ExecutiveDashboardPage />
+      </Perm>
+    ),
+  },
+
 
   { path: '*', element: <NotFound /> },
 ];

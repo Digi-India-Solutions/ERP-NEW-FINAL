@@ -13,50 +13,73 @@ interface NavItem {
   icon?: string;
   items?: NavItem[];
 }
+
 interface NavGroup { label: string; icon: string; basePath: string; items: NavItem[]; }
 interface CompanyData { name: string; logo_url?: string | null; }
 
 const mastersGroup: NavGroup = {
   label: 'Masters', icon: 'ri-database-2-line', basePath: '/masters',
   items: [
-    { label: 'Warehouses',         path: '/masters/warehouses',  icon: 'ri-store-3-line'     },
-    { label: 'Parties',            path: '/masters/parties',     icon: 'ri-group-2-line'     },
-    { label: 'Items',              path: '/masters/items',       icon: 'ri-box-3-line'       },
-    { label: 'Categories & Units', path: '/masters/categories',  icon: 'ri-price-tag-3-line' },
+     { label: 'Company', path: '/masters/company', icon: 'ri-building-line' },
+    { label: 'Warehouses', path: '/masters/warehouses', icon: 'ri-store-3-line' },
+    { label: 'Work Centers', path: '/masters/work-centers', icon: 'ri-building-2-line' },
+    { label: 'Machines', path: '/masters/machines', icon: 'ri-settings-3-line' },
+    { label: 'Shifts', path: '/masters/shifts', icon: 'ri-time-line' },
+    { label: 'Operators', path: '/masters/operators', icon: 'ri-user-settings-line' },
+    { label: 'Cost Centers', path: '/masters/cost-centers', icon: 'ri-building-4-line' },
+    { label: 'Rejection Codes', path: '/masters/rejection-codes', icon: 'ri-close-circle-line' },
+    { label: 'Downtime Codes', path: '/masters/downtime-codes', icon: 'ri-timer-flash-line' },
+    { label: 'Quality Parameters', path: '/masters/quality-parameters', icon: 'ri-microscope-line' },
+    { label: 'Inspection Checklists', path: '/masters/inspection-checklists', icon: 'ri-checkbox-multiple-line' },
+    { label: 'Routing', path: '/masters/routing', icon: 'ri-git-branch-line' },
+    { label: 'Parties', path: '/masters/parties', icon: 'ri-group-2-line' },
+    { label: 'Items', path: '/masters/items', icon: 'ri-box-3-line' },
+    { label: 'Categories & Units', path: '/masters/categories', icon: 'ri-price-tag-3-line' },
   ],
 };
 
 const salesGroup: NavGroup = {
   label: 'Sales', icon: 'ri-shopping-cart-2-line', basePath: '/sales',
   items: [
-    { label: 'Invoices',     path: '/sales/invoices', icon: 'ri-file-text-line'          },
-    { label: 'Payments',     path: '/sales/payments', icon: 'ri-money-rupee-circle-line' },
-    { label: 'Sale Returns', path: '/sales/returns',  icon: 'ri-arrow-go-back-line'      },
-    { label: 'Challans',     path: '/sales/challans', icon: 'ri-truck-line'              },
+    { label: 'Company', path: '/masters/company', icon: 'ri-building-line' },
+    { label: 'Warehouses', path: '/masters/warehouses', icon: 'ri-store-3-line' },
+    { label: 'Work Centers', path: '/masters/work-centers', icon: 'ri-building-2-line' },
+    { label: 'Machines', path: '/masters/machines', icon: 'ri-settings-3-line' },
+    { label: 'Shifts', path: '/masters/shifts', icon: 'ri-time-line' },
+    { label: 'Operators', path: '/masters/operators', icon: 'ri-user-settings-line' },
+    { label: 'Cost Centers', path: '/masters/cost-centers', icon: 'ri-building-4-line' },
+    { label: 'Rejection Codes', path: '/masters/rejection-codes', icon: 'ri-close-circle-line' },
+    { label: 'Downtime Codes', path: '/masters/downtime-codes', icon: 'ri-timer-flash-line' },
+    { label: 'Quality Parameters', path: '/masters/quality-parameters', icon: 'ri-microscope-line' },
+    { label: 'Inspection Checklists', path: '/masters/inspection-checklists', icon: 'ri-checkbox-multiple-line' },
+    { label: 'Routing', path: '/masters/routing', icon: 'ri-git-branch-line' },
+    { label: 'Parties', path: '/masters/parties', icon: 'ri-group-2-line' },
+    { label: 'Items', path: '/masters/items', icon: 'ri-box-3-line' },
+    { label: 'Categories & Units', path: '/masters/categories', icon: 'ri-price-tag-3-line' },
   ],
 };
 
 const purchaseGroup: NavGroup = {
   label: 'Purchase', icon: 'ri-store-2-line', basePath: '/purchase',
   items: [
-    { label: 'Purchase Orders',  path: '/purchase/orders',   icon: 'ri-file-list-3-line'       },
-    { label: 'Invoices',         path: '/purchase/invoices', icon: 'ri-file-text-line'          },
-    { label: 'Payments',         path: '/purchase/payments', icon: 'ri-money-rupee-circle-line' },
-    { label: 'GRN History',      path: '/purchase/grn',      icon: 'ri-inbox-archive-line'      },
-    { label: 'Purchase Returns', path: '/purchase/returns',  icon: 'ri-arrow-go-forward-line'   },
+    { label: 'Purchase Orders', path: '/purchase/orders', icon: 'ri-file-list-3-line' },
+    { label: 'Invoices', path: '/purchase/invoices', icon: 'ri-file-text-line' },
+    { label: 'Payments', path: '/purchase/payments', icon: 'ri-money-rupee-circle-line' },
+    { label: 'GRN History', path: '/purchase/grn', icon: 'ri-inbox-archive-line' },
+    { label: 'Purchase Returns', path: '/purchase/returns', icon: 'ri-arrow-go-forward-line' },
   ],
 };
 
 const inventoryGroup: NavGroup = {
   label: 'Inventory', icon: 'ri-archive-stack-line', basePath: '/inventory',
   items: [
-    { label: 'Stock View',        path: '/inventory/stock',             icon: 'ri-bar-chart-horizontal-line' },
-    { label: 'Stock Receiving',   path: '/inventory/receiving',         icon: 'ri-inbox-archive-line'        },
-    { label: 'Stock Entries',     path: '/inventory/stock-entries',     icon: 'ri-add-box-line'              },
-    { label: 'Transfers',         path: '/inventory/transfer',          icon: 'ri-swap-box-line'             },
-    { label: 'Adjustments',       path: '/inventory/adjustment',        icon: 'ri-equalizer-line'            },
-    { label: 'Outward Gate Pass', path: '/inventory/gate-pass/outward', icon: 'ri-logout-box-r-line'         },
-    { label: 'Inward Gate Pass',  path: '/inventory/gate-pass/inward',  icon: 'ri-login-box-line'            },
+    { label: 'Stock View', path: '/inventory/stock', icon: 'ri-bar-chart-horizontal-line' },
+    { label: 'Stock Receiving', path: '/inventory/receiving', icon: 'ri-inbox-archive-line' },
+    { label: 'Stock Entries', path: '/inventory/stock-entries', icon: 'ri-add-box-line' },
+    { label: 'Transfers', path: '/inventory/transfer', icon: 'ri-swap-box-line' },
+    { label: 'Adjustments', path: '/inventory/adjustment', icon: 'ri-equalizer-line' },
+    { label: 'Outward Gate Pass', path: '/inventory/gate-pass/outward', icon: 'ri-logout-box-r-line' },
+    { label: 'Inward Gate Pass', path: '/inventory/gate-pass/inward', icon: 'ri-login-box-line' },
   ],
 };
 
@@ -200,14 +223,32 @@ const manufacturingGroup: NavGroup = {
           path: '/manufacturing/costing/variance-report',
           icon: 'ri-bar-chart-2-line',
         },
+        
       ],
-    },
+    }]}
+const reportsGroup: NavGroup = {
+  label: 'Reports', icon: 'ri-bar-chart-2-line', basePath: '/reports',
+   items: [
+    { label: 'Stock Summary', path: '/reports/stock-summary', icon: 'ri-stack-line' },
+    { label: 'Stock Ledger', path: '/reports/stock-ledger', icon: 'ri-file-list-3-line' },
+    { label: 'Low Stock Alert', path: '/reports/low-stock', icon: 'ri-alert-line' },
+    { label: 'Purchase Register', path: '/reports/purchase-register', icon: 'ri-store-2-line' },
+    { label: 'GST Purchase', path: '/reports/gst-purchase', icon: 'ri-receipt-line' },
+    { label: 'Sales Register', path: '/reports/sales-register', icon: 'ri-bar-chart-box-line' },
+    { label: 'GST Sales (GSTR-1)', path: '/reports/gst-sales', icon: 'ri-file-shield-2-line' },
+    { label: 'Outstanding', path: '/reports/outstanding', icon: 'ri-money-rupee-circle-line' },
+    { label: 'Day Book', path: '/reports/day-book', icon: 'ri-calendar-check-line' },
+    { label: 'Party Ledger', path: '/reports/party-ledger', icon: 'ri-group-line' },
+    { label: 'Manufacturing Reports', path: '/reports/manufacturing', icon: 'ri-building-4-line' },
+    { label: 'Financial Reports', path: '/reports/finance', icon: 'ri-bar-chart-line' },
+    { label: 'GST Reports', path: '/reports/gst', icon: 'ri-file-shield-2-line' },
+    { label: 'Executive Dashboard', path: '/reports/dashboard', icon: 'ri-dashboard-line' },
   ],
 };
 const guardNavItems: NavItem[] = [
-  { label: 'Dashboard',      path: '/guard/dashboard', icon: 'ri-shield-user-line'  },
-  { label: 'Outward Passes', path: '/guard/outward',   icon: 'ri-logout-box-r-line' },
-  { label: 'Inward Passes',  path: '/guard/inward',    icon: 'ri-login-box-line'    },
+  { label: 'Dashboard', path: '/guard/dashboard', icon: 'ri-shield-user-line' },
+  { label: 'Outward Passes', path: '/guard/outward', icon: 'ri-logout-box-r-line' },
+  { label: 'Inward Passes', path: '/guard/inward', icon: 'ri-login-box-line' },
 ];
 
 const roleLabel: Record<string, string> = {
@@ -220,12 +261,12 @@ interface SidebarProps { collapsed: boolean; onToggle: () => void; }
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const { user, hasPermission, hasControl, logout } = useAuth();
   const location = useLocation();
-  const navigate  = useNavigate();
+  const navigate = useNavigate();
 
   // ── All hooks at the top — no conditional hooks ───────────────────────────
-  const [mastersOpen,   setMastersOpen]   = useState(location.pathname.startsWith('/masters'));
-  const [salesOpen,     setSalesOpen]     = useState(location.pathname.startsWith('/sales'));
-  const [purchaseOpen,  setPurchaseOpen]  = useState(location.pathname.startsWith('/purchase'));
+  const [mastersOpen, setMastersOpen] = useState(location.pathname.startsWith('/masters'));
+  const [salesOpen, setSalesOpen] = useState(location.pathname.startsWith('/sales'));
+  const [purchaseOpen, setPurchaseOpen] = useState(location.pathname.startsWith('/purchase'));
   const [inventoryOpen, setInventoryOpen] = useState(location.pathname.startsWith('/inventory'));
   const [printOpen,     setPrintOpen]     = useState(location.pathname.startsWith('/print'));
   const [manufacturingOpen, setManufacturingOpen] = useState(
@@ -233,7 +274,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   );
   const [reportsOpen,   setReportsOpen]   = useState(location.pathname.startsWith('/reports'));
   const [logoutConfirm, setLogoutConfirm] = useState(false);
-  const [company,       setCompany]       = useState<CompanyData | null>(null);
+  const [company, setCompany] = useState<CompanyData | null>(null);
 
   const token = localStorage.getItem('token');
 
@@ -256,7 +297,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   useEffect(() => { fetchCompany(); }, [fetchCompany]);
 
   // ── Derived values ────────────────────────────────────────────────────────
-  const role    = user?.role ?? '';
+  const role = user?.role ?? '';
   const isGuard = role === 'SECURITY_GUARD';
 
   const userInitials = (user?.name ?? 'AU')
@@ -265,37 +306,50 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   // ── Permission-filtered items ─────────────────────────────────────────────
   const visibleMastersItems = mastersGroup.items.filter((item) => {
     if (item.path === '/masters/warehouses') return hasPermission(MODULES.WAREHOUSES, 'view');
-    if (item.path === '/masters/parties')    return hasPermission(MODULES.PARTIES, 'view');
-    if (item.path === '/masters/items')      return hasPermission(MODULES.ITEMS, 'view');
+    if (item.path === '/masters/parties') return hasPermission(MODULES.PARTIES, 'view');
+    if (item.path === '/masters/items') return hasPermission(MODULES.ITEMS, 'view');
     if (item.path === '/masters/categories') return hasPermission(MODULES.CATEGORIES, 'view');
+    if (item.path === '/masters/work-centers') return hasPermission(MODULES.WORK_CENTERS, 'view');
+    if (item.path === '/masters/company') return hasPermission(MODULES.COMPANY, 'view');
+    if (item.path === '/masters/machines') return hasPermission(MODULES.MACHINE, 'view');
+    if (item.path === '/masters/shifts') return hasPermission(MODULES.SHIFT, 'view');
+    if (item.path === '/masters/operators') return hasPermission(MODULES.OPERATOR, 'view');
+    if (item.path === '/masters/cost-centers') return hasPermission(MODULES.COST_CENTRE, 'view');
+    if (item.path === '/masters/rejection-codes') return hasPermission(MODULES.REJECTION_CODE, 'view');
+    if (item.path === '/masters/downtime-codes')  return hasPermission(MODULES.DOWNTIME_CODE, 'view');
+    if (item.path === '/masters/quality-parameters') return hasPermission(MODULES.QUALITY_PARAMETER, 'view');
+    if (item.path === '/masters/inspection-checklists') return hasPermission(MODULES.INSPECTION_CHECKLIST, 'view');
+    if (item.path === '/masters/routing') return hasPermission(MODULES.ROUTING, 'view');
+    if(item.path === '/masters/routing/new') return hasPermission(MODULES.ROUTING, 'create');
+
     return false;
   });
 
   const visibleSalesItems = salesGroup.items.filter((item) => {
     if (item.path === '/sales/invoices') return hasPermission(MODULES.SALES_INVOICE, 'view');
     if (item.path === '/sales/payments') return hasPermission(MODULES.SALES_PAYMENT, 'view');
-    if (item.path === '/sales/returns')  return hasPermission(MODULES.SALE_RETURN, 'view');
+    if (item.path === '/sales/returns') return hasPermission(MODULES.SALE_RETURN, 'view');
     if (item.path === '/sales/challans') return hasPermission(MODULES.CHALLAN, 'view');
     return false;
   });
 
   const visiblePurchaseItems = purchaseGroup.items.filter((item) => {
-    if (item.path === '/purchase/orders')   return hasPermission(MODULES.PURCHASE_ORDER, 'view');
+    if (item.path === '/purchase/orders') return hasPermission(MODULES.PURCHASE_ORDER, 'view');
     if (item.path === '/purchase/invoices') return hasPermission(MODULES.PURCHASE_INVOICE, 'view');
     if (item.path === '/purchase/payments') return hasPermission(MODULES.PURCHASE_PAYMENT, 'view');
-    if (item.path === '/purchase/grn')      return hasPermission(MODULES.GRN_HISTORY, 'view');
-    if (item.path === '/purchase/returns')  return hasPermission(MODULES.PURCHASE_RETURN, 'view');
+    if (item.path === '/purchase/grn') return hasPermission(MODULES.GRN_HISTORY, 'view');
+    if (item.path === '/purchase/returns') return hasPermission(MODULES.PURCHASE_RETURN, 'view');
     return false;
   });
 
   const visibleInventoryItems = inventoryGroup.items.filter((item) => {
-    if (item.path === '/inventory/stock')             return hasPermission(MODULES.STOCK_ADJUSTMENT, 'view') || hasControl('approveStockAdjustment');
-    if (item.path === '/inventory/receiving')         return hasPermission(MODULES.STOCK_RECEIVING, 'create');
-    if (item.path === '/inventory/stock-entries')     return hasPermission(MODULES.STOCK_ENTRIES, 'view');
-    if (item.path === '/inventory/transfer')          return hasPermission(MODULES.STOCK_TRANSFER, 'view');
-    if (item.path === '/inventory/adjustment')        return hasPermission(MODULES.STOCK_ADJUSTMENT, 'view') || hasControl('approveStockAdjustment');
+    if (item.path === '/inventory/stock') return hasPermission(MODULES.STOCK_ADJUSTMENT, 'view') || hasControl('approveStockAdjustment');
+    if (item.path === '/inventory/receiving') return hasPermission(MODULES.STOCK_RECEIVING, 'create');
+    if (item.path === '/inventory/stock-entries') return hasPermission(MODULES.STOCK_ENTRIES, 'view');
+    if (item.path === '/inventory/transfer') return hasPermission(MODULES.STOCK_TRANSFER, 'view');
+    if (item.path === '/inventory/adjustment') return hasPermission(MODULES.STOCK_ADJUSTMENT, 'view') || hasControl('approveStockAdjustment');
     if (item.path === '/inventory/gate-pass/outward') return hasPermission(MODULES.GATE_PASS_OUTWARD, 'view');
-    if (item.path === '/inventory/gate-pass/inward')  return hasPermission(MODULES.GATE_PASS_INWARD, 'view');
+    if (item.path === '/inventory/gate-pass/inward') return hasPermission(MODULES.GATE_PASS_INWARD, 'view');
     return false;
   });
 
@@ -313,27 +367,47 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   //   if (item.path === '/reports/party-ledger')      return hasPermission(MODULES.REPORT_PARTY_LEDGER, 'view')    || fin;
   //   return false;
   // });
+  const visibleReportsItems = reportsGroup.items.filter((item) => {
+    const fin = hasControl('viewFinancialReports');
+    if (item.path === '/reports/stock-summary') return hasPermission(MODULES.REPORT_STOCK_SUMMARY, 'view') || fin;
+    if (item.path === '/reports/stock-ledger') return hasPermission(MODULES.REPORT_STOCK_LEDGER, 'view') || fin;
+    if (item.path === '/reports/low-stock') return hasPermission(MODULES.REPORT_LOW_STOCK, 'view') || fin;
+    if (item.path === '/reports/purchase-register') return hasPermission(MODULES.REPORT_PURCHASE_REG, 'view') || fin;
+    if (item.path === '/reports/gst-purchase') return hasPermission(MODULES.REPORT_GST_PURCHASE, 'view') || fin;
+    if (item.path === '/reports/sales-register') return hasPermission(MODULES.REPORT_SALES_REG, 'view') || fin;
+    if (item.path === '/reports/gst-sales') return hasPermission(MODULES.REPORT_GST_SALES, 'view') || fin;
+    if (item.path === '/reports/outstanding') return hasPermission(MODULES.REPORT_OUTSTANDING, 'view') || fin;
+    if (item.path === '/reports/day-book') return hasPermission(MODULES.REPORT_DAY_BOOK, 'view') || fin;
+    if (item.path === '/reports/party-ledger') return hasPermission(MODULES.REPORT_PARTY_LEDGER, 'view') || fin;
+    if(item.path === '/reports/manufacturing') return hasPermission(MODULES.REPORT_MANUFACTURING, 'view') || fin;
+    if(item.path === '/reports/finance') return hasPermission(MODULES.REPORT_FINANCE, 'view') || fin;
+    if(item.path === '/reports/gst') return hasPermission(MODULES.REPORT_GST, 'view') || fin;
+    if(item.path === '/reports/dashboard') return hasPermission(MODULES.REPORT_DASHBOARD, 'view') || fin;
+    return false;
+  });
 
   const visiblePrintItems = printGroup.items.filter((item) => {
     if (item.path === '/print/barcode-management') return hasPermission(MODULES.BARCODE_PRINT, 'view');
     return false;
   });
 
-  const canSeeMasters   = visibleMastersItems.length > 0;
-  const canSeeSales     = visibleSalesItems.length > 0;
-  const canSeePurchase  = visiblePurchaseItems.length > 0;
+  const canSeeMasters = visibleMastersItems.length > 0;
+  const canSeeSales = visibleSalesItems.length > 0;
+  const canSeePurchase = visiblePurchaseItems.length > 0;
   const canSeeInventory = visibleInventoryItems.length > 0;
-  const canSeePrint     = visiblePrintItems.length > 0;
   // const canSeeReports   = visibleReportsItems.length > 0 || hasControl('viewFinancialReports');
   const canSeeUsers     = hasPermission(MODULES.USERS, 'view') || hasControl('manageUserPermissions');
   const canSeeSettings  = hasPermission(MODULES.SETTINGS, 'view') || hasControl('manageUserPermissions');
+  const canSeePrint = visiblePrintItems.length > 0;
+  const canSeeReports = visibleReportsItems.length > 0 || hasControl('viewFinancialReports');
 
-  const visibleMastersGroup   = { ...mastersGroup,   items: visibleMastersItems   };
-  const visibleSalesGroup     = { ...salesGroup,     items: visibleSalesItems     };
-  const visiblePurchaseGroup  = { ...purchaseGroup,  items: visiblePurchaseItems  };
+  const visibleMastersGroup = { ...mastersGroup, items: visibleMastersItems };
+  const visibleSalesGroup = { ...salesGroup, items: visibleSalesItems };
+  const visiblePurchaseGroup = { ...purchaseGroup, items: visiblePurchaseItems };
   const visibleInventoryGroup = { ...inventoryGroup, items: visibleInventoryItems };
   // const visibleReportsGroup   = { ...reportsGroup,   items: visibleReportsItems   };
   const visiblePrintGroup     = { ...printGroup,     items: visiblePrintItems     };
+  const visibleReportsGroup = { ...reportsGroup, items: visibleReportsItems };
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleLogout = async () => {
@@ -361,11 +435,8 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         to={item.path || '#'}
         end={item.path === '/'}
         title={collapsed ? item.label : undefined}
-        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 cursor-pointer ${
-          active
-            ? 'bg-[#4f46e5] text-white'
-            : 'text-slate-300 hover:bg-white/10 hover:text-white'
-        }`}
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 cursor-pointer ${active ? 'bg-[#4f46e5] text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white'
+          }`}
       >
         <div className="w-5 h-5 flex items-center justify-center shrink-0">
           <i className={`${item.icon} text-lg leading-none`} />
@@ -447,11 +518,8 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             collapsed ? navigate(group.items[0]?.path || '/') : setOpen(!open)
           }
           title={collapsed ? group.label : undefined}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer ${
-            isGroupActive
-              ? 'bg-white/15 text-white'
-              : 'text-slate-300 hover:bg-white/10 hover:text-white'
-          }`}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer ${isGroupActive ? 'bg-white/15 text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white'
+            }`}
         >
           <div className="w-5 h-5 flex items-center justify-center shrink-0">
             <i className={`${group.icon} text-lg leading-none`} />
@@ -470,7 +538,20 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         {!collapsed && open && (
           <ul className="mt-1 ml-4 border-l border-white/10 pl-3 space-y-1">
             {group.items.map((item) => (
-              <RecursiveMenuItem key={item.path || item.label} item={item} />
+              <li key={item.path}>
+                <NavLink
+                  to={item.path}
+                  className={({ isActive: a }) =>
+                    `flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all text-sm cursor-pointer ${a ? 'bg-[#4f46e5] text-white font-medium' : 'text-slate-400 hover:bg-white/10 hover:text-white'
+                    }`
+                  }
+                >
+                  <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                    <i className={`${item.icon} text-sm leading-none`} />
+                  </div>
+                  <span className="whitespace-nowrap">{item.label}</span>
+                </NavLink>
+              </li>
             ))}
           </ul>
         )}
@@ -583,10 +664,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 to="/"
                 end
                 className={({ isActive: a }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer ${
-                    a
-                      ? 'bg-[#4f46e5] text-white'
-                      : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer ${a ? 'bg-[#4f46e5] text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white'
                   }`
                 }
                 title={collapsed ? 'Dashboard' : undefined}
@@ -614,30 +692,10 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             </>
           )}
 
-          {(canSeeSales || canSeePurchase || canSeeInventory) && (
-            <SectionLabel label="Transactions" />
-          )}
-          {canSeeSales && (
-            <CollapseGroup
-              group={visibleSalesGroup}
-              open={salesOpen}
-              setOpen={setSalesOpen}
-            />
-          )}
-          {canSeePurchase && (
-            <CollapseGroup
-              group={visiblePurchaseGroup}
-              open={purchaseOpen}
-              setOpen={setPurchaseOpen}
-            />
-          )}
-          {canSeeInventory && (
-            <CollapseGroup
-              group={visibleInventoryGroup}
-              open={inventoryOpen}
-              setOpen={setInventoryOpen}
-            />
-          )}
+          {(canSeeSales || canSeePurchase || canSeeInventory) && <SectionLabel label="Transactions" />}
+          {canSeeSales && <CollapseGroup group={visibleSalesGroup} open={salesOpen} setOpen={setSalesOpen} />}
+          {canSeePurchase && <CollapseGroup group={visiblePurchaseGroup} open={purchaseOpen} setOpen={setPurchaseOpen} />}
+          {canSeeInventory && <CollapseGroup group={visibleInventoryGroup} open={inventoryOpen} setOpen={setInventoryOpen} />}
 
           {canSeePrint && (
             <>
@@ -662,28 +720,8 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             <>
               <SectionLabel label="System" />
               <ul className="space-y-0.5 px-2 mt-1">
-                {canSeeUsers && (
-                  <li>
-                    <NavBtn
-                      item={{
-                        label: 'Users',
-                        path: '/users',
-                        icon: 'ri-team-line',
-                      }}
-                    />
-                  </li>
-                )}
-                {canSeeSettings && (
-                  <li>
-                    <NavBtn
-                      item={{
-                        label: 'Settings',
-                        path: '/settings',
-                        icon: 'ri-settings-3-line',
-                      }}
-                    />
-                  </li>
-                )}
+                {canSeeUsers && <li><NavBtn item={{ label: 'Users', path: '/users', icon: 'ri-team-line' }} /></li>}
+                {canSeeSettings && <li><NavBtn item={{ label: 'Settings', path: '/settings', icon: 'ri-settings-3-line' }} /></li>}
               </ul>
             </>
           )}
