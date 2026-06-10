@@ -97,6 +97,8 @@ import barcodeRouter from "./src/barCodePrint/barCodePrint-routes.js"
 import workcenterRouter from "./src/masters/workcenter/workcenter-routes.js"
 import machineRouter from "./src/masters/machines/machines-routes.js"
 import shiftRouter from "./src/masters/shifts/shifts-router.js"
+import operatorsRouter from "./src/masters/operators/operators-routes.js"
+import costcontrolRouter from "./src/masters/costcontrol/costcontrol-routes.js"
 
 app.use('/backups', express.static(path.join(process.cwd(), 'backups')));
 app.use("/api/v1/reports", reportsRouter);
@@ -111,6 +113,8 @@ app.use("/api/v1/unit", unitRouter);
 app.use("/api/v1/work-centers", workcenterRouter)
 app.use("/api/v1/machines", machineRouter)
 app.use("/api/v1/shifts", shiftRouter)
+app.use("/api/v1/operators", operatorsRouter)
+app.use("/api/v1/cost-control", costcontrolRouter)
 app.use("/api/v1/sales-invoices", salesInvoiceRoutes);
 app.use("/api/v1/challans", challanRoutes);
 app.use("/api/v1/sale-returns", saleReturnRoutes);
