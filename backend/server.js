@@ -94,6 +94,7 @@ import dashboardRouter from "./src/dashboard/dashboard-routes.js";
 import invoiceSettingsRouter from "./src/system-settings/invoice-settings/invoice-routes.js";
 import reportsRouter from "./src/reports/reports-routes.js";
 import barcodeRouter from "./src/barCodePrint/barCodePrint-routes.js"
+import bomRoutes from './src/menufacturing/BOM/BOMcreate/bom-routes.js';
 app.use('/backups', express.static(path.join(process.cwd(), 'backups')));
 app.use("/api/v1/reports", reportsRouter);
 app.use("/api/v1/auth", adminRouter);
@@ -123,6 +124,7 @@ app.use("/api/v1/dashboard", dashboardRouter)
 app.use("/api/v1/company", companyRouter);
 app.use("/api/v1/invoice-settings", invoiceSettingsRouter);
 app.use("/api/label-settings", barcodeRouter)
+app.use('/api/manufacturing/bom', bomRoutes);
 app.get("/", (req, res) => {
   res.send("Server is running");
 });
