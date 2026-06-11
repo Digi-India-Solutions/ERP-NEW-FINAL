@@ -3,13 +3,28 @@ import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/feature/AppLayout';
 import ConfirmDialog from '@/components/feature/ConfirmDialog';
 import { useKeyboardNav } from '@/utils/keyboardNav';
-import { mockCostCenters } from '@/mocks/masters';
 import { useToast } from '@/contexts/ToastContext';
 import { formatINR } from '@/utils/format';
 import { MasterFilters, MasterSummaryCards, MasterStatsRow } from '@/pages/masters/common/CommonComponets';
-import type { MockCostCenter } from '@/mocks/masters';
+import {
+    createCostCenter,
+    getAllCostCenters,
+    updateCostCenter,
+    deleteCostCenter,
+    type CostCenterResponse,
+    type CostCenterType
+} from '@/api/costcenter.api';
 
-type CostCenterType = MockCostCenter['type'];
+interface CostCenter {
+    id: string;
+    name: string;
+    code: string;
+    type: CostCenterType;
+    managerId: string | null;
+    managerName: string | null;
+    budgetMonthly: number;
+    isActive: boolean;
+}
 
 interface CCForm {
     name: string;
@@ -45,7 +60,7 @@ const TYPE_BADGE: Record<CostCenterType, { label: string; cls: string }> = {
 // ─── Modal ────────────────────────────────────────────────────────────────────
 interface CCModalProps {
     open: boolean;
-    editing: MockCostCenter | null;
+    editing: CostCenter | null;
     onClose: () => void;
     onSave: (form: CCForm) => Promise<void>;
 }
@@ -114,8 +129,13 @@ function CCModal({ open, editing, onClose, onSave }: CCModalProps) {
     const handleSave = async () => {
         if (!validate()) return;
         setIsSaving(true);
-        await onSave(form);
-        setIsSaving(false);
+        try {
+            await onSave(form);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     if (!open) return null;
@@ -263,12 +283,42 @@ function CCModal({ open, editing, onClose, onSave }: CCModalProps) {
 export default function CostCentersPage() {
     const navigate = useNavigate();
     const toast = useToast();
-    const [items, setItems] = useState<MockCostCenter[]>([...mockCostCenters]);
+    const [items, setItems] = useState<CostCenter[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [typeFilter, setTypeFilter] = useState<CostCenterType | 'ALL'>('ALL');
     const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
-    const [modal, setModal] = useState<{ open: boolean; editing: MockCostCenter | null }>({ open: false, editing: null });
-    const [deleteConfirm, setDeleteConfirm] = useState<MockCostCenter | null>(null);
+    const [modal, setModal] = useState<{ open: boolean; editing: CostCenter | null }>({ open: false, editing: null });
+    const [deleteConfirm, setDeleteConfirm] = useState<CostCenter | null>(null);
+
+    const mapApiToCostCenter = (c: CostCenterResponse): CostCenter => ({
+        id: c.id,
+        name: c.name,
+        code: c.code,
+        type: c.type,
+        managerId: c.manager_id,
+        managerName: c.manager_name,
+        budgetMonthly: Number(c.budget_monthly || 0),
+        isActive: c.is_active,
+    });
+
+    const fetchCostCenters = async () => {
+        setIsLoading(true);
+        try {
+            const res = await getAllCostCenters();
+            if (res.success && res.data) {
+                setItems(res.data.map(mapApiToCostCenter));
+            }
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to fetch cost centers');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchCostCenters();
+    }, []);
 
     const filtered = items.filter((cc) => {
         const q = search.toLowerCase();
@@ -279,44 +329,74 @@ export default function CostCentersPage() {
     });
 
     const openAdd = () => setModal({ open: true, editing: null });
-    const openEdit = (cc: MockCostCenter) => setModal({ open: true, editing: cc });
+    const openEdit = (cc: CostCenter) => setModal({ open: true, editing: cc });
     const closeModal = () => setModal({ open: false, editing: null });
 
     const handleSave = async (form: CCForm) => {
-        await new Promise((r) => setTimeout(r, 500));
-        const payload = {
-            name: form.name.trim(),
-            code: form.code.trim(),
-            type: form.type,
-            managerId: form.managerName.trim() ? null : null,
-            managerName: form.managerName.trim() || null,
-            budgetMonthly: Number(form.budgetMonthly) || 0,
-            isActive: form.isActive,
-        };
-        if (modal.editing) {
-            setItems((prev) => prev.map((cc) => cc.id === modal.editing!.id ? { ...cc, ...payload } : cc));
-            toast.success('Cost center updated successfully');
-        } else {
-            const newItem: MockCostCenter = {
-                id: `cc-${Date.now()}`,
-                ...payload,
-            };
-            setItems((prev) => [...prev, newItem]);
-            toast.success('Cost center created successfully');
+        try {
+            if (modal.editing) {
+                const res = await updateCostCenter(modal.editing.id, {
+                    name: form.name.trim(),
+                    code: form.code.trim(),
+                    type: form.type,
+                    managerName: form.managerName.trim() || null,
+                    budgetMonthly: Number(form.budgetMonthly) || 0,
+                    isActive: form.isActive,
+                });
+                if (res.success && res.data) {
+                    setItems((prev) =>
+                        prev.map((cc) =>
+                            cc.id === modal.editing!.id
+                                ? mapApiToCostCenter(res.data!)
+                                : cc,
+                        ),
+                    );
+                    toast.success('Cost center updated successfully');
+                }
+            } else {
+                const res = await createCostCenter({
+                    name: form.name.trim(),
+                    code: form.code.trim(),
+                    type: form.type,
+                    managerName: form.managerName.trim() || null,
+                    budgetMonthly: Number(form.budgetMonthly) || 0,
+                    isActive: form.isActive,
+                });
+                if (res.success && res.data) {
+                    setItems((prev) => [mapApiToCostCenter(res.data!), ...prev]);
+                    toast.success('Cost center created successfully');
+                }
+            }
+            closeModal();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to save cost center');
+            throw err;
         }
-        closeModal();
     };
 
-    const handleToggleActive = (cc: MockCostCenter) => {
+    const handleToggleActive = async (cc: CostCenter) => {
+        // Optimistic update
         setItems((prev) => prev.map((i) => i.id === cc.id ? { ...i, isActive: !i.isActive } : i));
-        toast.success(`${cc.name} ${cc.isActive ? 'deactivated' : 'activated'}`);
+        try {
+            await updateCostCenter(cc.id, { isActive: !cc.isActive });
+            toast.success(`${cc.name} ${cc.isActive ? 'deactivated' : 'activated'}`);
+        } catch (err) {
+            // Rollback
+            setItems((prev) => prev.map((i) => i.id === cc.id ? { ...i, isActive: cc.isActive } : i));
+            toast.error(err instanceof Error ? err.message : 'Failed to update status');
+        }
     };
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
         if (!deleteConfirm) return;
-        setItems((prev) => prev.filter((i) => i.id !== deleteConfirm.id));
-        toast.success(`"${deleteConfirm.name}" removed`);
-        setDeleteConfirm(null);
+        try {
+            await deleteCostCenter(deleteConfirm.id);
+            setItems((prev) => prev.filter((i) => i.id !== deleteConfirm.id));
+            toast.success(`"${deleteConfirm.name}" removed`);
+            setDeleteConfirm(null);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to delete cost center');
+        }
     };
 
     // Summary
@@ -368,7 +448,7 @@ export default function CostCentersPage() {
                         badgeClass: t.badge.cls,
                     }))}
                     activeFilterValue={typeFilter}
-                    onFilterChange={(val) => setTypeFilter(val)}
+                    onFilterChange={(val) => setTypeFilter(val as CostCenterType | 'ALL')}
                 />
 
                 {/* Stats row */}
@@ -385,7 +465,7 @@ export default function CostCentersPage() {
                     filters={[
                         {
                             value: statusFilter,
-                            onChange: (val) => setStatusFilter(val),
+                            onChange: (val) => setStatusFilter(val as 'ALL' | 'ACTIVE' | 'INACTIVE'),
                             options: [
                                 { value: 'ALL', label: 'All Status' },
                                 { value: 'ACTIVE', label: 'Active' },
@@ -412,7 +492,14 @@ export default function CostCentersPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {filtered.map((cc, idx) => {
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan={7} className="px-4 py-12 text-center">
+                                        <i className="ri-loader-4-line text-4xl text-[#4f46e5] animate-spin block mb-2" />
+                                        <p className="text-[#94a3b8] text-sm">Loading cost centers...</p>
+                                    </td>
+                                </tr>
+                            ) : filtered.map((cc, idx) => {
                                 const badge = TYPE_BADGE[cc.type];
                                 return (
                                     <tr key={cc.id} className={`border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors ${idx % 2 !== 0 ? 'bg-[#f8fafc]/40' : ''}`}>
@@ -456,7 +543,7 @@ export default function CostCentersPage() {
                                     </tr>
                                 );
                             })}
-                            {filtered.length === 0 && (
+                            {!isLoading && filtered.length === 0 && (
                                 <tr>
                                     <td colSpan={7} className="px-4 py-12 text-center">
                                         <i className="ri-building-4-line text-4xl text-[#e2e8f0] block mb-2" />

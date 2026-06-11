@@ -2,11 +2,38 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/feature/AppLayout';
 import ConfirmDialog from '@/components/feature/ConfirmDialog';
-import { mockMachines, mockWorkCenters, type MockMachine, type MockWorkCenter } from '@/mocks/masters';
 import { useToast } from '@/contexts/ToastContext';
 import { MasterFilters, MasterSummaryCards, MasterStatsRow } from '@/pages/masters/common/CommonComponets';
+import {
+    createMachine,
+    getAllMachines,
+    updateMachine,
+    deleteMachine,
+    type MachineResponse
+} from '@/api/machine.api';
+import { getAllWorkCenters } from '@/api/workcenter.api';
 
 type MachineStatus = 'RUNNING' | 'IDLE' | 'MAINTENANCE' | 'BREAKDOWN';
+
+interface Machine {
+    id: string;
+    name: string;
+    model: string;
+    workCenterId: string;
+    workCenterName?: string | null;
+    capacityPerHour: number;
+    status: MachineStatus;
+    lastMaintenanceDate: string | null;
+    maintenanceFrequencyDays: number | null;
+    isActive: boolean;
+}
+
+interface WorkCenterOption {
+    id: string;
+    name: string;
+    type: string;
+    isActive: boolean;
+}
 
 interface MachineForm {
     name: string;
@@ -38,7 +65,7 @@ const emptyForm: MachineForm = {
     lastMaintenanceDate: '', maintenanceFrequencyDays: '', isActive: true,
 };
 
-function isMaintenanceOverdue(m: MockMachine): boolean {
+function isMaintenanceOverdue(m: Machine): boolean {
     if (!m.lastMaintenanceDate || !m.maintenanceFrequencyDays || m.maintenanceFrequencyDays <= 0) return false;
     const last = new Date(m.lastMaintenanceDate);
     const due = new Date(last);
@@ -49,12 +76,13 @@ function isMaintenanceOverdue(m: MockMachine): boolean {
 // ─── Slide-Over Form ──────────────────────────────────────────────────────────
 interface SlideOverProps {
     open: boolean;
-    editing: MockMachine | null;
+    editing: Machine | null;
     onClose: () => void;
-    onSave: (form: MachineForm) => void;
+    onSave: (form: MachineForm) => Promise<void>;
+    workCenters: WorkCenterOption[];
 }
 
-function MachineSlideOver({ open, editing, onClose, onSave }: SlideOverProps) {
+function MachineSlideOver({ open, editing, onClose, onSave, workCenters }: SlideOverProps) {
     const [form, setForm] = useState<MachineForm>({ ...emptyForm });
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [isSaving, setIsSaving] = useState(false);
@@ -102,16 +130,19 @@ function MachineSlideOver({ open, editing, onClose, onSave }: SlideOverProps) {
         return Object.keys(e).length === 0;
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!validate()) return;
         setIsSaving(true);
-        setTimeout(() => {
-            onSave(form);
+        try {
+            await onSave(form);
+        } catch (error) {
+            console.error(error);
+        } finally {
             setIsSaving(false);
-        }, 300);
+        }
     };
 
-    const activeWorkCenters = mockWorkCenters.filter((wc) => wc.isActive);
+    const activeWorkCenters = workCenters.filter((wc) => wc.isActive);
 
     if (!open) return null;
 
@@ -278,12 +309,58 @@ function MachineSlideOver({ open, editing, onClose, onSave }: SlideOverProps) {
 export default function MachinesPage() {
     const navigate = useNavigate();
     const toast = useToast();
-    const [machines, setMachines] = useState<MockMachine[]>([...mockMachines]);
+    const [machines, setMachines] = useState<Machine[]>([]);
+    const [workCenters, setWorkCenters] = useState<WorkCenterOption[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<MachineStatus | 'ALL'>('ALL');
     const [wcFilter, setWcFilter] = useState<string>('ALL');
-    const [slideOver, setSlideOver] = useState<{ open: boolean; editing: MockMachine | null }>({ open: false, editing: null });
-    const [deleteConfirm, setDeleteConfirm] = useState<MockMachine | null>(null);
+    const [slideOver, setSlideOver] = useState<{ open: boolean; editing: Machine | null }>({ open: false, editing: null });
+    const [deleteConfirm, setDeleteConfirm] = useState<Machine | null>(null);
+
+    const mapApiToMachine = (m: MachineResponse): Machine => ({
+        id: m.id,
+        name: m.name,
+        model: m.model || '',
+        workCenterId: m.work_center_id || '',
+        workCenterName: m.work_center_name || '',
+        capacityPerHour: Number(m.capacity_per_hour || 0),
+        status: m.status,
+        lastMaintenanceDate: m.last_maintenance_date ? m.last_maintenance_date.split('T')[0] : null,
+        maintenanceFrequencyDays: m.maintenance_frequency_days ? Number(m.maintenance_frequency_days) : null,
+        isActive: m.is_active,
+    });
+
+    const fetchData = async () => {
+        setIsLoading(true);
+        try {
+            const [mcRes, wcRes] = await Promise.all([
+                getAllMachines(),
+                getAllWorkCenters()
+            ]);
+            if (wcRes.success && wcRes.data) {
+                setWorkCenters(
+                    wcRes.data.map((wc) => ({
+                        id: wc.id,
+                        name: wc.name,
+                        type: wc.type,
+                        isActive: wc.is_active,
+                    }))
+                );
+            }
+            if (mcRes.success && mcRes.data) {
+                setMachines(mcRes.data.map(mapApiToMachine));
+            }
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to load data');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, []);
 
     const filtered = machines.filter((m) => {
         const q = search.toLowerCase();
@@ -294,66 +371,87 @@ export default function MachinesPage() {
     });
 
     const openAdd = () => setSlideOver({ open: true, editing: null });
-    const openEdit = (m: MockMachine) => setSlideOver({ open: true, editing: m });
+    const openEdit = (m: Machine) => setSlideOver({ open: true, editing: m });
     const closeSlideOver = () => setSlideOver({ open: false, editing: null });
 
-    const handleSave = (form: MachineForm) => {
-        if (slideOver.editing) {
-            setMachines((prev) =>
-                prev.map((m) =>
-                    m.id === slideOver.editing!.id
-                        ? {
-                            ...m,
-                            name: form.name,
-                            model: form.model,
-                            workCenterId: form.workCenterId,
-                            capacityPerHour: form.capacityPerHour ? Number(form.capacityPerHour) : 0,
-                            status: form.status,
-                            lastMaintenanceDate: form.lastMaintenanceDate || null,
-                            maintenanceFrequencyDays: form.maintenanceFrequencyDays ? Number(form.maintenanceFrequencyDays) : null,
-                            isActive: form.isActive,
-                        }
-                        : m,
-                ),
-            );
-            toast.success('Machine updated successfully');
-        } else {
-            const newM: MockMachine = {
-                id: `mc-${Date.now()}`,
-                name: form.name,
-                model: form.model,
-                workCenterId: form.workCenterId,
-                capacityPerHour: form.capacityPerHour ? Number(form.capacityPerHour) : 0,
-                status: form.status,
-                lastMaintenanceDate: form.lastMaintenanceDate || null,
-                maintenanceFrequencyDays: form.maintenanceFrequencyDays ? Number(form.maintenanceFrequencyDays) : null,
-                isActive: form.isActive,
-            };
-            setMachines((prev) => [...prev, newM]);
-            toast.success('Machine created successfully');
+    const handleSave = async (form: MachineForm) => {
+        try {
+            if (slideOver.editing) {
+                const res = await updateMachine(slideOver.editing.id, {
+                    name: form.name,
+                    model: form.model || null,
+                    workCenterId: form.workCenterId || null,
+                    capacityPerHour: form.capacityPerHour ? Number(form.capacityPerHour) : null,
+                    status: form.status,
+                    lastMaintenanceDate: form.lastMaintenanceDate || null,
+                    maintenanceFrequencyDays: form.maintenanceFrequencyDays ? Number(form.maintenanceFrequencyDays) : null,
+                    isActive: form.isActive,
+                });
+                if (res.success && res.data) {
+                    setMachines((prev) =>
+                        prev.map((m) =>
+                            m.id === slideOver.editing!.id
+                                ? mapApiToMachine(res.data!)
+                                : m,
+                        ),
+                    );
+                    toast.success('Machine updated successfully');
+                }
+            } else {
+                const res = await createMachine({
+                    name: form.name,
+                    model: form.model || null,
+                    workCenterId: form.workCenterId || null,
+                    capacityPerHour: form.capacityPerHour ? Number(form.capacityPerHour) : null,
+                    status: form.status,
+                    lastMaintenanceDate: form.lastMaintenanceDate || null,
+                    maintenanceFrequencyDays: form.maintenanceFrequencyDays ? Number(form.maintenanceFrequencyDays) : null,
+                    isActive: form.isActive,
+                });
+                if (res.success && res.data) {
+                    setMachines((prev) => [mapApiToMachine(res.data!), ...prev]);
+                    toast.success('Machine created successfully');
+                }
+            }
+            closeSlideOver();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to save machine');
+            throw err;
         }
-        closeSlideOver();
     };
 
-    const handleToggleActive = (m: MockMachine) => {
+    const handleToggleActive = async (m: Machine) => {
+        // Optimistic update
         setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, isActive: !x.isActive } : x));
-        toast.success(`${m.name} ${m.isActive ? 'deactivated' : 'activated'}`);
+        try {
+            await updateMachine(m.id, { isActive: !m.isActive });
+            toast.success(`${m.name} ${m.isActive ? 'deactivated' : 'activated'}`);
+        } catch (err) {
+            // Rollback
+            setMachines((prev) => prev.map((x) => x.id === m.id ? { ...x, isActive: m.isActive } : x));
+            toast.error(err instanceof Error ? err.message : 'Failed to update status');
+        }
     };
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
         if (!deleteConfirm) return;
-        setMachines((prev) => prev.filter((m) => m.id !== deleteConfirm.id));
-        toast.success(`"${deleteConfirm.name}" removed`);
-        setDeleteConfirm(null);
+        try {
+            await deleteMachine(deleteConfirm.id);
+            setMachines((prev) => prev.filter((m) => m.id !== deleteConfirm.id));
+            toast.success(`"${deleteConfirm.name}" removed`);
+            setDeleteConfirm(null);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to delete machine');
+        }
     };
 
     const getWorkCenterName = (id: string) => {
-        const wc = mockWorkCenters.find((w) => w.id === id);
+        const wc = workCenters.find((w) => w.id === id);
         return wc ? wc.name : id;
     };
 
-    const getWorkCenterType = (id: string): MockWorkCenter['type'] | null => {
-        const wc = mockWorkCenters.find((w) => w.id === id);
+    const getWorkCenterType = (id: string): string | null => {
+        const wc = workCenters.find((w) => w.id === id);
         return wc ? wc.type : null;
     };
 
@@ -404,7 +502,7 @@ export default function MachinesPage() {
                             onChange: (val) => setWcFilter(val),
                             options: [
                                 { value: 'ALL', label: 'All Work Centers' },
-                                ...mockWorkCenters.filter((wc) => wc.isActive).map((wc) => ({ value: wc.id, label: wc.name })),
+                                ...workCenters.filter((wc) => wc.isActive).map((wc) => ({ value: wc.id, label: wc.name })),
                             ],
                         },
                     ]}
@@ -449,7 +547,14 @@ export default function MachinesPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filtered.map((m, idx) => {
+                                {isLoading ? (
+                                    <tr>
+                                        <td colSpan={7} className="px-4 py-12 text-center">
+                                            <i className="ri-loader-4-line text-4xl text-[#4f46e5] animate-spin block mb-2" />
+                                            <p className="text-[#94a3b8] text-sm">Loading machines...</p>
+                                        </td>
+                                    </tr>
+                                ) : filtered.map((m, idx) => {
                                     const badge = STATUS_BADGE[m.status];
                                     const overdue = isMaintenanceOverdue(m);
                                     const wcType = getWorkCenterType(m.workCenterId);
@@ -525,7 +630,7 @@ export default function MachinesPage() {
                                         </tr>
                                     );
                                 })}
-                                {filtered.length === 0 && (
+                                {!isLoading && filtered.length === 0 && (
                                     <tr>
                                         <td colSpan={7} className="px-4 py-12 text-center">
                                             <i className="ri-settings-3-line text-4xl text-[#e2e8f0] block mb-2" />
@@ -550,6 +655,7 @@ export default function MachinesPage() {
                 editing={slideOver.editing}
                 onClose={closeSlideOver}
                 onSave={handleSave}
+                workCenters={workCenters}
             />
 
             <ConfirmDialog
