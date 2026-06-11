@@ -94,6 +94,7 @@ import dashboardRouter from "./src/dashboard/dashboard-routes.js";
 import invoiceSettingsRouter from "./src/system-settings/invoice-settings/invoice-routes.js";
 import reportsRouter from "./src/reports/reports-routes.js";
 import barcodeRouter from "./src/barCodePrint/barCodePrint-routes.js"
+import bomRoutes from './src/menufacturing/BOM/BOMcreate/bom-routes.js';
 import workcenterRouter from "./src/masters/workcenter/workcenter-routes.js"
 import machineRouter from "./src/masters/machines/machines-routes.js"
 import shiftRouter from "./src/masters/shifts/shifts-router.js"
@@ -134,6 +135,7 @@ app.use("/api/v1/dashboard", dashboardRouter)
 app.use("/api/v1/company", companyRouter);
 app.use("/api/v1/invoice-settings", invoiceSettingsRouter);
 app.use("/api/label-settings", barcodeRouter)
+app.use('/api/manufacturing/bom', bomRoutes);
 app.get("/", (req, res) => {
   res.send("Server is running");
 });
