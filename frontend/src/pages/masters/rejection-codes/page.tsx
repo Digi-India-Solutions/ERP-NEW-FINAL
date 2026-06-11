@@ -3,13 +3,28 @@ import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/feature/AppLayout';
 import ConfirmDialog from '@/components/feature/ConfirmDialog';
 import { useKeyboardNav } from '@/utils/keyboardNav';
-import { mockRejectionCodes } from '@/mocks/masters';
 import { useToast } from '@/contexts/ToastContext';
 import { MasterFilters, MasterSummaryCards, MasterStatsRow } from '@/pages/masters/common/CommonComponets';
-import type { MockRejectionCode } from '@/mocks/masters';
+import {
+  createRejectionCode,
+  getAllRejectionCodes,
+  updateRejectionCode,
+  deleteRejectionCode,
+  type RejectionCodeResponse,
+  type RejectionCategory
+} from '@/api/rejectioncode.api';
 
-type RCCategory = MockRejectionCode['category'];
-type RCApplicable = MockRejectionCode['applicableTo'];
+type RCCategory = RejectionCategory;
+type RCApplicable = 'INCOMING' | 'IN_PROCESS' | 'FINAL' | 'ALL';
+
+interface RejectionCode {
+  id: string;
+  code: string;
+  description: string;
+  category: RCCategory;
+  applicableTo: RCApplicable;
+  isActive: boolean;
+}
 
 interface RCForm {
   code: string;
@@ -56,7 +71,7 @@ const APPLICABLE_LABEL: Record<RCApplicable, string> = {
 // ─── Modal ────────────────────────────────────────────────────────────────────
 interface RCModalProps {
   open: boolean;
-  editing: MockRejectionCode | null;
+  editing: RejectionCode | null;
   onClose: () => void;
   onSave: (form: RCForm) => Promise<void>;
 }
@@ -124,8 +139,13 @@ function RCModal({ open, editing, onClose, onSave }: RCModalProps) {
   const handleSave = async () => {
     if (!validate()) return;
     setIsSaving(true);
-    await onSave(form);
-    setIsSaving(false);
+    try {
+      await onSave(form);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!open) return null;
@@ -266,12 +286,40 @@ function RCModal({ open, editing, onClose, onSave }: RCModalProps) {
 export default function RejectionCodesPage() {
   const navigate = useNavigate();
   const toast = useToast();
-  const [items, setItems] = useState<MockRejectionCode[]>([...mockRejectionCodes]);
+  const [items, setItems] = useState<RejectionCode[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<RCCategory | 'ALL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
-  const [modal, setModal] = useState<{ open: boolean; editing: MockRejectionCode | null }>({ open: false, editing: null });
-  const [deleteConfirm, setDeleteConfirm] = useState<MockRejectionCode | null>(null);
+  const [modal, setModal] = useState<{ open: boolean; editing: RejectionCode | null }>({ open: false, editing: null });
+  const [deleteConfirm, setDeleteConfirm] = useState<RejectionCode | null>(null);
+
+  const mapApiToRejectionCode = (r: RejectionCodeResponse): RejectionCode => ({
+    id: r.id,
+    code: r.code,
+    description: r.description,
+    category: r.category,
+    applicableTo: r.applicable_to as RCApplicable,
+    isActive: r.is_active,
+  });
+
+  const fetchRejectionCodes = async () => {
+    setIsLoading(true);
+    try {
+      const res = await getAllRejectionCodes();
+      if (res.success && res.data) {
+        setItems(res.data.map(mapApiToRejectionCode));
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to fetch rejection codes');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRejectionCodes();
+  }, []);
 
   const filtered = items.filter((rc) => {
     const q = search.toLowerCase();
@@ -282,42 +330,72 @@ export default function RejectionCodesPage() {
   });
 
   const openAdd = () => setModal({ open: true, editing: null });
-  const openEdit = (rc: MockRejectionCode) => setModal({ open: true, editing: rc });
+  const openEdit = (rc: RejectionCode) => setModal({ open: true, editing: rc });
   const closeModal = () => setModal({ open: false, editing: null });
 
   const handleSave = async (form: RCForm) => {
-    await new Promise((r) => setTimeout(r, 500));
-    const payload = {
-      code: form.code.trim(),
-      description: form.description.trim(),
-      category: form.category,
-      applicableTo: form.applicableTo,
-      isActive: form.isActive,
-    };
-    if (modal.editing) {
-      setItems((prev) => prev.map((rc) => rc.id === modal.editing!.id ? { ...rc, ...payload } : rc));
-      toast.success('Rejection code updated successfully');
-    } else {
-      const newItem: MockRejectionCode = {
-        id: `rc-${Date.now()}`,
-        ...payload,
-      };
-      setItems((prev) => [...prev, newItem]);
-      toast.success('Rejection code created successfully');
+    try {
+      if (modal.editing) {
+        const res = await updateRejectionCode(modal.editing.id, {
+          code: form.code.trim(),
+          description: form.description.trim(),
+          category: form.category,
+          applicableTo: form.applicableTo,
+          isActive: form.isActive,
+        });
+        if (res.success && res.data) {
+          setItems((prev) =>
+            prev.map((rc) =>
+              rc.id === modal.editing!.id
+                ? mapApiToRejectionCode(res.data!)
+                : rc,
+            ),
+          );
+          toast.success('Rejection code updated successfully');
+        }
+      } else {
+        const res = await createRejectionCode({
+          code: form.code.trim(),
+          description: form.description.trim(),
+          category: form.category,
+          applicableTo: form.applicableTo,
+          isActive: form.isActive,
+        });
+        if (res.success && res.data) {
+          setItems((prev) => [mapApiToRejectionCode(res.data!), ...prev]);
+          toast.success('Rejection code created successfully');
+        }
+      }
+      closeModal();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save rejection code');
+      throw err;
     }
-    closeModal();
   };
 
-  const handleToggleActive = (rc: MockRejectionCode) => {
+  const handleToggleActive = async (rc: RejectionCode) => {
+    // Optimistic update
     setItems((prev) => prev.map((i) => i.id === rc.id ? { ...i, isActive: !i.isActive } : i));
-    toast.success(`${rc.code} ${rc.isActive ? 'deactivated' : 'activated'}`);
+    try {
+      await updateRejectionCode(rc.id, { isActive: !rc.isActive });
+      toast.success(`${rc.code} ${rc.isActive ? 'deactivated' : 'activated'}`);
+    } catch (err) {
+      // Rollback
+      setItems((prev) => prev.map((i) => i.id === rc.id ? { ...i, isActive: rc.isActive } : i));
+      toast.error(err instanceof Error ? err.message : 'Failed to update status');
+    }
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteConfirm) return;
-    setItems((prev) => prev.filter((i) => i.id !== deleteConfirm.id));
-    toast.success(`"${deleteConfirm.code}" removed`);
-    setDeleteConfirm(null);
+    try {
+      await deleteRejectionCode(deleteConfirm.id);
+      setItems((prev) => prev.filter((i) => i.id !== deleteConfirm.id));
+      toast.success(`"${deleteConfirm.code}" removed`);
+      setDeleteConfirm(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete rejection code');
+    }
   };
 
   // Summary
@@ -371,7 +449,7 @@ export default function RejectionCodesPage() {
             badgeClass: c.badge.cls,
           }))}
           activeFilterValue={categoryFilter}
-          onFilterChange={(val) => setCategoryFilter(val)}
+          onFilterChange={(val) => setCategoryFilter(val as RCCategory | 'ALL')}
         />
 
         {/* Stats row */}
@@ -388,7 +466,7 @@ export default function RejectionCodesPage() {
           filters={[
             {
               value: statusFilter,
-              onChange: (val) => setStatusFilter(val),
+              onChange: (val) => setStatusFilter(val as 'ALL' | 'ACTIVE' | 'INACTIVE'),
               options: [
                 { value: 'ALL', label: 'All Status' },
                 { value: 'ACTIVE', label: 'Active' },
@@ -415,7 +493,14 @@ export default function RejectionCodesPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((rc, idx) => {
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-12 text-center">
+                    <i className="ri-loader-4-line text-4xl text-[#4f46e5] animate-spin block mb-2" />
+                    <p className="text-[#94a3b8] text-sm">Loading rejection codes...</p>
+                  </td>
+                </tr>
+              ) : filtered.map((rc, idx) => {
                 const badge = CATEGORY_BADGE[rc.category];
                 return (
                   <tr key={rc.id} className={`border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors ${idx % 2 !== 0 ? 'bg-[#f8fafc]/40' : ''}`}>
@@ -454,7 +539,7 @@ export default function RejectionCodesPage() {
                   </tr>
                 );
               })}
-              {filtered.length === 0 && (
+              {!isLoading && filtered.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center">
                     <i className="ri-close-circle-line text-4xl text-[#e2e8f0] block mb-2" />

@@ -100,6 +100,7 @@ import machineRouter from "./src/masters/machines/machines-routes.js"
 import shiftRouter from "./src/masters/shifts/shifts-router.js"
 import operatorsRouter from "./src/masters/operators/operators-routes.js"
 import costcontrolRouter from "./src/masters/costcontrol/costcontrol-routes.js"
+import rejectioncoderouter from "./src/masters/rejectioncodes/rejectioncode-routes.js"
 
 app.use('/backups', express.static(path.join(process.cwd(), 'backups')));
 app.use("/api/v1/reports", reportsRouter);
@@ -116,6 +117,7 @@ app.use("/api/v1/machines", machineRouter)
 app.use("/api/v1/shifts", shiftRouter)
 app.use("/api/v1/operators", operatorsRouter)
 app.use("/api/v1/cost-control", costcontrolRouter)
+app.use("/api/v1/rejection-codes", rejectioncoderouter)
 app.use("/api/v1/sales-invoices", salesInvoiceRoutes);
 app.use("/api/v1/challans", challanRoutes);
 app.use("/api/v1/sale-returns", saleReturnRoutes);
