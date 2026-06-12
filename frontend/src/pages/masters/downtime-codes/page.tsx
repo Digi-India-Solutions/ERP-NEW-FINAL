@@ -3,12 +3,27 @@ import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/feature/AppLayout';
 import ConfirmDialog from '@/components/feature/ConfirmDialog';
 import { useKeyboardNav } from '@/utils/keyboardNav';
-import { mockDowntimeCodes } from '@/mocks/masters';
 import { useToast } from '@/contexts/ToastContext';
 import { MasterFilters, MasterSummaryCards, MasterStatsRow } from '@/pages/masters/common/CommonComponets';
-import type { MockDowntimeCode } from '@/mocks/masters';
+import {
+  createDowntimeCode,
+  getAllDowntimeCodes,
+  updateDowntimeCode,
+  deleteDowntimeCode,
+  type DowntimeCodeResponse,
+  type DowntimeCategory
+} from '@/api/downtimecode.api';
 
-type DTCategory = MockDowntimeCode['category'];
+type DTCategory = DowntimeCategory;
+
+interface DowntimeCode {
+  id: string;
+  code: string;
+  description: string;
+  category: DTCategory;
+  affectsMachine: boolean;
+  isActive: boolean;
+}
 
 interface DTForm {
   code: string;
@@ -45,7 +60,7 @@ const CATEGORY_BADGE: Record<DTCategory, { label: string; cls: string }> = {
 // ─── Modal ────────────────────────────────────────────────────────────────────
 interface DTModalProps {
   open: boolean;
-  editing: MockDowntimeCode | null;
+  editing: DowntimeCode | null;
   onClose: () => void;
   onSave: (form: DTForm) => Promise<void>;
 }
@@ -113,8 +128,13 @@ function DTModal({ open, editing, onClose, onSave }: DTModalProps) {
   const handleSave = async () => {
     if (!validate()) return;
     setIsSaving(true);
-    await onSave(form);
-    setIsSaving(false);
+    try {
+      await onSave(form);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!open) return null;
@@ -254,12 +274,40 @@ function DTModal({ open, editing, onClose, onSave }: DTModalProps) {
 export default function DowntimeCodesPage() {
   const navigate = useNavigate();
   const toast = useToast();
-  const [items, setItems] = useState<MockDowntimeCode[]>([...mockDowntimeCodes]);
+  const [items, setItems] = useState<DowntimeCode[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<DTCategory | 'ALL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
-  const [modal, setModal] = useState<{ open: boolean; editing: MockDowntimeCode | null }>({ open: false, editing: null });
-  const [deleteConfirm, setDeleteConfirm] = useState<MockDowntimeCode | null>(null);
+  const [modal, setModal] = useState<{ open: boolean; editing: DowntimeCode | null }>({ open: false, editing: null });
+  const [deleteConfirm, setDeleteConfirm] = useState<DowntimeCode | null>(null);
+
+  const mapApiToDowntimeCode = (d: DowntimeCodeResponse): DowntimeCode => ({
+    id: d.id,
+    code: d.code,
+    description: d.description,
+    category: d.category,
+    affectsMachine: d.affects_machine,
+    isActive: d.is_active,
+  });
+
+  const fetchDowntimeCodes = async () => {
+    setIsLoading(true);
+    try {
+      const res = await getAllDowntimeCodes();
+      if (res.success && res.data) {
+        setItems(res.data.map(mapApiToDowntimeCode));
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to fetch downtime codes');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDowntimeCodes();
+  }, []);
 
   const filtered = items.filter((dt) => {
     const q = search.toLowerCase();
@@ -270,42 +318,72 @@ export default function DowntimeCodesPage() {
   });
 
   const openAdd = () => setModal({ open: true, editing: null });
-  const openEdit = (dt: MockDowntimeCode) => setModal({ open: true, editing: dt });
+  const openEdit = (dt: DowntimeCode) => setModal({ open: true, editing: dt });
   const closeModal = () => setModal({ open: false, editing: null });
 
   const handleSave = async (form: DTForm) => {
-    await new Promise((r) => setTimeout(r, 500));
-    const payload = {
-      code: form.code.trim(),
-      description: form.description.trim(),
-      category: form.category,
-      affectsMachine: form.affectsMachine,
-      isActive: form.isActive,
-    };
-    if (modal.editing) {
-      setItems((prev) => prev.map((dt) => dt.id === modal.editing!.id ? { ...dt, ...payload } : dt));
-      toast.success('Downtime code updated successfully');
-    } else {
-      const newItem: MockDowntimeCode = {
-        id: `dt-${Date.now()}`,
-        ...payload,
-      };
-      setItems((prev) => [...prev, newItem]);
-      toast.success('Downtime code created successfully');
+    try {
+      if (modal.editing) {
+        const res = await updateDowntimeCode(modal.editing.id, {
+          code: form.code.trim(),
+          description: form.description.trim(),
+          category: form.category,
+          affectsMachine: form.affectsMachine,
+          isActive: form.isActive,
+        });
+        if (res.success && res.data) {
+          setItems((prev) =>
+            prev.map((dt) =>
+              dt.id === modal.editing!.id
+                ? mapApiToDowntimeCode(res.data!)
+                : dt,
+            ),
+          );
+          toast.success('Downtime code updated successfully');
+        }
+      } else {
+        const res = await createDowntimeCode({
+          code: form.code.trim(),
+          description: form.description.trim(),
+          category: form.category,
+          affectsMachine: form.affectsMachine,
+          isActive: form.isActive,
+        });
+        if (res.success && res.data) {
+          setItems((prev) => [mapApiToDowntimeCode(res.data!), ...prev]);
+          toast.success('Downtime code created successfully');
+        }
+      }
+      closeModal();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save downtime code');
+      throw err;
     }
-    closeModal();
   };
 
-  const handleToggleActive = (dt: MockDowntimeCode) => {
+  const handleToggleActive = async (dt: DowntimeCode) => {
+    // Optimistic update
     setItems((prev) => prev.map((i) => i.id === dt.id ? { ...i, isActive: !i.isActive } : i));
-    toast.success(`${dt.code} ${dt.isActive ? 'deactivated' : 'activated'}`);
+    try {
+      await updateDowntimeCode(dt.id, { isActive: !dt.isActive });
+      toast.success(`${dt.code} ${dt.isActive ? 'deactivated' : 'activated'}`);
+    } catch (err) {
+      // Rollback
+      setItems((prev) => prev.map((i) => i.id === dt.id ? { ...i, isActive: dt.isActive } : i));
+      toast.error(err instanceof Error ? err.message : 'Failed to update status');
+    }
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteConfirm) return;
-    setItems((prev) => prev.filter((i) => i.id !== deleteConfirm.id));
-    toast.success(`"${deleteConfirm.code}" removed`);
-    setDeleteConfirm(null);
+    try {
+      await deleteDowntimeCode(deleteConfirm.id);
+      setItems((prev) => prev.filter((i) => i.id !== deleteConfirm.id));
+      toast.success(`"${deleteConfirm.code}" removed`);
+      setDeleteConfirm(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete downtime code');
+    }
   };
 
   // Summary
@@ -357,7 +435,7 @@ export default function DowntimeCodesPage() {
             badgeClass: c.badge.cls,
           }))}
           activeFilterValue={categoryFilter}
-          onFilterChange={(val) => setCategoryFilter(val)}
+          onFilterChange={(val) => setCategoryFilter(val as DTCategory | 'ALL')}
         />
 
         {/* Stats row */}
@@ -374,7 +452,7 @@ export default function DowntimeCodesPage() {
           filters={[
             {
               value: statusFilter,
-              onChange: (val) => setStatusFilter(val),
+              onChange: (val) => setStatusFilter(val as 'ALL' | 'ACTIVE' | 'INACTIVE'),
               options: [
                 { value: 'ALL', label: 'All Status' },
                 { value: 'ACTIVE', label: 'Active' },
@@ -401,7 +479,14 @@ export default function DowntimeCodesPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((dt, idx) => {
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-12 text-center">
+                    <i className="ri-loader-4-line text-4xl text-[#4f46e5] animate-spin block mb-2" />
+                    <p className="text-[#94a3b8] text-sm">Loading downtime codes...</p>
+                  </td>
+                </tr>
+              ) : filtered.map((dt, idx) => {
                 const badge = CATEGORY_BADGE[dt.category];
                 return (
                   <tr key={dt.id} className={`border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors ${idx % 2 !== 0 ? 'bg-[#f8fafc]/40' : ''}`}>
@@ -443,7 +528,7 @@ export default function DowntimeCodesPage() {
                   </tr>
                 );
               })}
-              {filtered.length === 0 && (
+              {!isLoading && filtered.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center">
                     <i className="ri-timer-flash-line text-4xl text-[#e2e8f0] block mb-2" />
