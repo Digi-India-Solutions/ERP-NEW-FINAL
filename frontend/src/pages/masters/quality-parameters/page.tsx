@@ -1,39 +1,56 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import AppLayout from '@/components/feature/AppLayout';
 import { useToast } from '@/contexts/ToastContext';
 import ConfirmDialog from '@/components/feature/ConfirmDialog';
 import {
-  mockQualityParameters,
-  MockQualityParameter,
-} from '@/mocks/masters';
+  createQualityParameter,
+  getAllQualityParameters,
+  updateQualityParameter,
+  deleteQualityParameter,
+  type QualityParameterResponse,
+  type QualityType,
+  type QualityApplicable
+} from '@/api/qualityparameter.api';
 
-const TYPE_OPTIONS: { value: MockQualityParameter['type']; label: string }[] = [
+interface QualityParameter {
+  id: string;
+  name: string;
+  code: string;
+  type: QualityType;
+  unit: string | null;
+  minValue: number | null;
+  maxValue: number | null;
+  applicableTo: QualityApplicable;
+  isActive: boolean;
+}
+
+const TYPE_OPTIONS: { value: QualityType; label: string }[] = [
   { value: 'PASS_FAIL', label: 'Pass / Fail' },
   { value: 'NUMERIC', label: 'Numeric' },
   { value: 'TEXT', label: 'Text' },
 ];
 
-const APPLICABLE_OPTIONS: { value: MockQualityParameter['applicableTo']; label: string }[] = [
+const APPLICABLE_OPTIONS: { value: QualityApplicable; label: string }[] = [
   { value: 'INCOMING', label: 'Incoming' },
   { value: 'IN_PROCESS', label: 'In-Process' },
   { value: 'FINAL', label: 'Final' },
   { value: 'ALL', label: 'All' },
 ];
 
-const TYPE_BADGE: Record<MockQualityParameter['type'], { bg: string; text: string; label: string }> = {
+const TYPE_BADGE: Record<QualityType, { bg: string; text: string; label: string }> = {
   PASS_FAIL: { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'Pass / Fail' },
   NUMERIC:   { bg: 'bg-blue-100',    text: 'text-blue-700',    label: 'Numeric' },
   TEXT:      { bg: 'bg-slate-100',   text: 'text-slate-700',   label: 'Text' },
 };
 
-const APPLICABLE_LABEL: Record<MockQualityParameter['applicableTo'], string> = {
+const APPLICABLE_LABEL: Record<QualityApplicable, string> = {
   INCOMING: 'Incoming',
   IN_PROCESS: 'In-Process',
   FINAL: 'Final',
   ALL: 'All Stages',
 };
 
-function getRangeDisplay(p: MockQualityParameter): string {
+function getRangeDisplay(p: Partial<QualityParameter>): string {
   if (p.type === 'PASS_FAIL') return 'Pass / Fail';
   if (p.type === 'TEXT') return '—';
   const unit = p.unit ? ` ${p.unit}` : '';
@@ -43,22 +60,52 @@ function getRangeDisplay(p: MockQualityParameter): string {
   return `Any value${unit}`;
 }
 
-let nextId = 9;
-
 export default function QualityParametersPage() {
   const toast = useToast();
-  const [items, setItems] = useState<MockQualityParameter[]>([...mockQualityParameters]);
+  const [items, setItems] = useState<QualityParameter[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'ALL' | MockQualityParameter['type']>('ALL');
-  const [applicableFilter, setApplicableFilter] = useState<'ALL' | MockQualityParameter['applicableTo']>('ALL');
+  const [typeFilter, setTypeFilter] = useState<'ALL' | QualityType>('ALL');
+  const [applicableFilter, setApplicableFilter] = useState<'ALL' | QualityApplicable>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<Partial<MockQualityParameter>>({ type: 'PASS_FAIL', applicableTo: 'ALL', isActive: true, unit: null, minValue: null, maxValue: null });
+  const [form, setForm] = useState<Partial<QualityParameter>>({ type: 'PASS_FAIL', applicableTo: 'ALL', isActive: true, unit: null, minValue: null, maxValue: null });
   const [formError, setFormError] = useState<string | null>(null);
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const mapApiToQualityParameter = (r: QualityParameterResponse): QualityParameter => ({
+    id: r.id,
+    name: r.name,
+    code: r.code,
+    type: r.type,
+    unit: r.unit,
+    minValue: r.min_value != null ? Number(r.min_value) : null,
+    maxValue: r.max_value != null ? Number(r.max_value) : null,
+    applicableTo: r.applicable_to,
+    isActive: r.is_active,
+  });
+
+  const fetchQualityParameters = async () => {
+    setIsLoading(true);
+    try {
+      const res = await getAllQualityParameters();
+      if (res.success && res.data) {
+        setItems(res.data.map(mapApiToQualityParameter));
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to fetch quality parameters');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchQualityParameters();
+  }, []);
 
   const filtered = useMemo(() => {
     return items.filter((it) => {
@@ -86,7 +133,7 @@ export default function QualityParametersPage() {
     setModalOpen(true);
   }, []);
 
-  const openEdit = useCallback((it: MockQualityParameter) => {
+  const openEdit = useCallback((it: QualityParameter) => {
     setEditingId(it.id);
     setForm({
       ...it,
@@ -121,41 +168,70 @@ export default function QualityParametersPage() {
     return true;
   }, [form, items, editingId]);
 
-  const save = useCallback(() => {
+  const save = async () => {
     if (!validate()) return;
-    const payload: MockQualityParameter = {
-      id: editingId ?? `qp-00${nextId++}`,
-      name: form.name!.trim(),
-      code: form.code!.trim().toUpperCase(),
-      type: form.type!,
-      unit: form.type === 'NUMERIC' ? (form.unit?.trim() || null) : null,
-      minValue: form.type === 'NUMERIC' ? (form.minValue ?? null) : null,
-      maxValue: form.type === 'NUMERIC' ? (form.maxValue ?? null) : null,
-      applicableTo: form.applicableTo!,
-      isActive: form.isActive ?? true,
-    };
-    if (editingId) {
-      setItems((prev) => prev.map((i) => (i.id === editingId ? payload : i)));
-      toast.success('Quality parameter updated');
-    } else {
-      setItems((prev) => [...prev, payload]);
-      toast.success('Quality parameter added');
+    setIsSaving(true);
+    try {
+      const payload = {
+        name: form.name!.trim(),
+        code: form.code!.trim().toUpperCase(),
+        type: form.type!,
+        unit: form.type === 'NUMERIC' ? (form.unit?.trim() || null) : null,
+        minValue: form.type === 'NUMERIC' ? (form.minValue ?? null) : null,
+        maxValue: form.type === 'NUMERIC' ? (form.maxValue ?? null) : null,
+        applicableTo: form.applicableTo!,
+        isActive: form.isActive ?? true,
+      };
+      if (editingId) {
+        const res = await updateQualityParameter(editingId, payload);
+        if (res.success && res.data) {
+          setItems((prev) => prev.map((i) => (i.id === editingId ? mapApiToQualityParameter(res.data!) : i)));
+          toast.success('Quality parameter updated');
+        }
+      } else {
+        const res = await createQualityParameter(payload);
+        if (res.success && res.data) {
+          setItems((prev) => [mapApiToQualityParameter(res.data!), ...prev]);
+          toast.success('Quality parameter added');
+        }
+      }
+      closeModal();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save quality parameter');
+    } finally {
+      setIsSaving(false);
     }
-    closeModal();
-  }, [form, editingId, validate, closeModal, toast]);
+  };
 
-  const toggleStatus = useCallback((id: string) => {
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, isActive: !i.isActive } : i)));
-    toast.success('Status updated');
-  }, [toast]);
+  const toggleStatus = async (id: string) => {
+    const it = items.find((i) => i.id === id);
+    if (!it) return;
+    const newStatus = !it.isActive;
+
+    // Optimistic update
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, isActive: newStatus } : i)));
+    try {
+      await updateQualityParameter(id, { isActive: newStatus });
+      toast.success('Status updated');
+    } catch (err) {
+      // Rollback
+      setItems((prev) => prev.map((i) => (i.id === id ? { ...i, isActive: !newStatus } : i)));
+      toast.error(err instanceof Error ? err.message : 'Failed to update status');
+    }
+  };
 
   const confirmDelete = useCallback((id: string) => setDeleteId(id), []);
-  const doDelete = useCallback(() => {
+  const doDelete = async () => {
     if (!deleteId) return;
-    setItems((prev) => prev.filter((i) => i.id !== deleteId));
-    toast.success('Quality parameter deleted');
-    setDeleteId(null);
-  }, [deleteId, toast]);
+    try {
+      await deleteQualityParameter(deleteId);
+      setItems((prev) => prev.filter((i) => i.id !== deleteId));
+      toast.success('Quality parameter deleted');
+      setDeleteId(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete quality parameter');
+    }
+  };
 
   const isNumeric = form.type === 'NUMERIC';
 
@@ -258,7 +334,14 @@ export default function QualityParametersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((it) => {
+              {isLoading ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-12 text-center text-slate-400">
+                    <i className="ri-loader-4-line text-4xl text-[#4f46e5] animate-spin block mb-2" />
+                    <p className="text-sm">Loading quality parameters...</p>
+                  </td>
+                </tr>
+              ) : filtered.map((it) => {
                 const badge = TYPE_BADGE[it.type];
                 return (
                   <tr key={it.id} className="hover:bg-slate-50 transition-colors">
@@ -301,7 +384,7 @@ export default function QualityParametersPage() {
                   </tr>
                 );
               })}
-              {filtered.length === 0 && (
+              {!isLoading && filtered.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-4 py-12 text-center text-slate-400">
                     <div className="w-12 h-12 flex items-center justify-center mx-auto mb-3 rounded-full bg-slate-50">
@@ -374,6 +457,7 @@ export default function QualityParametersPage() {
                   {TYPE_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
+                      type="button"
                       onClick={() => setForm((f) => ({ ...f, type: opt.value, unit: opt.value === 'NUMERIC' ? f.unit : null, minValue: opt.value === 'NUMERIC' ? f.minValue : null, maxValue: opt.value === 'NUMERIC' ? f.maxValue : null }))}
                       className={`px-3 py-2 rounded-lg text-sm font-medium border transition-all cursor-pointer whitespace-nowrap ${
                         form.type === opt.value
@@ -424,7 +508,7 @@ export default function QualityParametersPage() {
                     </div>
                   </div>
                   <div className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
-                    Range preview: <span className="font-medium text-slate-700">{getRangeDisplay({ ...form, id: '', name: '', code: '', applicableTo: 'ALL', isActive: true } as MockQualityParameter)}</span>
+                    Range preview: <span className="font-medium text-slate-700">{getRangeDisplay(form)}</span>
                   </div>
                 </>
               )}
@@ -435,7 +519,7 @@ export default function QualityParametersPage() {
                 </label>
                 <select
                   value={form.applicableTo ?? 'ALL'}
-                  onChange={(e) => setForm((f) => ({ ...f, applicableTo: e.target.value as MockQualityParameter['applicableTo'] }))}
+                  onChange={(e) => setForm((f) => ({ ...f, applicableTo: e.target.value as QualityApplicable }))}
                   className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5]/20 focus:border-[#4f46e5] cursor-pointer"
                 >
                   {APPLICABLE_OPTIONS.map((o) => (
@@ -447,6 +531,7 @@ export default function QualityParametersPage() {
               <div className="flex items-center justify-between py-1">
                 <span className="text-sm font-medium text-slate-700">Active</span>
                 <button
+                  type="button"
                   onClick={() => setForm((f) => ({ ...f, isActive: !f.isActive }))}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${form.isActive ? 'bg-[#4f46e5]' : 'bg-slate-300'}`}
                 >
@@ -455,8 +540,9 @@ export default function QualityParametersPage() {
               </div>
             </div>
             <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3">
-              <button onClick={closeModal} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer">Cancel</button>
-              <button onClick={save} className="px-4 py-2 rounded-lg text-sm font-medium bg-[#4f46e5] text-white hover:bg-indigo-700 transition-colors cursor-pointer">
+              <button type="button" onClick={closeModal} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer">Cancel</button>
+              <button type="button" onClick={save} disabled={isSaving} className="px-4 py-2 rounded-lg text-sm font-medium bg-[#4f46e5] text-white hover:bg-indigo-700 transition-colors cursor-pointer disabled:opacity-60 flex items-center gap-1.5">
+                {isSaving && <i className="ri-loader-4-line animate-spin" />}
                 {editingId ? 'Update' : 'Save'}
               </button>
             </div>

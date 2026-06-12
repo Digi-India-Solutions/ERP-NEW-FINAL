@@ -102,6 +102,9 @@ import operatorsRouter from "./src/masters/operators/operators-routes.js"
 import costcontrolRouter from "./src/masters/costcontrol/costcontrol-routes.js"
 import rejectioncoderouter from "./src/masters/rejectioncodes/rejectioncode-routes.js"
 import downtimecodeRouter from "./src/masters/downtimecode/downtimecode-routes.js"
+import qualityparameterRouter from "./src/masters/qualityparameter/qualityparameter-routes.js"
+import inspectionchecklistRouter from "./src/masters/inspectionchecklist/inspectionchecklist-routes.js"
+import routingRouter from "./src/masters/routing/routing-routes.js"
 
 app.use('/backups', express.static(path.join(process.cwd(), 'backups')));
 app.use("/api/v1/reports", reportsRouter);
@@ -120,7 +123,9 @@ app.use("/api/v1/operators", operatorsRouter)
 app.use("/api/v1/cost-control", costcontrolRouter)
 app.use("/api/v1/rejection-codes", rejectioncoderouter)
 app.use("/api/v1/downtime-codes", downtimecodeRouter)
-
+app.use("/api/v1/quality-parameters", qualityparameterRouter)
+app.use("/api/v1/routings", routingRouter)
+app.use("/api/v1/inspection-checklists", inspectionchecklistRouter)
 app.use("/api/v1/sales-invoices", salesInvoiceRoutes);
 app.use("/api/v1/challans", challanRoutes);
 app.use("/api/v1/sale-returns", saleReturnRoutes);
