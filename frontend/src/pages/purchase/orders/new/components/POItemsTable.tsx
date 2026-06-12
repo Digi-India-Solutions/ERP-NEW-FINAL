@@ -4,7 +4,7 @@
 // import type { POItem } from '../page';
 // import React from 'react';
 
-// const api = import.meta.env.VITE_API_URL |https://asvapi.digiindiasolutions.comcom';
+// const api = import.meta.env.VITE_API_URL |http://localhost:7000com';
 
 // function debounce<T extends (...args: any[]) => void>(func: T, delay: number) {
 //   let timeoutId: ReturnType<typeof setTimeout>;
@@ -585,8 +585,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { useWarehouseStore } from '@/stores/warehouseStore';
 
-const api =
-  import.meta.env.VITE_API_URL || 'https://asvapi.digiindiasolutions.com';
+const api = import.meta.env.VITE_API_URL || 'http://localhost:7000';
 
 function debounce<T extends (...args: any[]) => void>(func: T, delay: number) {
   let timeoutId: ReturnType<typeof setTimeout>;
@@ -872,7 +871,11 @@ function ItemSearchInput({
         )}
 
         {/* Loading — also marks that a real search has been triggered */}
-        {loading && (() => { hasSearchedRef.current = true; return null; })()}
+        {loading &&
+          (() => {
+            hasSearchedRef.current = true;
+            return null;
+          })()}
         {loading && (
           <div className="flex items-center gap-2 px-3 py-3 text-xs text-slate-400">
             <i className="ri-loader-4-line animate-spin" /> Searching items...
@@ -995,7 +998,13 @@ function GroupSearchInput({
   const updatePos = useCallback(() => {
     if (!inputRef.current) return;
     const r = inputRef.current.getBoundingClientRect();
-    setPos({ position: 'fixed', top: r.bottom + 2, left: r.left, width: Math.max(r.width, 240), zIndex: 99999 });
+    setPos({
+      position: 'fixed',
+      top: r.bottom + 2,
+      left: r.left,
+      width: Math.max(r.width, 240),
+      zIndex: 99999,
+    });
   }, []);
 
   // Reposition on scroll / resize while open
@@ -1004,13 +1013,19 @@ function GroupSearchInput({
     const h = () => updatePos();
     window.addEventListener('scroll', h, true);
     window.addEventListener('resize', h);
-    return () => { window.removeEventListener('scroll', h, true); window.removeEventListener('resize', h); };
+    return () => {
+      window.removeEventListener('scroll', h, true);
+      window.removeEventListener('resize', h);
+    };
   }, [open, updatePos]);
 
   // Close on outside click
   useEffect(() => {
     const h = (e: MouseEvent) => {
-      if (!inputRef.current?.contains(e.target as Node) && !listRef.current?.contains(e.target as Node))
+      if (
+        !inputRef.current?.contains(e.target as Node) &&
+        !listRef.current?.contains(e.target as Node)
+      )
         setOpen(false);
     };
     document.addEventListener('mousedown', h);
@@ -1021,20 +1036,38 @@ function GroupSearchInput({
     .filter((c) => c.name.toLowerCase().includes((value || '').toLowerCase()))
     .slice(0, 8);
 
-  const select = (name: string) => { onChange(name); setOpen(false); };
+  const select = (name: string) => {
+    onChange(name);
+    setOpen(false);
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (open && filtered.length > 0) {
-      if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight((p) => Math.min(p + 1, filtered.length - 1)); return; }
-      if (e.key === 'ArrowUp')   { e.preventDefault(); setHighlight((p) => Math.max(p - 1, 0)); return; }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setHighlight((p) => Math.min(p + 1, filtered.length - 1));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setHighlight((p) => Math.max(p - 1, 0));
+        return;
+      }
       if (e.key === 'Enter') {
-        e.preventDefault(); e.stopPropagation();
+        e.preventDefault();
+        e.stopPropagation();
         // Use functional setter so we always read the latest highlight value
-        setHighlight((p) => { if (filtered[p]) select(filtered[p].name); return p; });
+        setHighlight((p) => {
+          if (filtered[p]) select(filtered[p].name);
+          return p;
+        });
         return;
       }
     }
-    if (e.key === 'Escape') { setOpen(false); return; }
+    if (e.key === 'Escape') {
+      setOpen(false);
+      return;
+    }
     onCellKeyDown?.(e);
   };
 
@@ -1048,30 +1081,51 @@ function GroupSearchInput({
         data-row={dataRow}
         data-col={dataCol}
         className="w-full h-7 px-1.5 text-xs bg-transparent focus:outline-none focus:bg-indigo-50 focus:ring-1 focus:ring-indigo-300 rounded text-slate-800 placeholder:text-slate-400 border-0 transition-colors"
-        onChange={(e) => { onChange(e.target.value); updatePos(); setHighlight(0); if (!open) setOpen(true); }}
-        onFocus={() => { updatePos(); setHighlight(0); setOpen(true); }}
+        onChange={(e) => {
+          onChange(e.target.value);
+          updatePos();
+          setHighlight(0);
+          if (!open) setOpen(true);
+        }}
+        onFocus={() => {
+          updatePos();
+          setHighlight(0);
+          setOpen(true);
+        }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         onKeyDown={handleKeyDown}
       />
-      {open && filtered.length > 0 && typeof document !== 'undefined' && createPortal(
-        <div ref={listRef} style={pos} className="bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden">
-          <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-            {filtered.map((cat, i) => (
-              <div
-                key={cat.id}
-                onMouseDown={(e) => { e.preventDefault(); select(cat.name); }}
-                onMouseEnter={() => setHighlight(i)}
-                className={`px-3 py-1.5 text-xs cursor-pointer transition-colors ${
-                  i === highlight ? 'bg-indigo-100 text-indigo-700 font-medium' : 'hover:bg-slate-50 text-slate-800'
-                }`}
-              >
-                {cat.name}
-              </div>
-            ))}
-          </div>
-        </div>,
-        document.body,
-      )}
+      {open &&
+        filtered.length > 0 &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            ref={listRef}
+            style={pos}
+            className="bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden"
+          >
+            <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+              {filtered.map((cat, i) => (
+                <div
+                  key={cat.id}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    select(cat.name);
+                  }}
+                  onMouseEnter={() => setHighlight(i)}
+                  className={`px-3 py-1.5 text-xs cursor-pointer transition-colors ${
+                    i === highlight
+                      ? 'bg-indigo-100 text-indigo-700 font-medium'
+                      : 'hover:bg-slate-50 text-slate-800'
+                  }`}
+                >
+                  {cat.name}
+                </div>
+              ))}
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
@@ -1122,20 +1176,28 @@ export default function POItemsTable({
   onAddNewItem,
 }: Props) {
   // ── Fetch parent categories for Group dropdown ────────────────────────────
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>(
+    [],
+  );
   useEffect(() => {
     let ok = true;
     const token = localStorage.getItem('token') ?? '';
-    fetch(`${api}/api/v1/categories/all`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${api}/api/v1/categories/all`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
       .then((r) => r.json())
       .then((d) => {
         if (!ok) return;
         setCategories(
-          (d?.data ?? []).filter((c: any) => !c.parentId && !c.parent_id).map((c: any) => ({ id: c.id, name: c.name }))
+          (d?.data ?? [])
+            .filter((c: any) => !c.parentId && !c.parent_id)
+            .map((c: any) => ({ id: c.id, name: c.name })),
         );
       })
       .catch(() => {});
-    return () => { ok = false; };
+    return () => {
+      ok = false;
+    };
   }, []);
 
   const [itemQueries, setItemQueries] = useState<Record<string, string>>(() => {
@@ -1544,7 +1606,9 @@ export default function POItemsTable({
                       placeholder="Group"
                       dataRow={rowIdx}
                       dataCol="group"
-                      onCellKeyDown={(e) => handleCellKeyDown(e, rowIdx, 'group')}
+                      onCellKeyDown={(e) =>
+                        handleCellKeyDown(e, rowIdx, 'group')
+                      }
                     />
                   </td>
 

@@ -1,5 +1,4 @@
-const api =
-  import.meta.env.VITE_API_URL || 'https://asvapi.digiindiasolutions.com';
+const api = import.meta.env.VITE_API_URL || 'http://localhost:7000';
 
 const BASE_URL = `${api}/api/v1`;
 
@@ -232,4 +231,37 @@ export async function searchItemByBarcode(barcode: string) {
   const data = await handleResponse<ItemResponse[]>(res);
 
   return data.data?.[0] || null;
+}
+
+// Ya seedha ye add karo file ke end mein
+export interface ItemFormData {
+  name: string;
+  code: string;
+  barcode: string;
+  categoryId: string;
+  categoryName: string;
+  brand: string;
+  hsnCode: string;
+  taxRate: number;
+  unitId: string;
+  unitName: string;
+  purchaseRate: number;
+  saleRate: number;
+  minStockLevel: number;
+  articleNo: string;
+  isActive: boolean;
+  warehouseId: string;
+  itemType: string;
+  itemGroup: string;
+  drawingNumber: string;
+  specifications: string;
+  productionUnit: string;
+  standardCost: number;
+  supplierLeadTime: number;
+  reorderPoint: number;
+  reorderQty: number;
+  enableBatchTracking: boolean;
+  enableSerialTracking: boolean;
+  requiresIncomingQC: boolean;
+  requiresFinalQC: boolean;
 }

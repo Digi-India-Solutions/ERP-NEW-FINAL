@@ -66,7 +66,7 @@ interface PurchaseReturnPaymentRecord {
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
-const BASE_URL = `https://asvapi.digiindiasolutions.com
+const BASE_URL = `http://localhost:7000
 
 /api/v1/purchase-payment`;
 
@@ -91,7 +91,7 @@ export async function apiGetPayments(
 export async function apiGetReturnPayments(
   warehouseId?: string,
 ): Promise<PurchaseReturnPaymentRecord[]> {
-  let url = 'https://asvapi.digiindiasolutions.com/api/v1/purchase-return';
+  let url = 'http://localhost:7000/api/v1/purchase-return';
   if (warehouseId && warehouseId !== 'ALL') {
     url += `?warehouse_id=${warehouseId}`;
   }

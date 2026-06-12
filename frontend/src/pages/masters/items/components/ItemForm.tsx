@@ -5,9 +5,7 @@ import { getWarehousesForUser } from '@/api/warehouse.api';
 import { useAuth } from '@/contexts/AuthContext';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const BASE_URL =
-  (import.meta.env.VITE_API_URL as string) ||
-  'https://asvapi.digiindiasolutions.com';
+const BASE_URL = 'http://localhost:7000/api';
 
 function getToken(): string {
   return localStorage.getItem('token') ?? '';
@@ -478,6 +476,10 @@ export interface ItemFormData {
   enableSerialTracking: boolean;
   requiresIncomingQC: boolean;
   requiresFinalQC: boolean;
+  // 🆕 Variants support
+  isParent?: boolean;
+  hasVariants?: boolean;
+  variantCount?: number;
 }
 
 interface ItemFormProps {
@@ -523,6 +525,10 @@ const defaultForm: ItemFormData = {
   enableSerialTracking: false,
   requiresIncomingQC: false,
   requiresFinalQC: false,
+  // 🆕 Variants
+  isParent: false,
+  hasVariants: false,
+  variantCount: 0,
 };
 
 type ActiveTab = 'basic' | 'manufacturing' | 'tracking';
@@ -576,10 +582,10 @@ export default function ItemForm({
     void (async () => {
       try {
         const [catRes, unitRes] = await Promise.all([
-          fetch(`${BASE_URL}/api/v1/categories/all`, {
+          fetch(`${BASE_URL}/v1/categories/all`, {
             headers: authHeaders(),
           }),
-          fetch(`${BASE_URL}/api/v1/unit/all`, { headers: authHeaders() }),
+          fetch(`${BASE_URL}/v1/unit/all`, { headers: authHeaders() }),
         ]);
         const [catData, unitData] = await Promise.all([
           catRes.json(),
@@ -871,6 +877,12 @@ export default function ItemForm({
     { key: 'tracking', label: 'Tracking', icon: 'ri-radar-line' },
   ];
 
+  // 🆕 Check if this item can have variants (parent item)
+  const canHaveVariants =
+    form.isParent === true ||
+    form.hasVariants === true ||
+    (form.variantCount && form.variantCount > 0);
+
   return (
     <div className="fixed inset-0 z-50 flex">
       {/* Overlay */}
@@ -921,6 +933,16 @@ export default function ItemForm({
               </button>
             ))}
           </div>
+
+          {/* 🆕 Variants indicator badge - shows if item is a parent */}
+          {canHaveVariants && !isEditing && (
+            <div className="mt-3 mb-2 flex items-center gap-2">
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-indigo-50 text-indigo-700 text-xs font-medium">
+                <i className="ri-git-branch-line text-xs" />
+                This item will have variants
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── Error banner ── */}
@@ -1304,6 +1326,36 @@ export default function ItemForm({
                   data-nav-index={11}
                   className="w-full h-10 px-3 rounded-lg border border-[#e2e8f0] text-sm text-[#1e293b] bg-white focus:outline-none focus:border-[#4f46e5] focus:ring-2 focus:ring-[#4f46e5]/20"
                 />
+              </div>
+
+              {/* 🆕 IS PARENT ITEM (VARIANT ENABLED) */}
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    update('isParent', !form.isParent);
+                    if (!form.isParent) {
+                      update('hasVariants', true);
+                    }
+                  }}
+                  className={`relative w-10 h-6 rounded-full transition-colors duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#4f46e5]/30 ${
+                    form.isParent ? 'bg-[#4f46e5]' : 'bg-[#e2e8f0]'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${
+                      form.isParent ? 'translate-x-4' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+                <div>
+                  <label className="text-sm text-[#64748b] select-none cursor-pointer">
+                    Enable Variants
+                  </label>
+                  <p className="text-[10px] text-[#94a3b8]">
+                    Turn on if this product has variants (size, color, etc.)
+                  </p>
+                </div>
               </div>
 
               {/* ── ACTIVE TOGGLE ── */}

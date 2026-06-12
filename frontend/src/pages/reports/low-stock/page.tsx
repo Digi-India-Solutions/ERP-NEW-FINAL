@@ -11,7 +11,7 @@ function formatINR(n: number) {
 
 import axios from 'axios';
 
-const BASE = 'https://asvapi.digiindiasolutions.com/api/v1/reports';
+const BASE = 'http://localhost:7000/api/v1/reports';
 
 const authHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -36,7 +36,10 @@ export const useLowStock = (warehouseId: string, enabled: boolean) => {
 
 export default function LowStockReport() {
   const { selectedWarehouseId } = useWarehouseStore();
-  const warehouseId = selectedWarehouseId && selectedWarehouseId !== 'ALL' ? selectedWarehouseId : '';
+  const warehouseId =
+    selectedWarehouseId && selectedWarehouseId !== 'ALL'
+      ? selectedWarehouseId
+      : '';
   const [generated, setGenerated] = useState(false);
   const { data = [], isFetching } = useLowStock(warehouseId, generated);
 

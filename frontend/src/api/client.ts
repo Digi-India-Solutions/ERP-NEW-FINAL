@@ -1,11 +1,11 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 // Set VITE_API_URL in your .env file when running the backend locally.
-// Example: VITE_API_URL=https://asvapi.digiindiasolutions.comm
+// Example: VITE_API_URL=http://localhost:7000m
 
 const RAW_BASE_URL =
   (import.meta.env.VITE_API_URL as string | undefined)?.trim() ||
-  'https://asvapi.digiindiasolutions.com';
+  'http://localhost:7000';
 const BASE_URL = RAW_BASE_URL.replace(/\/+$/, '').replace(/\/api\/v1$/, '');
 
 export const apiClient = axios.create({

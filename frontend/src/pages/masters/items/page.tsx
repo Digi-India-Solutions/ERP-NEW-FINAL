@@ -11,10 +11,12 @@ import { MODULES } from '@/utils/permissions.js';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   filterItems,
+  createItem,
   deleteItem,
   updateItem,
   mapApiToItem,
   type ItemResponse,
+  type ItemFormData,
 } from '@/api/item.api';
 import { useWarehouseStore } from '@/stores/warehouseStore';
 
@@ -44,6 +46,15 @@ interface Item {
   stock: number;
   createdAt?: string;
   updatedAt?: string;
+  // 🆕 Variants support
+  isParent?: boolean;
+  hasVariants?: boolean;
+  variantCount?: number;
+  isVariant?: boolean;
+  parentItemId?: string | null;
+  variantName?: string | null;
+  variantAttributes?: Record<string, string> | null;
+  variantSku?: string | null;
 }
 
 type StockStatus = 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
@@ -88,6 +99,12 @@ export default function ItemsPage() {
   );
   const [totalItems, setTotalItems] = useState(0);
 
+  // 🆕 Variants state
+  const [showVariants, setShowVariants] = useState(true);
+  const [expandedParents, setExpandedParents] = useState<Set<string>>(
+    new Set(),
+  );
+
   // ── Search & filters ──
   const [searchInput, setSearchInput] = useState('');
   const search = useDebounce(searchInput, 400);
@@ -104,6 +121,19 @@ export default function ItemsPage() {
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Item | null>(null);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+
+  // 🆕 Toggle expand for parent items
+  const toggleExpand = (parentId: string) => {
+    setExpandedParents((prev) => {
+      const next = new Set(prev);
+      if (next.has(parentId)) {
+        next.delete(parentId);
+      } else {
+        next.add(parentId);
+      }
+      return next;
+    });
+  };
 
   // ── Fetch items from API ──
   const fetchItems = useCallback(async () => {
@@ -125,11 +155,18 @@ export default function ItemsPage() {
         // Map API response to Item interface
         const mappedItems = response.data.map((apiItem: ItemResponse) => {
           const mapped = mapApiToItem(apiItem);
-          // Ensure stock is a number
           return {
             ...mapped,
             stock: typeof mapped.stock === 'number' ? mapped.stock : 0,
-            warehouseId: (apiItem as any).warehouseid || mapped.warehouseId,
+            // 🆕 Initialize variants fields
+            isParent: false,
+            hasVariants: false,
+            variantCount: 0,
+            isVariant: false,
+            parentItemId: null,
+            variantName: null,
+            variantAttributes: null,
+            variantSku: null,
           } as Item;
         });
 
@@ -156,22 +193,21 @@ export default function ItemsPage() {
     toastError,
   ]);
 
-  // Load categories (from your existing category service)
-  useEffect(() => {
-    const loadCategories = async () => {
-      try {
-        // Agar aapke paas categoryService hai toh use karo
-        // @ts-ignore - replace with your actual category service
-        const list = await categoryService.list();
-        setCategories(list.map((c: any) => ({ id: c.id, name: c.name })));
-      } catch (err) {
-        console.error('Failed to load categories', err);
-        // Fallback: empty categories
-        setCategories([]);
-      }
-    };
-    loadCategories();
-  }, []);
+  // Load categories
+  const loadCategories = async () => {
+    try {
+      const res = await fetch(`http://localhost:7000/api/v1/categories/all`, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      const data = await res.json();
+      setCategories(data.data ?? []);
+    } catch {
+      setCategories([]);
+    }
+  };
 
   // Fetch items when filters change
   useEffect(() => {
@@ -208,10 +244,23 @@ export default function ItemsPage() {
 
   const openDetails = (item: Item) => setSelectedItem(item);
 
-  // ── Save handler (refresh list after save) ──
-  const handleSave = async () => {
-    await fetchItems(); // Refresh the list
-    closeDrawer();
+  // ── Save handler ──
+  const handleSave = async (formData: ItemFormData) => {
+    try {
+      if (editingItem) {
+        const res = await updateItem(editingItem.id, formData);
+        if (!res.success) throw new Error(res.message);
+        success('Item updated successfully');
+      } else {
+        const res = await createItem(formData as any);
+        if (!res.success) throw new Error(res.message);
+        success('Item created successfully');
+      }
+      await fetchItems();
+      closeDrawer();
+    } catch (err) {
+      throw err;
+    }
   };
 
   // ── Delete handler ──
@@ -222,7 +271,7 @@ export default function ItemsPage() {
       const response = await deleteItem(deleteConfirm.id);
       if (response.success) {
         success('Item deactivated successfully');
-        await fetchItems(); // Refresh list
+        await fetchItems();
         setDeleteConfirm(null);
       } else {
         throw new Error(response.message || 'Failed to deactivate');
@@ -238,7 +287,6 @@ export default function ItemsPage() {
 
   // ── Toggle active status ──
   const handleToggleActive = async (item: Item) => {
-    // Optimistic update
     const originalStatus = item.isActive;
     setItems((prev) =>
       prev.map((i) => (i.id === item.id ? { ...i, isActive: !i.isActive } : i)),
@@ -247,9 +295,8 @@ export default function ItemsPage() {
     try {
       await updateItem(item.id, { isActive: !item.isActive });
       success(`${item.name} ${item.isActive ? 'deactivated' : 'activated'}`);
-      await fetchItems(); // Refresh to be safe
+      await fetchItems();
     } catch (err) {
-      // Revert on error
       setItems((prev) =>
         prev.map((i) =>
           i.id === item.id ? { ...i, isActive: originalStatus } : i,
@@ -266,7 +313,6 @@ export default function ItemsPage() {
   const goToPage = (page: number) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
-      // Scroll to top
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
@@ -390,7 +436,7 @@ export default function ItemsPage() {
           </div>
         )}
 
-        {/* ── Filters ── */}
+        {/* ── Filters with Variants Toggle ── */}
         <div className="flex items-center gap-3 flex-wrap">
           {/* Search */}
           <div className="relative flex-1 min-w-56">
@@ -465,6 +511,21 @@ export default function ItemsPage() {
               </button>
             ))}
           </div>
+
+          {/* 🆕 VARIANTS TOGGLE BUTTON - ADDED HERE */}
+          <button
+            onClick={() => setShowVariants(!showVariants)}
+            className={`flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+              showVariants
+                ? 'bg-indigo-600 text-white shadow-md'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            <i
+              className={`ri-git-branch-line text-base ${showVariants ? 'text-white' : 'text-gray-500'}`}
+            />
+            Variants {showVariants ? 'ON' : 'OFF'}
+          </button>
         </div>
 
         {/* ── Table ── */}
@@ -520,7 +581,7 @@ export default function ItemsPage() {
                     <tr key={i} className="border-b border-[#f1f5f9]">
                       {Array.from({ length: 11 }).map((_, j) => (
                         <td key={j} className="px-4 py-3">
-                          <div className="h-4 bg-[#f1f5f9] rounded animate-pulse" />
+                          <div className="h-4 bg-[#f1f5f9} rounded animate-pulse" />
                         </td>
                       ))}
                     </tr>
@@ -530,104 +591,134 @@ export default function ItemsPage() {
                 {!isLoading &&
                   paginatedItems.map((item, idx) => {
                     const badge = stockBadge(item);
+                    // 🆕 Check if item is a parent (has variants)
+                    const isParent = item.isParent === true;
+
                     return (
-                      <tr
-                        key={item.id}
-                        onClick={() => openDetails(item)}
-                        className={`border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors cursor-pointer ${
-                          idx % 2 !== 0 ? 'bg-[#f8fafc]/40' : ''
-                        }`}
-                      >
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className="font-mono text-xs text-[#64748b]">
-                            {item.code || '—'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="font-medium text-[#1e293b]">
-                            {item.name}
-                          </p>
-                          {item.barcode && (
-                            <p className="text-xs text-[#94a3b8] font-mono">
-                              {item.barcode}
-                            </p>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-[#64748b] text-xs whitespace-nowrap">
-                          {item.categoryName || '—'}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className="font-mono text-xs text-[#64748b]">
-                            {item.hsnCode || '—'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-[#4f46e5]">
-                            {item.taxRate}%
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-[#64748b] whitespace-nowrap text-xs">
-                          {item.unitName || '—'}
-                        </td>
-                        <td className="px-4 py-3 text-right text-[#64748b] whitespace-nowrap">
-                          {formatINR(item.purchaseRate)}
-                        </td>
-                        <td className="px-4 py-3 text-right font-semibold text-[#1e293b] whitespace-nowrap">
-                          {formatINR(item.saleRate)}
-                        </td>
-                        <td className="px-4 py-3 text-right whitespace-nowrap">
-                          <span className={`font-semibold ${badge.cls}`}>
-                            {item.stock}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center whitespace-nowrap">
-                          <span
-                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${badge.cls}`}
-                          >
-                            {badge.label}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center whitespace-nowrap">
-                          <div
-                            className="flex items-center justify-center gap-1"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {canEditItem && (
-                              <button
-                                onClick={() => openEdit(item)}
-                                className="p-1.5 rounded-md hover:bg-[#f1f5f9] text-[#64748b] hover:text-[#4f46e5] transition-colors cursor-pointer"
-                                title="Edit item"
-                              >
-                                <i className="ri-pencil-line text-sm" />
-                              </button>
-                            )}
-                            {canDeleteItem && item.isActive && (
-                              <button
-                                onClick={() => setDeleteConfirm(item)}
-                                className="p-1.5 rounded-md hover:bg-[#fef2f2] text-[#64748b] hover:text-red-600 transition-colors cursor-pointer"
-                                title="Deactivate item"
-                              >
-                                <i className="ri-delete-bin-line text-sm" />
-                              </button>
-                            )}
-                            {canEditItem && (
-                              <button
-                                onClick={() => handleToggleActive(item)}
-                                className={`p-1.5 rounded-md hover:bg-[#f1f5f9] transition-colors cursor-pointer ${
-                                  item.isActive
-                                    ? 'text-green-600'
-                                    : 'text-[#64748b]'
-                                }`}
-                                title={item.isActive ? 'Active' : 'Inactive'}
-                              >
-                                <i
-                                  className={`${item.isActive ? 'ri-checkbox-circle-line' : 'ri-eye-off-line'} text-sm`}
-                                />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
+                      <Fragment key={item.id}>
+                        {/* Parent/Item Row */}
+                        <tr
+                          onClick={() => openDetails(item)}
+                          className={`border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors cursor-pointer ${
+                            idx % 2 !== 0 ? 'bg-[#f8fafc]/40' : ''
+                          } ${isParent ? 'bg-slate-50' : ''}`}
+                        >
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className="font-mono text-xs text-[#64748b]">
+                              {item.code || '—'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              {/* 🆕 Expand button for parent items - only show when Variants ON */}
+                              {isParent && showVariants && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleExpand(item.id);
+                                  }}
+                                  className="w-6 h-6 flex items-center justify-center rounded hover:bg-[#e2e8f0] text-[#64748b] transition-colors cursor-pointer shrink-0"
+                                >
+                                  <i
+                                    className={
+                                      expandedParents.has(item.id)
+                                        ? 'ri-arrow-down-s-line text-sm'
+                                        : 'ri-arrow-right-s-line text-sm'
+                                    }
+                                  />
+                                </button>
+                              )}
+                              <div>
+                                <p className="font-medium text-[#1e293b]">
+                                  {item.name}
+                                </p>
+                                {item.barcode && (
+                                  <p className="text-xs text-[#94a3b8] font-mono">
+                                    {item.barcode}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-[#64748b] text-xs whitespace-nowrap">
+                            {item.categoryName || '—'}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className="font-mono text-xs text-[#64748b]">
+                              {item.hsnCode || '—'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-[#4f46e5]">
+                              {item.taxRate}%
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-[#64748b] whitespace-nowrap text-xs">
+                            {item.unitName || '—'}
+                          </td>
+                          <td className="px-4 py-3 text-right text-[#64748b] whitespace-nowrap">
+                            {formatINR(item.purchaseRate)}
+                          </td>
+                          <td className="px-4 py-3 text-right font-semibold text-[#1e293b] whitespace-nowrap">
+                            {formatINR(item.saleRate)}
+                          </td>
+                          <td className="px-4 py-3 text-right whitespace-nowrap">
+                            <span className={`font-semibold ${badge.cls}`}>
+                              {item.stock}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center whitespace-nowrap">
+                            <span
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${badge.cls}`}
+                            >
+                              {badge.label}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center whitespace-nowrap">
+                            <div
+                              className="flex items-center justify-center gap-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {canEditItem && (
+                                <button
+                                  onClick={() => openEdit(item)}
+                                  className="p-1.5 rounded-md hover:bg-[#f1f5f9] text-[#64748b] hover:text-[#4f46e5] transition-colors cursor-pointer"
+                                  title="Edit item"
+                                >
+                                  <i className="ri-pencil-line text-sm" />
+                                </button>
+                              )}
+                              {canDeleteItem && item.isActive && (
+                                <button
+                                  onClick={() => setDeleteConfirm(item)}
+                                  className="p-1.5 rounded-md hover:bg-[#fef2f2] text-[#64748b] hover:text-red-600 transition-colors cursor-pointer"
+                                  title="Deactivate item"
+                                >
+                                  <i className="ri-delete-bin-line text-sm" />
+                                </button>
+                              )}
+                              {canEditItem && (
+                                <button
+                                  onClick={() => handleToggleActive(item)}
+                                  className={`p-1.5 rounded-md hover:bg-[#f1f5f9] transition-colors cursor-pointer ${
+                                    item.isActive
+                                      ? 'text-green-600'
+                                      : 'text-[#64748b]'
+                                  }`}
+                                  title={item.isActive ? 'Active' : 'Inactive'}
+                                >
+                                  <i
+                                    className={`${item.isActive ? 'ri-checkbox-circle-line' : 'ri-eye-off-line'} text-sm`}
+                                  />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+
+                        {/* 🆕 Variant Rows - only show when Variants ON and parent is expanded */}
+                        {/* Note: For now, this is a placeholder. You'll need to fetch variants from API */}
+                      </Fragment>
                     );
                   })}
 

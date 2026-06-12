@@ -150,26 +150,23 @@ import axios from 'axios';
 import ReportLayout from '@/pages/reports/components/ReportLayout';
 import SummaryCards from '@/pages/reports/components/SummaryCards';
 import { useWarehouseStore } from '@/stores/warehouseStore';
- 
+
 // ─────────────────────────────────────────────────────────────
 // API
 // ─────────────────────────────────────────────────────────────
 const getDayBookApi = async (date: string, warehouseId: string) => {
   const token = localStorage.getItem('token');
-  const res = await axios.get(
-    'https://asvapi.digiindiasolutions.com/api/v1/reports/day-book',
-    {
-      params: { date, warehouseId: warehouseId || undefined },
-      headers: { Authorization: `Bearer ${token}` },
-    },
-  );
+  const res = await axios.get('http://localhost:7000/api/v1/reports/day-book', {
+    params: { date, warehouseId: warehouseId || undefined },
+    headers: { Authorization: `Bearer ${token}` },
+  });
   return (res.data?.data ?? []).map((r: any) => ({
     ...r,
     debit: Number(r.debit || 0),
     credit: Number(r.credit || 0),
   }));
 };
- 
+
 // ─────────────────────────────────────────────────────────────
 // HOOK
 // ─────────────────────────────────────────────────────────────
@@ -240,10 +237,17 @@ export default function DayBookReport() {
   const today = new Date().toISOString().split('T')[0];
   const [date, setDate] = useState(today);
   const { selectedWarehouseId } = useWarehouseStore();
-  const warehouseId = selectedWarehouseId && selectedWarehouseId !== 'ALL' ? selectedWarehouseId : '';
+  const warehouseId =
+    selectedWarehouseId && selectedWarehouseId !== 'ALL'
+      ? selectedWarehouseId
+      : '';
   const [generated, setGenerated] = useState(false);
- 
-  const { data = [], isFetching, refetch } = useDayBook(date, warehouseId, generated);
+
+  const {
+    data = [],
+    isFetching,
+    refetch,
+  } = useDayBook(date, warehouseId, generated);
 
   const handleGenerate = () => {
     setGenerated(true);

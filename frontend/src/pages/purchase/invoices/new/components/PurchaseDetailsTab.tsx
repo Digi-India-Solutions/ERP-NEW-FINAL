@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import type { PurchaseRow } from '@/types/billing';
 import { calcPurchaseRowAmount } from '@/types/billing';
 
-
 interface Props {
   rows: PurchaseRow[];
   onChange: (rows: PurchaseRow[]) => void;
@@ -15,9 +14,19 @@ interface Props {
   onItemSelect: (idx: number, nameQuery: string) => void;
 }
 
-
-const EDITABLE_COLS = ['itemName', 'size', 'hsnCode', 'taxRate', 'group', 'brand', 'articleNo', 'color', 'markUpPct', 'companyBarcode'] as const;
-type EditableCol = typeof EDITABLE_COLS[number];
+const EDITABLE_COLS = [
+  'itemName',
+  'size',
+  'hsnCode',
+  'taxRate',
+  'group',
+  'brand',
+  'articleNo',
+  'color',
+  'markUpPct',
+  'companyBarcode',
+] as const;
+type EditableCol = (typeof EDITABLE_COLS)[number];
 
 const COL_LABELS: Record<EditableCol, string> = {
   itemName: 'Name',
@@ -46,7 +55,9 @@ const COL_WIDTHS: Record<EditableCol, string> = {
 };
 
 function focusCell(rowIdx: number, col: string) {
-  const el = document.querySelector<HTMLElement>(`[data-pd-row="${rowIdx}"][data-pd-col="${col}"]`);
+  const el = document.querySelector<HTMLElement>(
+    `[data-pd-row="${rowIdx}"][data-pd-col="${col}"]`,
+  );
   if (el) el.focus();
 }
 
@@ -54,23 +65,47 @@ function isRowEmpty(row: PurchaseRow): boolean {
   return !row.companyBarcode && !row.itemName && (!row.qty || row.qty <= 0);
 }
 
-export default function PurchaseDetailsTab({ rows, onChange, onRowComplete, onBarcodeEnter, focusedRowIndex, setFocusedRowIndex, itemOptions, onItemSelect }: Props) {
-  const blurTimerRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+export default function PurchaseDetailsTab({
+  rows,
+  onChange,
+  onRowComplete,
+  onBarcodeEnter,
+  focusedRowIndex,
+  setFocusedRowIndex,
+  itemOptions,
+  onItemSelect,
+}: Props) {
+  const blurTimerRef = useRef<Record<number, ReturnType<typeof setTimeout>>>(
+    {},
+  );
   const nameInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   const [dropdownRow, setDropdownRow] = useState<number | null>(null);
   const [searchMap, setSearchMap] = useState<Record<number, string>>({});
-  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 256 });
+  const [dropdownPos, setDropdownPos] = useState({
+    top: 0,
+    left: 0,
+    width: 256,
+  });
 
   // categories from api
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>(
+    [],
+  );
   const [groupDropdownRow, setGroupDropdownRow] = useState<number | null>(null);
-  const [groupSearchMap, setGroupSearchMap] = useState<Record<number, string>>({});
-  const [groupDropdownPos, setGroupDropdownPos] = useState({ top: 0, left: 0, width: 256 });
+  const [groupSearchMap, setGroupSearchMap] = useState<Record<number, string>>(
+    {},
+  );
+  const [groupDropdownPos, setGroupDropdownPos] = useState({
+    top: 0,
+    left: 0,
+    width: 256,
+  });
   const [groupHighlight, setGroupHighlight] = useState(0);
   const groupInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
-  const BASE_URL = (import.meta.env.VITE_API_URL as string) || 'https://asvapi.digiindiasolutions.com';
+  const BASE_URL =
+    (import.meta.env.VITE_API_URL as string) || 'http://localhost:7000';
   const getToken = () => localStorage.getItem('token') ?? '';
 
   useEffect(() => {
@@ -90,7 +125,7 @@ export default function PurchaseDetailsTab({ rows, onChange, onRowComplete, onBa
           }));
         setCategories(parentCategories);
       })
-      .catch(() => { });
+      .catch(() => {});
     return () => {
       mounted = false;
     };
@@ -142,189 +177,258 @@ export default function PurchaseDetailsTab({ rows, onChange, onRowComplete, onBa
     };
   }, [dropdownRow, updateDropdownPos]);
 
-  const updateRow = useCallback((idx: number, patch: Partial<PurchaseRow>) => {
-    const updated = { ...rows[idx], ...patch };
-    updated.amount = calcPurchaseRowAmount(updated);
-    onChange(rows.map((r, i) => i === idx ? updated : r));
-  }, [rows, onChange]);
+  const updateRow = useCallback(
+    (idx: number, patch: Partial<PurchaseRow>) => {
+      const updated = { ...rows[idx], ...patch };
+      updated.amount = calcPurchaseRowAmount(updated);
+      onChange(rows.map((r, i) => (i === idx ? updated : r)));
+    },
+    [rows, onChange],
+  );
 
   // FIX 2 + 3: Delete row — shared rows array, both tabs update
-  const deleteRow = useCallback((idx: number) => {
-    if (rows.length === 1) {
-      // Only 1 row: clear all fields instead of removing
-      onChange(rows.map((r, i) => i === idx ? {
-        ...r,
-        companyBarcode: '', itemId: '', itemName: '', size: '',
-        hsnCode: '', taxRate: 0, group: '', brand: '', articleNo: '',
-        color: '', markUpPct: 0, nol: '', qty: 1, purRate: 0,
-        purExpPct: 0, saleDisPct: 0, mrp: 0, saleRate: 0, amount: 0,
-        isKnownItem: false, itemBarcode: '',
-      } : r));
-    } else {
-      onChange(rows.filter((_, i) => i !== idx));
-    }
-  }, [rows, onChange]);
+  const deleteRow = useCallback(
+    (idx: number) => {
+      if (rows.length === 1) {
+        // Only 1 row: clear all fields instead of removing
+        onChange(
+          rows.map((r, i) =>
+            i === idx
+              ? {
+                  ...r,
+                  companyBarcode: '',
+                  itemId: '',
+                  itemName: '',
+                  size: '',
+                  hsnCode: '',
+                  taxRate: 0,
+                  group: '',
+                  brand: '',
+                  articleNo: '',
+                  color: '',
+                  markUpPct: 0,
+                  nol: '',
+                  qty: 1,
+                  purRate: 0,
+                  purExpPct: 0,
+                  saleDisPct: 0,
+                  mrp: 0,
+                  saleRate: 0,
+                  amount: 0,
+                  isKnownItem: false,
+                  itemBarcode: '',
+                }
+              : r,
+          ),
+        );
+      } else {
+        onChange(rows.filter((_, i) => i !== idx));
+      }
+    },
+    [rows, onChange],
+  );
 
   // FIX 1: Barcode lookup on Enter — works on first keypress
-  const handleBarcodeEnter = useCallback(async (idx: number, value: string) => {
-    const trimmed = value.trim();
+  const handleBarcodeEnter = useCallback(
+    async (idx: number, value: string) => {
+      const trimmed = value.trim();
 
-    if (!trimmed) {
-      focusCell(idx, 'itemName');
-      return;
-    }
-
-    const found = await onBarcodeEnter(idx, trimmed); // wait
-
-    setTimeout(() => {
-      if (found) {
-        focusCell(idx, 'markUpPct'); // known item
-      } else {
-        focusCell(idx, 'itemName'); // new item
+      if (!trimmed) {
+        focusCell(idx, 'itemName');
+        return;
       }
-    }, 50);
 
-  }, [onBarcodeEnter]);
+      const found = await onBarcodeEnter(idx, trimmed); // wait
+
+      setTimeout(() => {
+        if (found) {
+          focusCell(idx, 'markUpPct'); // known item
+        } else {
+          focusCell(idx, 'itemName'); // new item
+        }
+      }, 50);
+    },
+    [onBarcodeEnter],
+  );
 
   // Select a category from the group dropdown and move focus to next cell
-  const selectGroup = useCallback((rowIdx: number, name: string) => {
-    setGroupSearchMap((prev) => { const n = { ...prev }; delete n[rowIdx]; return n; });
-    updateRow(rowIdx, { group: name });
-    setGroupDropdownRow(null);
-    setTimeout(() => focusCell(rowIdx, 'brand'), 30);
-  }, [updateRow]);
+  const selectGroup = useCallback(
+    (rowIdx: number, name: string) => {
+      setGroupSearchMap((prev) => {
+        const n = { ...prev };
+        delete n[rowIdx];
+        return n;
+      });
+      updateRow(rowIdx, { group: name });
+      setGroupDropdownRow(null);
+      setTimeout(() => focusCell(rowIdx, 'brand'), 30);
+    },
+    [updateRow],
+  );
 
-  const handleKeyDown = useCallback((
-    e: React.KeyboardEvent<HTMLInputElement>,
-    rowIdx: number,
-    col: EditableCol,
-  ) => {
-    const colIdx = EDITABLE_COLS.indexOf(col);
+  const handleKeyDown = useCallback(
+    (
+      e: React.KeyboardEvent<HTMLInputElement>,
+      rowIdx: number,
+      col: EditableCol,
+    ) => {
+      const colIdx = EDITABLE_COLS.indexOf(col);
 
-    // ── Group dropdown keyboard navigation ──────────────────────────────────
-    if (col === 'group' && groupDropdownRow === rowIdx) {
-      const filtered = categories
-        .filter((c) =>
-          c.name.toLowerCase().includes(
-            (groupSearchMap[rowIdx] ?? rows[rowIdx]?.group ?? '').toLowerCase()
+      // ── Group dropdown keyboard navigation ──────────────────────────────────
+      if (col === 'group' && groupDropdownRow === rowIdx) {
+        const filtered = categories
+          .filter((c) =>
+            c.name
+              .toLowerCase()
+              .includes(
+                (
+                  groupSearchMap[rowIdx] ??
+                  rows[rowIdx]?.group ??
+                  ''
+                ).toLowerCase(),
+              ),
           )
-        )
-        .slice(0, 8);
+          .slice(0, 8);
 
-      if (filtered.length > 0) {
-        if (e.key === 'ArrowDown') {
-          e.preventDefault();
-          setGroupHighlight((p) => Math.min(p + 1, filtered.length - 1));
-          return;
+        if (filtered.length > 0) {
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setGroupHighlight((p) => Math.min(p + 1, filtered.length - 1));
+            return;
+          }
+          if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setGroupHighlight((p) => Math.max(p - 1, 0));
+            return;
+          }
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            // Read the current highlight directly from state via functional update
+            setGroupHighlight((p) => {
+              if (filtered[p]) selectGroup(rowIdx, filtered[p].name);
+              return p;
+            });
+            return;
+          }
         }
-        if (e.key === 'ArrowUp') {
+        if (e.key === 'Escape') {
           e.preventDefault();
-          setGroupHighlight((p) => Math.max(p - 1, 0));
-          return;
-        }
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          e.stopPropagation();
-          // Read the current highlight directly from state via functional update
-          setGroupHighlight((p) => {
-            if (filtered[p]) selectGroup(rowIdx, filtered[p].name);
-            return p;
-          });
+          setGroupDropdownRow(null);
           return;
         }
       }
-      if (e.key === 'Escape') {
+
+      // FIX 2: Delete/Backspace on empty row → delete row, focus previous
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const row = rows[rowIdx];
+        if (isRowEmpty(row) && rows.length > 1) {
+          e.preventDefault();
+          deleteRow(rowIdx);
+          const prevIdx = Math.max(0, rowIdx - 1);
+          setTimeout(() => focusCell(prevIdx, col), 30);
+          return;
+        }
+        // Row has data → normal browser behaviour (don't intercept)
+        return;
+      }
+
+      if (e.key === 'Enter') {
         e.preventDefault();
-        setGroupDropdownRow(null);
+        e.stopPropagation();
+        if (col === 'companyBarcode') {
+          // FIX 1: Always trigger barcode lookup on Enter in barcode field
+          handleBarcodeEnter(rowIdx, (e.target as HTMLInputElement).value);
+          return;
+        }
+        if (col === 'markUpPct') {
+          onRowComplete(rowIdx);
+          return;
+        }
+        const nextCol = EDITABLE_COLS[colIdx + 1];
+        if (nextCol) focusCell(rowIdx, nextCol);
         return;
       }
-    }
 
-    // FIX 2: Delete/Backspace on empty row → delete row, focus previous
-    if (e.key === 'Delete' || e.key === 'Backspace') {
-      const row = rows[rowIdx];
-      if (isRowEmpty(row) && rows.length > 1) {
+      if (e.key === 'ArrowRight') {
         e.preventDefault();
-        deleteRow(rowIdx);
-        const prevIdx = Math.max(0, rowIdx - 1);
-        setTimeout(() => focusCell(prevIdx, col), 30);
+        if (col === 'markUpPct') return;
+        const nextCol = EDITABLE_COLS[colIdx + 1];
+        if (nextCol) focusCell(rowIdx, nextCol);
         return;
       }
-      // Row has data → normal browser behaviour (don't intercept)
-      return;
-    }
 
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      e.stopPropagation();
-      if (col === 'companyBarcode') {
-        // FIX 1: Always trigger barcode lookup on Enter in barcode field
-        handleBarcodeEnter(rowIdx, (e.target as HTMLInputElement).value);
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        if (col === 'companyBarcode') return;
+        const prevCol = EDITABLE_COLS[colIdx - 1];
+        if (prevCol) focusCell(rowIdx, prevCol);
         return;
       }
-      if (col === 'markUpPct') {
-        onRowComplete(rowIdx);
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (rowIdx < rows.length - 1) focusCell(rowIdx + 1, col);
         return;
       }
-      const nextCol = EDITABLE_COLS[colIdx + 1];
-      if (nextCol) focusCell(rowIdx, nextCol);
-      return;
-    }
 
-    if (e.key === 'ArrowRight') {
-      e.preventDefault();
-      if (col === 'markUpPct') return;
-      const nextCol = EDITABLE_COLS[colIdx + 1];
-      if (nextCol) focusCell(rowIdx, nextCol);
-      return;
-    }
-
-    if (e.key === 'ArrowLeft') {
-      e.preventDefault();
-      if (col === 'companyBarcode') return;
-      const prevCol = EDITABLE_COLS[colIdx - 1];
-      if (prevCol) focusCell(rowIdx, prevCol);
-      return;
-    }
-
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      if (rowIdx < rows.length - 1) focusCell(rowIdx + 1, col);
-      return;
-    }
-
-    if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (rowIdx > 0) focusCell(rowIdx - 1, col);
-      return;
-    }
-  }, [rows, deleteRow, handleBarcodeEnter, onRowComplete, categories, groupDropdownRow, groupSearchMap, selectGroup]);
-
-  const handleFocus = useCallback((rowIdx: number) => {
-    if (blurTimerRef.current[rowIdx]) clearTimeout(blurTimerRef.current[rowIdx]);
-    setFocusedRowIndex(rowIdx);
-  }, [setFocusedRowIndex]);
-
-  const handleBlur = useCallback((rowIdx: number) => {
-    if (blurTimerRef.current[rowIdx]) clearTimeout(blurTimerRef.current[rowIdx]);
-    blurTimerRef.current[rowIdx] = setTimeout(() => {
-      const row = document.querySelector(`[data-pd-row="${rowIdx}"]`);
-      if (!row?.contains(document.activeElement)) {
-        setFocusedRowIndex(-1);
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (rowIdx > 0) focusCell(rowIdx - 1, col);
+        return;
       }
-    }, 80);
-  }, [setFocusedRowIndex]);
+    },
+    [
+      rows,
+      deleteRow,
+      handleBarcodeEnter,
+      onRowComplete,
+      categories,
+      groupDropdownRow,
+      groupSearchMap,
+      selectGroup,
+    ],
+  );
 
-  const ic = 'w-full h-7 px-1.5 text-xs bg-transparent focus:outline-none focus:bg-indigo-50 focus:ring-1 focus:ring-indigo-300 rounded text-[#1e293b] placeholder:text-slate-300';
+  const handleFocus = useCallback(
+    (rowIdx: number) => {
+      if (blurTimerRef.current[rowIdx])
+        clearTimeout(blurTimerRef.current[rowIdx]);
+      setFocusedRowIndex(rowIdx);
+    },
+    [setFocusedRowIndex],
+  );
+
+  const handleBlur = useCallback(
+    (rowIdx: number) => {
+      if (blurTimerRef.current[rowIdx])
+        clearTimeout(blurTimerRef.current[rowIdx]);
+      blurTimerRef.current[rowIdx] = setTimeout(() => {
+        const row = document.querySelector(`[data-pd-row="${rowIdx}"]`);
+        if (!row?.contains(document.activeElement)) {
+          setFocusedRowIndex(-1);
+        }
+      }, 80);
+    },
+    [setFocusedRowIndex],
+  );
+
+  const ic =
+    'w-full h-7 px-1.5 text-xs bg-transparent focus:outline-none focus:bg-indigo-50 focus:ring-1 focus:ring-indigo-300 rounded text-[#1e293b] placeholder:text-slate-300';
 
   return (
     <div className="overflow-visible">
       <table className="w-full text-xs border-collapse min-w-[900px]">
         <thead>
           <tr className="bg-slate-50 border-b border-[#e2e8f0]">
-            <th className="w-8 px-2 py-2 text-left text-slate-500 font-semibold">#</th>
+            <th className="w-8 px-2 py-2 text-left text-slate-500 font-semibold">
+              #
+            </th>
             {EDITABLE_COLS.map((col) => (
-              <th key={col} className={`${COL_WIDTHS[col]} px-1.5 py-2 text-left text-slate-500 font-semibold whitespace-nowrap`}>
+              <th
+                key={col}
+                className={`${COL_WIDTHS[col]} px-1.5 py-2 text-left text-slate-500 font-semibold whitespace-nowrap`}
+              >
                 {COL_LABELS[col]}
               </th>
             ))}
@@ -338,8 +442,9 @@ export default function PurchaseDetailsTab({ rows, onChange, onRowComplete, onBa
               key={row.id}
               className={`group border-b border-[#f1f5f9] transition-colors ${focusedRowIndex === idx ? 'bg-indigo-50/40' : 'hover:bg-slate-50/60'}`}
             >
-              <td className="px-2 py-1 text-slate-400 text-center">{idx + 1}</td>
-
+              <td className="px-2 py-1 text-slate-400 text-center">
+                {idx + 1}
+              </td>
 
               {/* Name */}
               <td className="px-1 py-1 relative">
@@ -380,49 +485,55 @@ export default function PurchaseDetailsTab({ rows, onChange, onRowComplete, onBa
                 />
 
                 {/* DROPDOWN */}
-                {dropdownRow === idx && createPortal(
-                  <div
-                    className="bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-auto"
-                    style={{
-                      position: 'absolute',
-                      top: dropdownPos.top,
-                      left: dropdownPos.left,
-                      width: dropdownPos.width,
-                      zIndex: 9999,
-                    }}
-                  >
-                    {itemOptions
-                      .filter((item) =>
-                        item.name
-                          .toLowerCase()
-                          .includes((searchMap[idx] || row.itemName || '').toLowerCase())
-                      )
-                      .slice(0, 8)
-                      .map((item) => (
-                        <div
-                          key={item.id}
-                          className="px-2 py-1 text-xs hover:bg-indigo-50 cursor-pointer"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
+                {dropdownRow === idx &&
+                  createPortal(
+                    <div
+                      className="bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-auto"
+                      style={{
+                        position: 'absolute',
+                        top: dropdownPos.top,
+                        left: dropdownPos.left,
+                        width: dropdownPos.width,
+                        zIndex: 9999,
+                      }}
+                    >
+                      {itemOptions
+                        .filter((item) =>
+                          item.name
+                            .toLowerCase()
+                            .includes(
+                              (
+                                searchMap[idx] ||
+                                row.itemName ||
+                                ''
+                              ).toLowerCase(),
+                            ),
+                        )
+                        .slice(0, 8)
+                        .map((item) => (
+                          <div
+                            key={item.id}
+                            className="px-2 py-1 text-xs hover:bg-indigo-50 cursor-pointer"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
 
-                            setSearchMap((prev) => {
-                              const next = { ...prev };
-                              delete next[idx];
-                              return next;
-                            });
-                            onItemSelect(idx, item.name);
-                            setDropdownRow(null);
-                            setTimeout(() => focusCell(idx, 'size'), 30);
-                          }}
-                        >
-                          {item.name}
-                        </div>
-                      ))}
-                  </div>,
-                  document.body
-                )}
+                              setSearchMap((prev) => {
+                                const next = { ...prev };
+                                delete next[idx];
+                                return next;
+                              });
+                              onItemSelect(idx, item.name);
+                              setDropdownRow(null);
+                              setTimeout(() => focusCell(idx, 'size'), 30);
+                            }}
+                          >
+                            {item.name}
+                          </div>
+                        ))}
+                    </div>,
+                    document.body,
+                  )}
               </td>
-
 
               {/* Size */}
               <td className="px-1 py-1">
@@ -481,7 +592,6 @@ export default function PurchaseDetailsTab({ rows, onChange, onRowComplete, onBa
                 />
               </td>
 
-
               {/* Group */}
               <td className="px-1 py-1 relative">
                 <input
@@ -516,44 +626,51 @@ export default function PurchaseDetailsTab({ rows, onChange, onRowComplete, onBa
                 />
 
                 {/* GROUP DROPDOWN */}
-                {groupDropdownRow === idx && createPortal(
-                  <div
-                    className="bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-auto"
-                    style={{
-                      position: 'absolute',
-                      top: groupDropdownPos.top,
-                      left: groupDropdownPos.left,
-                      width: groupDropdownPos.width,
-                      zIndex: 9999,
-                    }}
-                  >
-                    {categories
-                      .filter((cat) =>
-                        cat.name
-                          .toLowerCase()
-                          .includes((groupSearchMap[idx] ?? row.group ?? '').toLowerCase())
-                      )
-                      .slice(0, 8)
-                      .map((cat, catIdx) => (
-                        <div
-                          key={cat.id}
-                          className={`px-2 py-1 text-xs cursor-pointer transition-colors ${
-                            catIdx === groupHighlight
-                              ? 'bg-indigo-100 text-indigo-700 font-medium'
-                              : 'hover:bg-indigo-50 text-[#1e293b]'
-                          }`}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            selectGroup(idx, cat.name);
-                          }}
-                          onMouseEnter={() => setGroupHighlight(catIdx)}
-                        >
-                          {cat.name}
-                        </div>
-                      ))}
-                  </div>,
-                  document.body
-                )}
+                {groupDropdownRow === idx &&
+                  createPortal(
+                    <div
+                      className="bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-auto"
+                      style={{
+                        position: 'absolute',
+                        top: groupDropdownPos.top,
+                        left: groupDropdownPos.left,
+                        width: groupDropdownPos.width,
+                        zIndex: 9999,
+                      }}
+                    >
+                      {categories
+                        .filter((cat) =>
+                          cat.name
+                            .toLowerCase()
+                            .includes(
+                              (
+                                groupSearchMap[idx] ??
+                                row.group ??
+                                ''
+                              ).toLowerCase(),
+                            ),
+                        )
+                        .slice(0, 8)
+                        .map((cat, catIdx) => (
+                          <div
+                            key={cat.id}
+                            className={`px-2 py-1 text-xs cursor-pointer transition-colors ${
+                              catIdx === groupHighlight
+                                ? 'bg-indigo-100 text-indigo-700 font-medium'
+                                : 'hover:bg-indigo-50 text-[#1e293b]'
+                            }`}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              selectGroup(idx, cat.name);
+                            }}
+                            onMouseEnter={() => setGroupHighlight(catIdx)}
+                          >
+                            {cat.name}
+                          </div>
+                        ))}
+                    </div>,
+                    document.body,
+                  )}
               </td>
 
               {/* Brand */}
@@ -577,7 +694,9 @@ export default function PurchaseDetailsTab({ rows, onChange, onRowComplete, onBa
                 <input
                   type="text"
                   value={row.articleNo}
-                  onChange={(e) => updateRow(idx, { articleNo: e.target.value })}
+                  onChange={(e) =>
+                    updateRow(idx, { articleNo: e.target.value })
+                  }
                   onKeyDown={(e) => handleKeyDown(e, idx, 'articleNo')}
                   onFocus={() => handleFocus(idx)}
                   onBlur={() => handleBlur(idx)}
@@ -629,14 +748,15 @@ export default function PurchaseDetailsTab({ rows, onChange, onRowComplete, onBa
                 />
               </td>
 
-
               {/* Company Barcode — FIX 1 */}
               <td className="px-1 py-1">
                 <div className="relative">
                   <input
                     type="text"
                     value={row.companyBarcode}
-                    onChange={(e) => updateRow(idx, { companyBarcode: e.target.value })}
+                    onChange={(e) =>
+                      updateRow(idx, { companyBarcode: e.target.value })
+                    }
                     onKeyDown={(e) => handleKeyDown(e, idx, 'companyBarcode')}
                     onFocus={() => handleFocus(idx)}
                     onBlur={() => handleBlur(idx)}
@@ -646,8 +766,12 @@ export default function PurchaseDetailsTab({ rows, onChange, onRowComplete, onBa
                     className={ic}
                   />
                   {focusedRowIndex === idx && row.companyBarcode && (
-                    <span className={`absolute -top-5 left-0 text-[10px] px-1.5 py-0.5 rounded font-medium whitespace-nowrap z-10 ${row.isKnownItem ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                      {row.isKnownItem ? 'Known item — details auto-filled' : 'New item — fill details manually'}
+                    <span
+                      className={`absolute -top-5 left-0 text-[10px] px-1.5 py-0.5 rounded font-medium whitespace-nowrap z-10 ${row.isKnownItem ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}
+                    >
+                      {row.isKnownItem
+                        ? 'Known item — details auto-filled'
+                        : 'New item — fill details manually'}
                     </span>
                   )}
                 </div>

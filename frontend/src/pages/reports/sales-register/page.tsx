@@ -6,14 +6,14 @@ import { filterParties } from '@/api/party.api';
 import { useWarehouseStore } from '@/stores/warehouseStore';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
- 
+
 type Params = {
   from: string;
   to: string;
   customerId?: string;
   warehouseId?: string;
 };
- 
+
 export const useSalesRegister = (
   from: string,
   to: string,
@@ -23,58 +23,61 @@ export const useSalesRegister = (
 ) => {
   return useQuery({
     queryKey: ['sales-register', from, to, customerId, warehouseId],
- 
+
     queryFn: async () => {
       const params: Params = { from, to };
- 
+
       if (customerId) {
         params.customerId = customerId;
       }
       if (warehouseId) {
         params.warehouseId = warehouseId;
       }
- 
+
       const res = await axios.get(
-        'https://asvapi.digiindiasolutions.com/api/v1/reports/sales-register',
+        'http://localhost:7000/api/v1/reports/sales-register',
         {
           params,
         },
       );
- 
+
       // ✅ IMPORTANT: return full response (data + summary)
       console.log(res.data);
       return res.data;
     },
- 
+
     enabled, // runs only after Generate clicked
   });
 };
- 
+
 function formatINR(n: number) {
   return `₹${n.toLocaleString('en-IN')}`;
 }
- 
+
 function getFirstDayOfMonth() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 }
- 
+
 const PAYMENT_BADGE: Record<string, string> = {
   PAID: 'bg-green-100 text-green-700',
   UNPAID: 'bg-red-100 text-red-600',
   PARTIAL: 'bg-amber-100 text-amber-700',
 };
- 
+
 export default function SalesRegisterReport() {
   const today = new Date().toISOString().split('T')[0];
   const [from, setFrom] = useState(getFirstDayOfMonth());
   const [to, setTo] = useState(today);
   const [customerId, setCustomerId] = useState('');
   const { selectedWarehouseId } = useWarehouseStore();
-  const warehouseId = selectedWarehouseId && selectedWarehouseId !== 'ALL' ? selectedWarehouseId : '';
+  const warehouseId =
+    selectedWarehouseId && selectedWarehouseId !== 'ALL'
+      ? selectedWarehouseId
+      : '';
   const [generated, setGenerated] = useState(false);
   const [customers, setCustomers] = useState<any[]>([]);
- 
+
   const { data, isFetching, refetch } = useSalesRegister(
     from,
     to,
@@ -82,33 +85,33 @@ export default function SalesRegisterReport() {
     warehouseId,
     generated,
   );
- 
+
   const rows = data?.data || [];
   const summary = data?.summary || {};
- 
+
   const handleGenerate = () => {
     setGenerated(true);
     refetch();
   };
- 
+
   const active = rows.filter((r) => r.paymentStatus !== 'CANCELLED');
   const totalTaxable = active.reduce(
     (s, r) => s + Number(r.taxableAmount || 0),
     0,
   );
- 
+
   const totalTax = active.reduce((s, r) => s + Number(r.totalTax || 0), 0);
- 
+
   const totalAmount = active.reduce((s, r) => s + Number(r.grandTotal || 0), 0);
- 
+
   const cashSales = active
     .filter((r) => r.paymentMode === 'CASH')
     .reduce((s, r) => s + Number(r.grandTotal || 0), 0);
- 
+
   const creditSales = active
     .filter((r) => r.paymentMode === 'CREDIT')
     .reduce((s, r) => s + Number(r.grandTotal || 0), 0);
- 
+
   useEffect(() => {
     const loadCustomers = async () => {
       try {
