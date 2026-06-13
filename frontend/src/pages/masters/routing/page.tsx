@@ -6,6 +6,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { MasterFilters, MasterStatsRow } from '@/pages/masters/common/CommonComponets';
 import { getAllRoutings, deleteRouting, createRouting } from '@/api/routing.api';
 import { getAllItems } from '@/api/item.api';
+import { useWarehouseStore } from '@/stores/warehouseStore';
 
 interface Routing {
   id: string;
@@ -19,6 +20,7 @@ interface Routing {
   totalTimeMinutes: number;
   createdAt: string;
   isActive: boolean;
+  warehouseId?: string | null;
 }
 
 function formatMinutes(total: number) {
@@ -46,6 +48,8 @@ export default function RoutingPage() {
   const [itemFilter, setItemFilter] = useState<string>('ALL');
   const [deleteConfirm, setDeleteConfirm] = useState<Routing | null>(null);
 
+  const { selectedWarehouseId } = useWarehouseStore();
+
   const fetchData = async () => {
     setIsLoading(true);
     try {
@@ -63,6 +67,7 @@ export default function RoutingPage() {
           totalTimeMinutes: r.total_time_minutes,
           createdAt: r.created_at,
           isActive: r.is_active,
+          warehouseId: r.warehouse_id || null,
         }));
         setRoutings(mapped);
       }
@@ -80,9 +85,22 @@ export default function RoutingPage() {
     fetchData();
   }, []);
 
+  const warehouseRoutings = useMemo(() => {
+    if (!selectedWarehouseId) return routings;
+    return routings.filter((r) => r.warehouseId === selectedWarehouseId);
+  }, [routings, selectedWarehouseId]);
+
+  const filteredItemsList = useMemo(() => {
+    let list = itemsList.filter((i) => i.is_active || i.isActive);
+    if (selectedWarehouseId) {
+      list = list.filter((i) => i.warehouse_id === selectedWarehouseId || i.warehouseId === selectedWarehouseId || i.warehouseid === selectedWarehouseId);
+    }
+    return list;
+  }, [itemsList, selectedWarehouseId]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
-    return routings.filter((r) => {
+    return warehouseRoutings.filter((r) => {
       const matchSearch =
         !q ||
         r.name.toLowerCase().includes(q) ||
@@ -92,16 +110,16 @@ export default function RoutingPage() {
       const matchItem = itemFilter === 'ALL' || r.itemId === itemFilter || (itemFilter === 'NONE' && !r.itemId);
       return matchSearch && matchStatus && matchItem;
     });
-  }, [routings, search, statusFilter, itemFilter]);
+  }, [warehouseRoutings, search, statusFilter, itemFilter]);
 
   const stats = useMemo(() => {
-    const total = routings.length;
-    const active = routings.filter((r) => r.status === 'ACTIVE').length;
-    const draft = routings.filter((r) => r.status === 'DRAFT').length;
-    const obsolete = routings.filter((r) => r.status === 'OBSOLETE').length;
-    const totalTime = routings.reduce((sum, r) => sum + r.totalTimeMinutes, 0);
+    const total = warehouseRoutings.length;
+    const active = warehouseRoutings.filter((r) => r.status === 'ACTIVE').length;
+    const draft = warehouseRoutings.filter((r) => r.status === 'DRAFT').length;
+    const obsolete = warehouseRoutings.filter((r) => r.status === 'OBSOLETE').length;
+    const totalTime = warehouseRoutings.reduce((sum, r) => sum + r.totalTimeMinutes, 0);
     return { total, active, draft, obsolete, totalTime };
-  }, [routings]);
+  }, [warehouseRoutings]);
 
   const handleDuplicate = async (routing: Routing) => {
     try {
@@ -127,6 +145,7 @@ export default function RoutingPage() {
         stages: newStages,
         totalTimeMinutes: routing.totalTimeMinutes || 0,
         isActive: true,
+        warehouseId: selectedWarehouseId || null,
       };
 
       const res = await createRouting(payload);
@@ -220,7 +239,7 @@ export default function RoutingPage() {
               options: [
                 { value: 'ALL', label: 'All Items' },
                 { value: 'NONE', label: '— Generic —' },
-                ...itemsList.filter((i) => i.is_active || i.isActive).map((i) => ({ value: i.id, label: i.name })),
+                ...filteredItemsList.map((i) => ({ value: i.id, label: i.name })),
               ],
             },
           ]}
@@ -333,7 +352,7 @@ export default function RoutingPage() {
             </tbody>
           </table>
           <div className="px-4 py-3 border-t border-[#e2e8f0]">
-            <p className="text-xs text-[#94a3b8]">Showing {filtered.length} of {routings.length} routings</p>
+            <p className="text-xs text-[#94a3b8]">Showing {filtered.length} of {warehouseRoutings.length} routings</p>
           </div>
         </div>
       </div>

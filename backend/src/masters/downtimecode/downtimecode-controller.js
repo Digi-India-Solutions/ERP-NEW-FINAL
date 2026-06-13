@@ -10,7 +10,8 @@ export const createDowntimeCode = async (req, res) => {
       description,
       category,
       affects_machine,
-      is_active
+      is_active,
+      warehouse_id
     } = req.body;
 
     // ✅ Validation
@@ -44,15 +45,16 @@ export const createDowntimeCode = async (req, res) => {
     // ✅ Insert
     const result = await connectDB.query(
       `INSERT INTO public."Downtime-Codes"
-      (code, description, category, affects_machine, is_active)
-      VALUES ($1, $2, $3, $4, $5)
+      (code, description, category, affects_machine, is_active, warehouse_id)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *`,
       [
         code.trim().toUpperCase(),
         description.trim(),
         category.toUpperCase(),
         affects_machine ?? false,
-        is_active ?? true
+        is_active ?? true,
+        warehouse_id || null
       ]
     );
 
@@ -77,7 +79,8 @@ export const updateDowntimeCode = async (req, res) => {
       description,
       category,
       affects_machine,
-      is_active
+      is_active,
+      warehouse_id
     } = req.body;
 
     // 🔍 Check if downtime code exists
@@ -124,7 +127,8 @@ export const updateDowntimeCode = async (req, res) => {
         category = COALESCE($3, category),
         affects_machine = COALESCE($4, affects_machine),
         is_active = COALESCE($5, is_active),
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = CURRENT_TIMESTAMP,
+        warehouse_id = COALESCE($7, warehouse_id)
       WHERE id = $6
       RETURNING *`,
       [
@@ -133,7 +137,8 @@ export const updateDowntimeCode = async (req, res) => {
         category ? category.toUpperCase() : null,
         affects_machine !== undefined ? affects_machine : null,
         is_active !== undefined ? is_active : null,
-        id
+        id,
+        warehouse_id || null
       ]
     );
 

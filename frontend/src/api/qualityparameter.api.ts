@@ -12,6 +12,7 @@ export interface QualityParameterPayload {
   maxValue?: number | null;
   applicableTo: QualityApplicable;
   isActive?: boolean;
+  warehouseId?: string | null;
 }
 
 export interface QualityParameterResponse {
@@ -26,6 +27,7 @@ export interface QualityParameterResponse {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  warehouse_id?: string | null;
 }
 
 const BASE = '/api/v1/quality-parameters';
@@ -42,6 +44,7 @@ export async function createQualityParameter(
     max_value: payload.maxValue,
     applicable_to: payload.applicableTo,
     is_active: payload.isActive,
+    warehouse_id: payload.warehouseId || null,
   };
   const { data } = await apiClient.post<ApiResponse<QualityParameterResponse>>(
     `${BASE}/create`,
@@ -72,6 +75,7 @@ export async function updateQualityParameter(
     max_value: payload.maxValue,
     applicable_to: payload.applicableTo,
     is_active: payload.isActive,
+    warehouse_id: payload.warehouseId !== undefined ? (payload.warehouseId || null) : undefined,
   };
   const { data } = await apiClient.put<ApiResponse<QualityParameterResponse>>(
     `${BASE}/${id}`,

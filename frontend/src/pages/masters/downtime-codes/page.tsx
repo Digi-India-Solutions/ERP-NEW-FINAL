@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/feature/AppLayout';
 import ConfirmDialog from '@/components/feature/ConfirmDialog';
@@ -13,6 +13,7 @@ import {
   type DowntimeCodeResponse,
   type DowntimeCategory
 } from '@/api/downtimecode.api';
+import { useWarehouseStore } from '@/stores/warehouseStore';
 
 type DTCategory = DowntimeCategory;
 
@@ -23,6 +24,7 @@ interface DowntimeCode {
   category: DTCategory;
   affectsMachine: boolean;
   isActive: boolean;
+  warehouseId?: string | null;
 }
 
 interface DTForm {
@@ -282,6 +284,8 @@ export default function DowntimeCodesPage() {
   const [modal, setModal] = useState<{ open: boolean; editing: DowntimeCode | null }>({ open: false, editing: null });
   const [deleteConfirm, setDeleteConfirm] = useState<DowntimeCode | null>(null);
 
+  const { selectedWarehouseId } = useWarehouseStore();
+
   const mapApiToDowntimeCode = (d: DowntimeCodeResponse): DowntimeCode => ({
     id: d.id,
     code: d.code,
@@ -289,6 +293,7 @@ export default function DowntimeCodesPage() {
     category: d.category,
     affectsMachine: d.affects_machine,
     isActive: d.is_active,
+    warehouseId: d.warehouse_id || null,
   });
 
   const fetchDowntimeCodes = async () => {
@@ -309,13 +314,20 @@ export default function DowntimeCodesPage() {
     fetchDowntimeCodes();
   }, []);
 
-  const filtered = items.filter((dt) => {
-    const q = search.toLowerCase();
-    const matchSearch = !q || dt.code.toLowerCase().includes(q) || dt.description.toLowerCase().includes(q);
-    const matchCategory = categoryFilter === 'ALL' || dt.category === categoryFilter;
-    const matchStatus = statusFilter === 'ALL' || (statusFilter === 'ACTIVE' ? dt.isActive : !dt.isActive);
-    return matchSearch && matchCategory && matchStatus;
-  });
+  const warehouseDowntimeCodes = useMemo(() => {
+    if (!selectedWarehouseId) return items;
+    return items.filter((dt) => dt.warehouseId === selectedWarehouseId);
+  }, [items, selectedWarehouseId]);
+
+  const filtered = useMemo(() => {
+    return warehouseDowntimeCodes.filter((dt) => {
+      const q = search.toLowerCase();
+      const matchSearch = !q || dt.code.toLowerCase().includes(q) || dt.description.toLowerCase().includes(q);
+      const matchCategory = categoryFilter === 'ALL' || dt.category === categoryFilter;
+      const matchStatus = statusFilter === 'ALL' || (statusFilter === 'ACTIVE' ? dt.isActive : !dt.isActive);
+      return matchSearch && matchCategory && matchStatus;
+    });
+  }, [warehouseDowntimeCodes, search, categoryFilter, statusFilter]);
 
   const openAdd = () => setModal({ open: true, editing: null });
   const openEdit = (dt: DowntimeCode) => setModal({ open: true, editing: dt });
@@ -348,6 +360,7 @@ export default function DowntimeCodesPage() {
           category: form.category,
           affectsMachine: form.affectsMachine,
           isActive: form.isActive,
+          warehouseId: selectedWarehouseId || null,
         });
         if (res.success && res.data) {
           setItems((prev) => [mapApiToDowntimeCode(res.data!), ...prev]);
@@ -387,13 +400,17 @@ export default function DowntimeCodesPage() {
   };
 
   // Summary
-  const categoryCounts = CATEGORY_OPTIONS.map((c) => ({
-    ...c,
-    count: items.filter((dt) => dt.category === c.value).length,
-    badge: CATEGORY_BADGE[c.value],
-  }));
+  const categoryCounts = useMemo(() => {
+    return CATEGORY_OPTIONS.map((c) => ({
+      ...c,
+      count: warehouseDowntimeCodes.filter((dt) => dt.category === c.value).length,
+      badge: CATEGORY_BADGE[c.value],
+    }));
+  }, [warehouseDowntimeCodes]);
 
-  const affectsMachineCount = items.filter((i) => i.affectsMachine).length;
+  const affectsMachineCount = useMemo(() => {
+    return warehouseDowntimeCodes.filter((i) => i.affectsMachine).length;
+  }, [warehouseDowntimeCodes]);
 
   return (
     <AppLayout>
@@ -441,8 +458,8 @@ export default function DowntimeCodesPage() {
         {/* Stats row */}
         <MasterStatsRow
           stats={[
-            { label: 'Total Codes', value: items.length, icon: 'ri-timer-flash-line', bg: 'bg-indigo-50', color: 'text-[#4f46e5]' },
-            { label: 'Active', value: items.filter((i) => i.isActive).length, icon: 'ri-checkbox-circle-line', bg: 'bg-green-50', color: 'text-green-600' },
+            { label: 'Total Codes', value: warehouseDowntimeCodes.length, icon: 'ri-timer-flash-line', bg: 'bg-indigo-50', color: 'text-[#4f46e5]' },
+            { label: 'Active', value: warehouseDowntimeCodes.filter((i) => i.isActive).length, icon: 'ri-checkbox-circle-line', bg: 'bg-green-50', color: 'text-green-600' },
             { label: 'Affects Machine', value: affectsMachineCount, icon: 'ri-settings-3-line', bg: 'bg-amber-50', color: 'text-amber-600' },
           ]}
         />

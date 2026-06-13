@@ -8,6 +8,7 @@ export interface RejectionCodePayload {
   category: RejectionCategory;
   applicableTo: string;
   isActive?: boolean;
+  warehouseId?: string | null;
 }
 
 export interface RejectionCodeResponse {
@@ -19,6 +20,7 @@ export interface RejectionCodeResponse {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  warehouse_id?: string | null;
 }
 
 const BASE = '/api/v1/rejection-codes';
@@ -32,6 +34,7 @@ export async function createRejectionCode(
     category: payload.category,
     applicable_to: payload.applicableTo,
     is_active: payload.isActive,
+    warehouse_id: payload.warehouseId || null,
   };
   const { data } = await apiClient.post<ApiResponse<RejectionCodeResponse>>(
     `${BASE}/create`,
@@ -59,6 +62,7 @@ export async function updateRejectionCode(
     category: payload.category,
     applicable_to: payload.applicableTo,
     is_active: payload.isActive,
+    warehouse_id: payload.warehouseId !== undefined ? (payload.warehouseId || null) : undefined,
   };
   const { data } = await apiClient.put<ApiResponse<RejectionCodeResponse>>(
     `${BASE}/${id}`,

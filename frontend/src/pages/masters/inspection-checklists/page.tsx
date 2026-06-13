@@ -11,6 +11,7 @@ import {
 import {
   getAllQualityParameters
 } from '@/api/qualityparameter.api';
+import { useWarehouseStore } from '@/stores/warehouseStore';
 
 interface QualityParameter {
   id: string;
@@ -18,6 +19,7 @@ interface QualityParameter {
   code: string;
   type: string;
   isActive: boolean;
+  warehouseId?: string | null;
 }
 
 interface InspectionChecklist {
@@ -29,6 +31,7 @@ interface InspectionChecklist {
   parameters: string[]; // maps to parameter_ids array
   samplingPlan: 'ALL' | 'RANDOM_10' | 'RANDOM_20' | 'AQL';
   isActive: boolean;
+  warehouseId?: string | null;
 }
 
 const APPLICABLE_OPTIONS: { value: InspectionChecklist['applicableTo']; label: string }[] = [
@@ -103,9 +106,16 @@ export default function InspectionChecklistsPage() {
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  const { selectedWarehouseId } = useWarehouseStore();
+
+  const warehouseQualityParameters = useMemo(() => {
+    if (!selectedWarehouseId) return qualityParameters;
+    return qualityParameters.filter((qp) => qp.warehouseId === selectedWarehouseId);
+  }, [qualityParameters, selectedWarehouseId]);
+
   const activeParameters = useMemo(
-    () => qualityParameters.filter((p) => p.isActive),
-    [qualityParameters]
+    () => warehouseQualityParameters.filter((p) => p.isActive),
+    [warehouseQualityParameters]
   );
 
   const fetchData = async () => {
@@ -120,6 +130,7 @@ export default function InspectionChecklistsPage() {
             code: qp.code,
             type: qp.type,
             isActive: qp.is_active,
+            warehouseId: qp.warehouse_id || null,
           })),
         );
       }
@@ -136,6 +147,7 @@ export default function InspectionChecklistsPage() {
             parameters: cl.parameter_ids || [],
             samplingPlan: cl.sampling_plan as any,
             isActive: cl.is_active,
+            warehouseId: cl.warehouse_id || null,
           })),
         );
       }
@@ -150,8 +162,13 @@ export default function InspectionChecklistsPage() {
     fetchData();
   }, []);
 
+  const warehouseInspectionChecklists = useMemo(() => {
+    if (!selectedWarehouseId) return items;
+    return items.filter((it) => it.warehouseId === selectedWarehouseId);
+  }, [items, selectedWarehouseId]);
+
   const filtered = useMemo(() => {
-    return items.filter((it) => {
+    return warehouseInspectionChecklists.filter((it) => {
       const q = search.toLowerCase();
       const matchesSearch = !q || it.name.toLowerCase().includes(q) || it.code.toLowerCase().includes(q);
       const matchesApplicable = applicableFilter === 'ALL' || it.applicableTo === applicableFilter;
@@ -159,24 +176,26 @@ export default function InspectionChecklistsPage() {
       const matchesStatus = statusFilter === 'ALL' || (statusFilter === 'ACTIVE' ? it.isActive : !it.isActive);
       return matchesSearch && matchesApplicable && matchesItemType && matchesStatus;
     });
-  }, [items, search, applicableFilter, itemTypeFilter, statusFilter]);
+  }, [warehouseInspectionChecklists, search, applicableFilter, itemTypeFilter, statusFilter]);
 
   const stats = useMemo(() => {
-    const total = items.length;
-    const active = items.filter((i) => i.isActive).length;
-    const incoming = items.filter((i) => i.applicableTo === 'INCOMING').length;
-    const inProcess = items.filter((i) => i.applicableTo === 'IN_PROCESS').length;
-    const final = items.filter((i) => i.applicableTo === 'FINAL').length;
+    const total = warehouseInspectionChecklists.length;
+    const active = warehouseInspectionChecklists.filter((i) => i.isActive).length;
+    const incoming = warehouseInspectionChecklists.filter((i) => i.applicableTo === 'INCOMING').length;
+    const inProcess = warehouseInspectionChecklists.filter((i) => i.applicableTo === 'IN_PROCESS').length;
+    const final = warehouseInspectionChecklists.filter((i) => i.applicableTo === 'FINAL').length;
     return { total, active, inactive: total - active, incoming, inProcess, final };
-  }, [items]);
+  }, [warehouseInspectionChecklists]);
 
   const getParameterNames = useCallback((paramIds: string[]) => {
     return paramIds.map((id) => {
       const p = qualityParameters.find((qp) => qp.id === id);
-      if (p) return p;
+      if (p) return { ...p, rawId: null as string | null };
+      // Keep the original id as rawId so we can show it in the UI
       return {
         id,
-        name: 'Parameter is currently not available',
+        rawId: id,
+        name: 'Deleted / Unavailable Parameter',
         code: 'UNAVAILABLE',
         type: 'MISSING',
         isActive: false,
@@ -239,6 +258,7 @@ export default function InspectionChecklistsPage() {
         samplingPlan: form.samplingPlan!,
         parameterIds: form.parameters ?? [],
         isActive: form.isActive ?? true,
+        warehouseId: selectedWarehouseId || null,
       };
       if (editingId) {
         const res = await updateInspectionChecklist(editingId, payload);
@@ -252,6 +272,7 @@ export default function InspectionChecklistsPage() {
             parameters: res.data!.parameter_ids || [],
             samplingPlan: res.data!.sampling_plan as any,
             isActive: res.data!.is_active,
+            warehouseId: res.data!.warehouse_id || null,
           } : i)));
           toast.success('Inspection checklist updated');
         }
@@ -267,6 +288,7 @@ export default function InspectionChecklistsPage() {
             parameters: res.data!.parameter_ids || [],
             samplingPlan: res.data!.sampling_plan as any,
             isActive: res.data!.is_active,
+            warehouseId: res.data!.warehouse_id || null,
           }, ...prev]);
           toast.success('Inspection checklist added');
         }
@@ -529,13 +551,30 @@ export default function InspectionChecklistsPage() {
                                   <span className="text-xs text-slate-500 font-medium mr-1 self-center">Parameters:</span>
                                   {paramNames.length > 0 ? paramNames.map((p) => {
                                     const tb = QP_TYPE_BADGE[p.type] || { bg: 'bg-slate-100', text: 'text-slate-700', label: 'Text' };
+                                    const isMissing = p.type === 'MISSING';
                                     return (
                                       <span
                                         key={p.id}
                                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${tb.bg} ${tb.text}`}
+                                        title={isMissing ? `Parameter ID: ${p.rawId ?? p.id} — This parameter has been deleted` : p.name}
                                       >
-                                        <span className="font-mono text-[10px] opacity-70">{p.code}</span>
-                                        {p.name}
+                                        {isMissing ? (
+                                          <>
+                                            <i className="ri-error-warning-line text-red-500" />
+                                            <span className="font-mono text-[10px] text-red-400 opacity-90">
+                                              {/* Show short ID (first 8 chars) or full if short */}
+                                              ID: {(p.rawId ?? p.id).length > 8
+                                                ? `${(p.rawId ?? p.id).slice(0, 8)}…`
+                                                : (p.rawId ?? p.id)}
+                                            </span>
+                                            <span className="font-semibold">Deleted Parameter</span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <span className="font-mono text-[10px] opacity-70">{p.code}</span>
+                                            {p.name}
+                                          </>
+                                        )}
                                       </span>
                                     );
                                   }) : (
@@ -568,7 +607,7 @@ export default function InspectionChecklistsPage() {
           ← Scroll to see more →
         </p>
         <div className="px-4 py-3 border-t border-slate-200 text-xs text-slate-500">
-          Showing {filtered.length} of {items.length} checklists
+          Showing {filtered.length} of {warehouseInspectionChecklists.length} checklists
         </div>
       </div>
 
@@ -673,9 +712,11 @@ export default function InspectionChecklistsPage() {
                     <span className="text-xs text-slate-400 italic py-1">Select at least one parameter below</span>
                   )}
                   {(form.parameters ?? []).map((pid) => {
-                    const p = qualityParameters.find((qp) => qp.id === pid) || {
+                    const found = qualityParameters.find((qp) => qp.id === pid);
+                    const isMissing = !found;
+                    const p = found || {
                       id: pid,
-                      name: 'Parameter is currently not available',
+                      name: 'Deleted Parameter',
                       code: 'UNAVAILABLE',
                       type: 'MISSING',
                       isActive: false,
@@ -685,9 +726,22 @@ export default function InspectionChecklistsPage() {
                       <span
                         key={pid}
                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${tb.bg} ${tb.text}`}
+                        title={isMissing ? `Parameter ID: ${pid} — This parameter has been deleted` : p.name}
                       >
-                        <span className="font-mono text-[10px] opacity-70">{p.code}</span>
-                        {p.name}
+                        {isMissing ? (
+                          <>
+                            <i className="ri-error-warning-line text-red-500" />
+                            <span className="font-mono text-[10px] text-red-400 opacity-90">
+                              ID: {pid.length > 8 ? `${pid.slice(0, 8)}…` : pid}
+                            </span>
+                            <span className="font-semibold">Deleted Parameter</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="font-mono text-[10px] opacity-70">{p.code}</span>
+                            {p.name}
+                          </>
+                        )}
                         <button
                           type="button"
                           onClick={() => removeParam(pid)}
@@ -767,7 +821,7 @@ export default function InspectionChecklistsPage() {
         title="Delete Checklist?"
         message="This inspection checklist will be permanently removed."
         confirmLabel="Delete"
-        confirmVariant="danger"
+        variant="danger"
         onConfirm={doDelete}
         onCancel={() => setDeleteId(null)}
       />

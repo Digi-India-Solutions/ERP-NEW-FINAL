@@ -11,7 +11,8 @@ export const createMachine = async (req, res) => {
       status,
       last_maintenance_date,
       maintenance_frequency_days,
-      is_active
+      is_active,
+      warehouse_id
     } = req.body;
 
     // ✅ Validation
@@ -52,8 +53,8 @@ export const createMachine = async (req, res) => {
     // ✅ Insert
     const result = await connectDB.query(
       `INSERT INTO public."Machines"
-      (name, model, work_center_id, capacity_per_hour, status, last_maintenance_date, maintenance_frequency_days, is_active)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      (name, model, work_center_id, capacity_per_hour, status, last_maintenance_date, maintenance_frequency_days, is_active,warehouse_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$9)
       RETURNING *`,
       [
         name.trim(),
@@ -63,7 +64,8 @@ export const createMachine = async (req, res) => {
         finalStatus,
         last_maintenance_date || null,
         maintenance_frequency_days !== undefined ? maintenance_frequency_days : null,
-        finalIsActive
+        finalIsActive,
+        warehouse_id || null,
       ]
     );
 
@@ -91,7 +93,8 @@ export const updateMachine = async (req, res) => {
       status,
       last_maintenance_date,
       maintenance_frequency_days,
-      is_active
+      is_active,
+      warehouse_id
     } = req.body;
 
     // 🔍 Check if machine exists
@@ -144,8 +147,9 @@ export const updateMachine = async (req, res) => {
         last_maintenance_date = COALESCE($6, last_maintenance_date),
         maintenance_frequency_days = COALESCE($7, maintenance_frequency_days),
         is_active = COALESCE($8, is_active),
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = $9
+        updated_at = CURRENT_TIMESTAMP,
+        warehouse_id = COALESCE($9, warehouse_id)
+      WHERE id = $10
       RETURNING *`,
       [
         name ? name.trim() : null,
@@ -156,6 +160,7 @@ export const updateMachine = async (req, res) => {
         last_maintenance_date || null,
         maintenance_frequency_days !== undefined ? maintenance_frequency_days : null,
         is_active !== undefined ? is_active : null,
+        warehouse_id || null,
         id
       ]
     );

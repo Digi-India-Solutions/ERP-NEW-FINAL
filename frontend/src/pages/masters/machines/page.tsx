@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { useWarehouseStore } from '@/stores/warehouseStore';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/feature/AppLayout';
 import ConfirmDialog from '@/components/feature/ConfirmDialog';
@@ -26,6 +27,8 @@ interface Machine {
     lastMaintenanceDate: string | null;
     maintenanceFrequencyDays: number | null;
     isActive: boolean;
+    warehouseId: string | null;
+    warehouseName?: string | null;
 }
 
 interface WorkCenterOption {
@@ -33,6 +36,7 @@ interface WorkCenterOption {
     name: string;
     type: string;
     isActive: boolean;
+    warehouseId?: string | null;
 }
 
 interface MachineForm {
@@ -44,6 +48,8 @@ interface MachineForm {
     lastMaintenanceDate: string;
     maintenanceFrequencyDays: string;
     isActive: boolean;
+    warehouseId: string;
+    warehouseName?: string | null;
 }
 
 const STATUS_OPTIONS: { value: MachineStatus; label: string }[] = [
@@ -62,7 +68,7 @@ const STATUS_BADGE: Record<MachineStatus, { label: string; cls: string }> = {
 
 const emptyForm: MachineForm = {
     name: '', model: '', workCenterId: '', capacityPerHour: '', status: 'IDLE',
-    lastMaintenanceDate: '', maintenanceFrequencyDays: '', isActive: true,
+    lastMaintenanceDate: '', maintenanceFrequencyDays: '', isActive: true, warehouseId: '', warehouseName: '',
 };
 
 function isMaintenanceOverdue(m: Machine): boolean {
@@ -100,6 +106,8 @@ function MachineSlideOver({ open, editing, onClose, onSave, workCenters }: Slide
                 lastMaintenanceDate: editing?.lastMaintenanceDate ?? '',
                 maintenanceFrequencyDays: editing?.maintenanceFrequencyDays?.toString() || '',
                 isActive: editing?.isActive ?? true,
+                warehouseId: editing?.warehouseId || '',
+                warehouseName: editing?.warehouseName || '',
             });
         } else {
             setForm({ ...emptyForm });
@@ -318,6 +326,8 @@ export default function MachinesPage() {
     const [slideOver, setSlideOver] = useState<{ open: boolean; editing: Machine | null }>({ open: false, editing: null });
     const [deleteConfirm, setDeleteConfirm] = useState<Machine | null>(null);
 
+    const { selectedWarehouseId } = useWarehouseStore();
+
     const mapApiToMachine = (m: MachineResponse): Machine => ({
         id: m.id,
         name: m.name,
@@ -329,6 +339,8 @@ export default function MachinesPage() {
         lastMaintenanceDate: m.last_maintenance_date ? m.last_maintenance_date.split('T')[0] : null,
         maintenanceFrequencyDays: m.maintenance_frequency_days ? Number(m.maintenance_frequency_days) : null,
         isActive: m.is_active,
+        warehouseId: m.warehouse_id || '',
+        warehouseName: m.warehouse_name || '',
     });
 
     const fetchData = async () => {
@@ -345,6 +357,7 @@ export default function MachinesPage() {
                         name: wc.name,
                         type: wc.type,
                         isActive: wc.is_active,
+                        warehouseId: wc.warehouse_id || null,
                     }))
                 );
             }
@@ -362,13 +375,28 @@ export default function MachinesPage() {
         fetchData();
     }, []);
 
-    const filtered = machines.filter((m) => {
-        const q = search.toLowerCase();
-        const matchSearch = !q || m.name.toLowerCase().includes(q) || m.model.toLowerCase().includes(q);
-        const matchStatus = statusFilter === 'ALL' || m.status === statusFilter;
-        const matchWc = wcFilter === 'ALL' || m.workCenterId === wcFilter;
-        return matchSearch && matchStatus && matchWc;
-    });
+    const warehouseMachines = useMemo(() => {
+        if (!selectedWarehouseId) return machines;
+        return machines.filter((m) => m.warehouseId === selectedWarehouseId);
+    }, [machines, selectedWarehouseId]);
+
+    const filteredWorkCenters = useMemo(() => {
+        let list = workCenters;
+        if (selectedWarehouseId) {
+            list = list.filter((wc) => wc.warehouseId === selectedWarehouseId);
+        }
+        return list;
+    }, [workCenters, selectedWarehouseId]);
+
+    const filtered = useMemo(() => {
+        return warehouseMachines.filter((m) => {
+            const q = search.toLowerCase();
+            const matchSearch = !q || m.name.toLowerCase().includes(q) || m.model.toLowerCase().includes(q);
+            const matchStatus = statusFilter === 'ALL' || m.status === statusFilter;
+            const matchWc = wcFilter === 'ALL' || m.workCenterId === wcFilter;
+            return matchSearch && matchStatus && matchWc;
+        });
+    }, [warehouseMachines, search, statusFilter, wcFilter]);
 
     const openAdd = () => setSlideOver({ open: true, editing: null });
     const openEdit = (m: Machine) => setSlideOver({ open: true, editing: m });
@@ -386,6 +414,7 @@ export default function MachinesPage() {
                     lastMaintenanceDate: form.lastMaintenanceDate || null,
                     maintenanceFrequencyDays: form.maintenanceFrequencyDays ? Number(form.maintenanceFrequencyDays) : null,
                     isActive: form.isActive,
+                    warehouseId: selectedWarehouseId || null,
                 });
                 if (res.success && res.data) {
                     setMachines((prev) =>
@@ -407,6 +436,7 @@ export default function MachinesPage() {
                     lastMaintenanceDate: form.lastMaintenanceDate || null,
                     maintenanceFrequencyDays: form.maintenanceFrequencyDays ? Number(form.maintenanceFrequencyDays) : null,
                     isActive: form.isActive,
+                    warehouseId: selectedWarehouseId || null,
                 });
                 if (res.success && res.data) {
                     setMachines((prev) => [mapApiToMachine(res.data!), ...prev]);
@@ -456,11 +486,13 @@ export default function MachinesPage() {
     };
 
     // Status counts
-    const statusCounts = STATUS_OPTIONS.map((s) => ({
-        ...s,
-        count: machines.filter((m) => m.status === s.value).length,
-        badge: STATUS_BADGE[s.value],
-    }));
+    const statusCounts = useMemo(() => {
+        return STATUS_OPTIONS.map((s) => ({
+            ...s,
+            count: warehouseMachines.filter((m) => m.status === s.value).length,
+            badge: STATUS_BADGE[s.value],
+        }));
+    }, [warehouseMachines]);
 
     return (
         <AppLayout>
@@ -502,7 +534,7 @@ export default function MachinesPage() {
                             onChange: (val) => setWcFilter(val),
                             options: [
                                 { value: 'ALL', label: 'All Work Centers' },
-                                ...workCenters.filter((wc) => wc.isActive).map((wc) => ({ value: wc.id, label: wc.name })),
+                                ...filteredWorkCenters.filter((wc) => wc.isActive).map((wc) => ({ value: wc.id, label: wc.name })),
                             ],
                         },
                     ]}
@@ -529,9 +561,9 @@ export default function MachinesPage() {
                 {/* Stats row */}
                 <MasterStatsRow
                     stats={[
-                        { label: 'Total Machines', value: machines.length, icon: 'ri-settings-3-line', bg: 'bg-indigo-50', color: 'text-[#4f46e5]' },
-                        { label: 'Active', value: machines.filter((m) => m.isActive).length, icon: 'ri-checkbox-circle-line', bg: 'bg-green-50', color: 'text-green-600' },
-                        { label: 'Needs Maintenance', value: machines.filter((m) => isMaintenanceOverdue(m)).length, icon: 'ri-alert-line', bg: 'bg-amber-50', color: 'text-amber-600' },
+                        { label: 'Total Machines', value: warehouseMachines.length, icon: 'ri-settings-3-line', bg: 'bg-indigo-50', color: 'text-[#4f46e5]' },
+                        { label: 'Active', value: warehouseMachines.filter((m) => m.isActive).length, icon: 'ri-checkbox-circle-line', bg: 'bg-green-50', color: 'text-green-600' },
+                        { label: 'Needs Maintenance', value: warehouseMachines.filter((m) => isMaintenanceOverdue(m)).length, icon: 'ri-alert-line', bg: 'bg-amber-50', color: 'text-amber-600' },
                     ]}
                 />
 
@@ -655,7 +687,7 @@ export default function MachinesPage() {
                 editing={slideOver.editing}
                 onClose={closeSlideOver}
                 onSave={handleSave}
-                workCenters={workCenters}
+                workCenters={filteredWorkCenters}
             />
 
             <ConfirmDialog

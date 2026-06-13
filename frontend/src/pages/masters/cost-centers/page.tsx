@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/feature/AppLayout';
 import ConfirmDialog from '@/components/feature/ConfirmDialog';
@@ -14,6 +14,7 @@ import {
     type CostCenterResponse,
     type CostCenterType
 } from '@/api/costcenter.api';
+import { useWarehouseStore } from '@/stores/warehouseStore';
 
 interface CostCenter {
     id: string;
@@ -24,6 +25,7 @@ interface CostCenter {
     managerName: string | null;
     budgetMonthly: number;
     isActive: boolean;
+    warehouseId?: string | null;
 }
 
 interface CCForm {
@@ -291,6 +293,8 @@ export default function CostCentersPage() {
     const [modal, setModal] = useState<{ open: boolean; editing: CostCenter | null }>({ open: false, editing: null });
     const [deleteConfirm, setDeleteConfirm] = useState<CostCenter | null>(null);
 
+    const { selectedWarehouseId } = useWarehouseStore();
+
     const mapApiToCostCenter = (c: CostCenterResponse): CostCenter => ({
         id: c.id,
         name: c.name,
@@ -300,6 +304,7 @@ export default function CostCentersPage() {
         managerName: c.manager_name,
         budgetMonthly: Number(c.budget_monthly || 0),
         isActive: c.is_active,
+        warehouseId: c.warehouse_id || null,
     });
 
     const fetchCostCenters = async () => {
@@ -320,13 +325,20 @@ export default function CostCentersPage() {
         fetchCostCenters();
     }, []);
 
-    const filtered = items.filter((cc) => {
-        const q = search.toLowerCase();
-        const matchSearch = !q || cc.name.toLowerCase().includes(q) || cc.code.toLowerCase().includes(q) || (cc.managerName ?? '').toLowerCase().includes(q);
-        const matchType = typeFilter === 'ALL' || cc.type === typeFilter;
-        const matchStatus = statusFilter === 'ALL' || (statusFilter === 'ACTIVE' ? cc.isActive : !cc.isActive);
-        return matchSearch && matchType && matchStatus;
-    });
+    const warehouseCostCenters = useMemo(() => {
+        if (!selectedWarehouseId) return items;
+        return items.filter((cc) => cc.warehouseId === selectedWarehouseId);
+    }, [items, selectedWarehouseId]);
+
+    const filtered = useMemo(() => {
+        return warehouseCostCenters.filter((cc) => {
+            const q = search.toLowerCase();
+            const matchSearch = !q || cc.name.toLowerCase().includes(q) || cc.code.toLowerCase().includes(q) || (cc.managerName ?? '').toLowerCase().includes(q);
+            const matchType = typeFilter === 'ALL' || cc.type === typeFilter;
+            const matchStatus = statusFilter === 'ALL' || (statusFilter === 'ACTIVE' ? cc.isActive : !cc.isActive);
+            return matchSearch && matchType && matchStatus;
+        });
+    }, [warehouseCostCenters, search, typeFilter, statusFilter]);
 
     const openAdd = () => setModal({ open: true, editing: null });
     const openEdit = (cc: CostCenter) => setModal({ open: true, editing: cc });
@@ -361,6 +373,7 @@ export default function CostCentersPage() {
                     managerName: form.managerName.trim() || null,
                     budgetMonthly: Number(form.budgetMonthly) || 0,
                     isActive: form.isActive,
+                    warehouseId: selectedWarehouseId || null,
                 });
                 if (res.success && res.data) {
                     setItems((prev) => [mapApiToCostCenter(res.data!), ...prev]);
@@ -400,13 +413,17 @@ export default function CostCentersPage() {
     };
 
     // Summary
-    const typeCounts = TYPE_OPTIONS.map((t) => ({
-        ...t,
-        count: items.filter((cc) => cc.type === t.value).length,
-        badge: TYPE_BADGE[t.value],
-    }));
+    const typeCounts = useMemo(() => {
+        return TYPE_OPTIONS.map((t) => ({
+            ...t,
+            count: warehouseCostCenters.filter((cc) => cc.type === t.value).length,
+            badge: TYPE_BADGE[t.value],
+        }));
+    }, [warehouseCostCenters]);
 
-    const totalBudget = items.filter((i) => i.isActive).reduce((a, cc) => a + cc.budgetMonthly, 0);
+    const totalBudget = useMemo(() => {
+        return warehouseCostCenters.filter((i) => i.isActive).reduce((a, cc) => a + cc.budgetMonthly, 0);
+    }, [warehouseCostCenters]);
 
     return (
         <AppLayout>
@@ -454,8 +471,8 @@ export default function CostCentersPage() {
                 {/* Stats row */}
                 <MasterStatsRow
                     stats={[
-                        { label: 'Total Cost Centers', value: items.length, icon: 'ri-building-4-line', bg: 'bg-indigo-50', color: 'text-[#4f46e5]' },
-                        { label: 'Active', value: items.filter((i) => i.isActive).length, icon: 'ri-checkbox-circle-line', bg: 'bg-green-50', color: 'text-green-600' },
+                        { label: 'Total Cost Centers', value: warehouseCostCenters.length, icon: 'ri-building-4-line', bg: 'bg-indigo-50', color: 'text-[#4f46e5]' },
+                        { label: 'Active', value: warehouseCostCenters.filter((i) => i.isActive).length, icon: 'ri-checkbox-circle-line', bg: 'bg-green-50', color: 'text-green-600' },
                         { label: 'Total Monthly Budget', value: formatINR(totalBudget), icon: 'ri-money-rupee-circle-line', bg: 'bg-amber-50', color: 'text-amber-600' },
                     ]}
                 />

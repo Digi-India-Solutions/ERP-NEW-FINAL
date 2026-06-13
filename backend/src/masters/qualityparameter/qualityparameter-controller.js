@@ -14,7 +14,8 @@ export const createQualityParameter = async (req, res) => {
       min_value,
       max_value,
       applicable_to,
-      is_active
+      is_active,
+      warehouse_id
     } = req.body;
 
     // ✅ Validation
@@ -71,8 +72,8 @@ export const createQualityParameter = async (req, res) => {
     // ✅ Insert
     const result = await connectDB.query(
       `INSERT INTO public."Quality-Parameters"
-      (name, code, type, unit, min_value, max_value, applicable_to, is_active)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      (name, code, type, unit, min_value, max_value, applicable_to, is_active, warehouse_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *`,
       [
         name.trim(),
@@ -82,7 +83,8 @@ export const createQualityParameter = async (req, res) => {
         minVal,
         maxVal,
         applicable_to.toUpperCase(),
-        is_active ?? true
+        is_active ?? true,
+        warehouse_id || null
       ]
     );
 
@@ -110,7 +112,8 @@ export const updateQualityParameter = async (req, res) => {
       min_value,
       max_value,
       applicable_to,
-      is_active
+      is_active,
+      warehouse_id
     } = req.body;
 
     // 🔍 Check if quality parameter exists
@@ -194,7 +197,8 @@ export const updateQualityParameter = async (req, res) => {
         max_value = $6,
         applicable_to = COALESCE($7, applicable_to),
         is_active = COALESCE($8, is_active),
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = CURRENT_TIMESTAMP,
+        warehouse_id = COALESCE($10, warehouse_id)
       WHERE id = $9
       RETURNING *`,
       [
@@ -206,7 +210,8 @@ export const updateQualityParameter = async (req, res) => {
         maxVal,
         applicable_to ? applicable_to.toUpperCase() : null,
         is_active !== undefined ? is_active : null,
-        id
+        id,
+        warehouse_id || null
       ]
     );
 

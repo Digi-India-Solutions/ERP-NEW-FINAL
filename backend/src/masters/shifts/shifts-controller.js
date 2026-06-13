@@ -9,7 +9,8 @@ export const createShift = async (req, res) => {
       end_time,
       break_minutes,
       working_days,
-      is_active
+      is_active,
+      warehouse_id
     } = req.body;
 
     // ✅ Validation
@@ -47,8 +48,8 @@ export const createShift = async (req, res) => {
     // ✅ Insert
     const result = await connectDB.query(
       `INSERT INTO public."Shifts"
-      (name, start_time, end_time, break_minutes, working_days, is_active)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      (name, start_time, end_time, break_minutes, working_days, is_active,warehouse_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *`,
       [
         name.trim(),
@@ -56,7 +57,8 @@ export const createShift = async (req, res) => {
         end_time,
         finalBreakMinutes,
         working_days,
-        finalIsActive
+        finalIsActive,
+        warehouse_id,
       ]
     );
 
@@ -82,7 +84,8 @@ export const updateShift = async (req, res) => {
       end_time,
       break_minutes,
       working_days,
-      is_active
+      is_active,
+      warehouse_id
     } = req.body;
 
     // 🔍 Check if shift exists
@@ -122,7 +125,8 @@ export const updateShift = async (req, res) => {
         break_minutes = COALESCE($4, break_minutes),
         working_days = COALESCE($5, working_days),
         is_active = COALESCE($6, is_active),
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = CURRENT_TIMESTAMP,
+        warehouse_id = COALESCE($8, warehouse_id),
       WHERE id = $7
       RETURNING *`,
       [
@@ -132,7 +136,8 @@ export const updateShift = async (req, res) => {
         break_minutes !== undefined ? break_minutes : null,
         working_days || null,
         is_active !== undefined ? is_active : null,
-        id
+        id,
+        warehouse_id || null
       ]
     );
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/feature/AppLayout';
 import ConfirmDialog from '@/components/feature/ConfirmDialog';
@@ -13,6 +13,7 @@ import {
     type OperatorSkill
 } from '@/api/operator.api';
 import { getAllShifts } from '@/api/shift.api';
+import { useWarehouseStore } from '@/stores/warehouseStore';
 
 interface Operator {
     id: string;
@@ -24,6 +25,7 @@ interface Operator {
     shiftName?: string | null;
     phone: string | null;
     isActive: boolean;
+    warehouseId?: string | null;
 }
 
 interface ShiftOption {
@@ -314,6 +316,8 @@ export default function OperatorsPage() {
     const [slideOver, setSlideOver] = useState<{ open: boolean; editing: Operator | null }>({ open: false, editing: null });
     const [deleteConfirm, setDeleteConfirm] = useState<Operator | null>(null);
 
+    const { selectedWarehouseId } = useWarehouseStore();
+
     const parseTime = (t: string): string => {
         if (!t) return '';
         const parts = t.split(':');
@@ -333,6 +337,7 @@ export default function OperatorsPage() {
         shiftName: o.shift_name || '',
         phone: o.phone || '',
         isActive: o.is_active,
+        warehouseId: o.warehouse_id || null,
     });
 
     const fetchData = async () => {
@@ -367,13 +372,20 @@ export default function OperatorsPage() {
         fetchData();
     }, []);
 
-    const filtered = operators.filter((op) => {
-        const q = search.toLowerCase();
-        const matchSearch = !q || op.name.toLowerCase().includes(q) || op.employeeCode.toLowerCase().includes(q);
-        const matchSkill = skillFilter === 'ALL' || op.skill === skillFilter;
-        const matchShift = shiftFilter === 'ALL' || op.shiftId === shiftFilter;
-        return matchSearch && matchSkill && matchShift;
-    });
+    const warehouseOperators = useMemo(() => {
+        if (!selectedWarehouseId) return operators;
+        return operators.filter((op) => op.warehouseId === selectedWarehouseId);
+    }, [operators, selectedWarehouseId]);
+
+    const filtered = useMemo(() => {
+        return warehouseOperators.filter((op) => {
+            const q = search.toLowerCase();
+            const matchSearch = !q || op.name.toLowerCase().includes(q) || op.employeeCode.toLowerCase().includes(q);
+            const matchSkill = skillFilter === 'ALL' || op.skill === skillFilter;
+            const matchShift = shiftFilter === 'ALL' || op.shiftId === shiftFilter;
+            return matchSearch && matchSkill && matchShift;
+        });
+    }, [warehouseOperators, search, skillFilter, shiftFilter]);
 
     const openAdd = () => setSlideOver({ open: true, editing: null });
     const openEdit = (op: Operator) => setSlideOver({ open: true, editing: op });
@@ -410,6 +422,7 @@ export default function OperatorsPage() {
                     wageRatePerHour: Number(form.wageRatePerHour),
                     phone: form.phone || null,
                     isActive: form.isActive,
+                    warehouseId: selectedWarehouseId || null,
                 });
                 if (res.success && res.data) {
                     setOperators((prev) => [mapApiToOperator(res.data!), ...prev]);
@@ -456,11 +469,13 @@ export default function OperatorsPage() {
     };
 
     // Skill counts
-    const skillCounts = SKILL_OPTIONS.map((s) => ({
-        ...s,
-        count: operators.filter((op) => op.skill === s.value).length,
-        badge: SKILL_BADGE[s.value],
-    }));
+    const skillCounts = useMemo(() => {
+        return SKILL_OPTIONS.map((s) => ({
+            ...s,
+            count: warehouseOperators.filter((op) => op.skill === s.value).length,
+            badge: SKILL_BADGE[s.value],
+        }));
+    }, [warehouseOperators]);
 
     return (
         <AppLayout>
@@ -530,9 +545,9 @@ export default function OperatorsPage() {
                 {/* Stats row */}
                 <MasterStatsRow
                     stats={[
-                        { label: 'Total Operators', value: operators.length, icon: 'ri-user-settings-line', bg: 'bg-indigo-50', color: 'text-[#4f46e5]' },
-                        { label: 'Active', value: operators.filter((op) => op.isActive).length, icon: 'ri-checkbox-circle-line', bg: 'bg-green-50', color: 'text-green-600' },
-                        { label: 'Avg Wage/hr', value: `₹${Math.round(operators.reduce((a, op) => a + op.wageRatePerHour, 0) / (operators.length || 1))}`, icon: 'ri-money-rupee-circle-line', bg: 'bg-amber-50', color: 'text-amber-600' },
+                        { label: 'Total Operators', value: warehouseOperators.length, icon: 'ri-user-settings-line', bg: 'bg-indigo-50', color: 'text-[#4f46e5]' },
+                        { label: 'Active', value: warehouseOperators.filter((op) => op.isActive).length, icon: 'ri-checkbox-circle-line', bg: 'bg-green-50', color: 'text-green-600' },
+                        { label: 'Avg Wage/hr', value: `₹${Math.round(warehouseOperators.reduce((a, op) => a + op.wageRatePerHour, 0) / (warehouseOperators.length || 1))}`, icon: 'ri-money-rupee-circle-line', bg: 'bg-amber-50', color: 'text-amber-600' },
                     ]}
                 />
 

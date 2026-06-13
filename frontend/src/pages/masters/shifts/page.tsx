@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/feature/AppLayout';
 import ConfirmDialog from '@/components/feature/ConfirmDialog';
@@ -11,6 +11,7 @@ import {
     deleteShift,
     type ShiftResponse
 } from '@/api/shift.api';
+import { useWarehouseStore } from '@/stores/warehouseStore';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 
@@ -22,6 +23,8 @@ interface Shift {
     breakMinutes: number;
     workingDays: string[];
     isActive: boolean;
+    warehouseId?: string;
+    warehouseName?: string;
 }
 
 interface ShiftForm {
@@ -31,10 +34,12 @@ interface ShiftForm {
     breakMinutes: string;
     workingDays: string[];
     isActive: boolean;
+    warehouseId?: string;
+    warehouseName?: string;
 }
 
 const emptyForm: ShiftForm = {
-    name: '', startTime: '', endTime: '', breakMinutes: '30', workingDays: [...DAYS], isActive: true,
+    name: '', startTime: '', endTime: '', breakMinutes: '30', workingDays: [...DAYS], isActive: true, warehouseId: '', warehouseName: '',
 };
 
 function timeToMinutes(t: string): number {
@@ -81,6 +86,8 @@ function ShiftSlideOver({ open, editing, onClose, onSave }: SlideOverProps) {
                 breakMinutes: editing?.breakMinutes?.toString() || '30',
                 workingDays: editing?.workingDays ? [...editing.workingDays] : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
                 isActive: editing?.isActive ?? true,
+                warehouseId: editing?.warehouseId || '',
+                warehouseName: editing?.warehouseName || '',
             });
         } else {
             setForm({ ...emptyForm, workingDays: [...DAYS] });
@@ -234,8 +241,8 @@ function ShiftSlideOver({ open, editing, onClose, onSave }: SlideOverProps) {
                                         type="button"
                                         onClick={() => toggleDay(day)}
                                         className={`h-9 px-3 rounded-lg border text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${selected
-                                                ? 'bg-[#4f46e5] text-white border-[#4f46e5] shadow-sm'
-                                                : 'bg-white text-[#64748b] border-[#e2e8f0] hover:border-[#4f46e5]/40 hover:text-[#4f46e5]'
+                                            ? 'bg-[#4f46e5] text-white border-[#4f46e5] shadow-sm'
+                                            : 'bg-white text-[#64748b] border-[#e2e8f0] hover:border-[#4f46e5]/40 hover:text-[#4f46e5]'
                                             }`}
                                     >
                                         {day}
@@ -299,6 +306,8 @@ export default function ShiftsPage() {
     const [slideOver, setSlideOver] = useState<{ open: boolean; editing: Shift | null }>({ open: false, editing: null });
     const [deleteConfirm, setDeleteConfirm] = useState<Shift | null>(null);
 
+    const { selectedWarehouseId } = useWarehouseStore();
+
     const parseTime = (t: string): string => {
         if (!t) return '';
         const parts = t.split(':');
@@ -316,6 +325,8 @@ export default function ShiftsPage() {
         breakMinutes: Number(s.break_minutes || 0),
         workingDays: s.working_days || [],
         isActive: s.is_active,
+        warehouseId: s.warehouse_id || '',
+        warehouseName: s.warehouse_name || '',
     });
 
     const fetchShifts = async () => {
@@ -336,12 +347,19 @@ export default function ShiftsPage() {
         fetchShifts();
     }, []);
 
-    const filtered = shifts.filter((s) => {
-        const q = search.toLowerCase();
-        const matchSearch = !q || s.name.toLowerCase().includes(q);
-        const matchStatus = statusFilter === 'ALL' || (statusFilter === 'ACTIVE' ? s.isActive : !s.isActive);
-        return matchSearch && matchStatus;
-    });
+    const warehouseShifts = useMemo(() => {
+        if (!selectedWarehouseId) return shifts;
+        return shifts.filter((s) => s.warehouseId === selectedWarehouseId);
+    }, [shifts, selectedWarehouseId]);
+
+    const filtered = useMemo(() => {
+        return warehouseShifts.filter((s) => {
+            const q = search.toLowerCase();
+            const matchSearch = !q || s.name.toLowerCase().includes(q);
+            const matchStatus = statusFilter === 'ALL' || (statusFilter === 'ACTIVE' ? s.isActive : !s.isActive);
+            return matchSearch && matchStatus;
+        });
+    }, [warehouseShifts, search, statusFilter]);
 
     const openAdd = () => setSlideOver({ open: true, editing: null });
     const openEdit = (s: Shift) => setSlideOver({ open: true, editing: s });
@@ -376,6 +394,7 @@ export default function ShiftsPage() {
                     breakMinutes: Number(form.breakMinutes),
                     workingDays: form.workingDays,
                     isActive: form.isActive,
+                    warehouseId: selectedWarehouseId || '',
                 });
                 if (res.success && res.data) {
                     setShifts((prev) => [mapApiToShift(res.data!), ...prev]);
@@ -461,9 +480,9 @@ export default function ShiftsPage() {
                 {/* Stats row */}
                 <MasterStatsRow
                     stats={[
-                        { label: 'Total Shifts', value: shifts.length, icon: 'ri-time-line', bg: 'bg-indigo-50', color: 'text-[#4f46e5]' },
-                        { label: 'Active', value: shifts.filter((s) => s.isActive).length, icon: 'ri-checkbox-circle-line', bg: 'bg-green-50', color: 'text-green-600' },
-                        { label: 'Overnight', value: shifts.filter((s) => timeToMinutes(s.endTime) < timeToMinutes(s.startTime)).length, icon: 'ri-moon-line', bg: 'bg-indigo-50', color: 'text-indigo-600' },
+                        { label: 'Total Shifts', value: warehouseShifts.length, icon: 'ri-time-line', bg: 'bg-indigo-50', color: 'text-[#4f46e5]' },
+                        { label: 'Active', value: warehouseShifts.filter((s) => s.isActive).length, icon: 'ri-checkbox-circle-line', bg: 'bg-green-50', color: 'text-green-600' },
+                        { label: 'Overnight', value: warehouseShifts.filter((s) => timeToMinutes(s.endTime) < timeToMinutes(s.startTime)).length, icon: 'ri-moon-line', bg: 'bg-indigo-50', color: 'text-indigo-600' },
                     ]}
                 />
 
@@ -516,8 +535,8 @@ export default function ShiftsPage() {
                                                         <span
                                                             key={day}
                                                             className={`inline-flex items-center justify-center w-7 h-7 rounded text-[10px] font-semibold border transition-colors ${active
-                                                                    ? 'bg-[#4f46e5] text-white border-[#4f46e5]'
-                                                                    : 'bg-[#f1f5f9] text-[#94a3b8] border-[#e2e8f0]'
+                                                                ? 'bg-[#4f46e5] text-white border-[#4f46e5]'
+                                                                : 'bg-[#f1f5f9] text-[#94a3b8] border-[#e2e8f0]'
                                                                 }`}
                                                             title={active ? `${day} — working` : `${day} — off`}
                                                         >

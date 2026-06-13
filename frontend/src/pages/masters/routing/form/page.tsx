@@ -7,6 +7,7 @@ import { getAllRoutings, createRouting, updateRouting } from '@/api/routing.api'
 import { getAllItems } from '@/api/item.api';
 import { getAllWorkCenters } from '@/api/workcenter.api';
 import { getAllMachines } from '@/api/machine.api';
+import { useWarehouseStore } from '@/stores/warehouseStore';
 
 /* ─── helpers ─── */
 function formatMinutes(total: number) {
@@ -151,6 +152,7 @@ export default function RoutingFormPage() {
   const { id } = useParams<{ id?: string }>();
   const isEdit = !!id;
   const toast = useToast();
+  const { selectedWarehouseId } = useWarehouseStore();
 
   const [activeItems, setActiveItems] = useState<any[]>([]);
   const [activeWorkCenters, setActiveWorkCenters] = useState<any[]>([]);
@@ -191,13 +193,29 @@ export default function RoutingFormPage() {
       let itemsLocal: any[] = [];
       if (itemsRes.success && itemsRes.data) {
         itemsLocal = itemsRes.data.filter((i: any) => i.is_active || i.isActive);
+        if (selectedWarehouseId) {
+          // item API returns warehouse field as `warehouseid` (lowercase, no underscore)
+          itemsLocal = itemsLocal.filter((i: any) =>
+            i.warehouseid === selectedWarehouseId ||
+            i.warehouse_id === selectedWarehouseId ||
+            i.warehouseId === selectedWarehouseId
+          );
+        }
         setActiveItems(itemsLocal);
       }
       if (wcRes.success && wcRes.data) {
-        setActiveWorkCenters(wcRes.data.filter((w: any) => w.is_active || w.isActive));
+        let wcLocal = wcRes.data.filter((w: any) => w.is_active || w.isActive);
+        if (selectedWarehouseId) {
+          wcLocal = wcLocal.filter((w: any) => w.warehouse_id === selectedWarehouseId || w.warehouseId === selectedWarehouseId);
+        }
+        setActiveWorkCenters(wcLocal);
       }
       if (mcRes.success && mcRes.data) {
-        setActiveMachines(mcRes.data.filter((m: any) => m.is_active || m.isActive));
+        let mcLocal = mcRes.data.filter((m: any) => m.is_active || m.isActive);
+        if (selectedWarehouseId) {
+          mcLocal = mcLocal.filter((m: any) => m.warehouse_id === selectedWarehouseId || m.warehouseId === selectedWarehouseId);
+        }
+        setActiveMachines(mcLocal);
       }
 
       if (isEdit && id && routingsRes.success && routingsRes.data) {
@@ -380,6 +398,8 @@ export default function RoutingFormPage() {
           sequence: s.stageNumber,
           workCenterId: s.workCenterId || '',
           workCenterName: s.workCenterName || '',
+          machineId: s.machineId || '',
+          machineName: s.machineName || '',
           operationName: s.stageName,
           setupTimeMinutes: s.setupTimeMinutes,
           runTimeMinutes: s.standardTimeMinutes,
@@ -387,6 +407,7 @@ export default function RoutingFormPage() {
         })),
         totalTimeMinutes: totalTime,
         isActive: form.status !== 'OBSOLETE',
+        warehouseId: selectedWarehouseId || null,
       };
 
       let res;
@@ -440,10 +461,13 @@ export default function RoutingFormPage() {
     }
   };
 
-  /* get machines for a work center */
+  /* get machines for a work center
+     NOTE: Machine API returns snake_case (work_center_id) from the DB */
   const getMachinesForWC = (wcId: string) => {
     if (!wcId) return activeMachines;
-    return activeMachines.filter((m) => m.workCenterId === wcId);
+    return activeMachines.filter(
+      (m) => (m.work_center_id ?? m.workCenterId) === wcId,
+    );
   };
 
   const machinesForRow = (wcId: string) => getMachinesForWC(wcId);
