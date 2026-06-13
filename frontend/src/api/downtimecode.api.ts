@@ -8,6 +8,7 @@ export interface DowntimeCodePayload {
   category: DowntimeCategory;
   affectsMachine?: boolean;
   isActive?: boolean;
+  warehouseId?: string | null;
 }
 
 export interface DowntimeCodeResponse {
@@ -19,6 +20,7 @@ export interface DowntimeCodeResponse {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  warehouse_id?: string | null;
 }
 
 const BASE = '/api/v1/downtime-codes';
@@ -32,6 +34,7 @@ export async function createDowntimeCode(
     category: payload.category,
     affects_machine: payload.affectsMachine,
     is_active: payload.isActive,
+    warehouse_id: payload.warehouseId || null,
   };
   const { data } = await apiClient.post<ApiResponse<DowntimeCodeResponse>>(
     `${BASE}/create`,
@@ -59,6 +62,7 @@ export async function updateDowntimeCode(
     category: payload.category,
     affects_machine: payload.affectsMachine,
     is_active: payload.isActive,
+    warehouse_id: payload.warehouseId !== undefined ? (payload.warehouseId || null) : undefined,
   };
   const { data } = await apiClient.put<ApiResponse<DowntimeCodeResponse>>(
     `${BASE}/${id}`,

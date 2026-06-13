@@ -7,6 +7,8 @@ export interface ShiftPayload {
   breakMinutes: number;
   workingDays: string[];
   isActive?: boolean;
+  warehouseId?: string;
+  warehouseName?: string;
 }
 
 export interface ShiftResponse {
@@ -19,6 +21,8 @@ export interface ShiftResponse {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  warehouse_id: string;
+  warehouse_name: string;
 }
 
 const BASE = '/api/v1/shifts';
@@ -33,6 +37,8 @@ export async function createShift(
     break_minutes: payload.breakMinutes,
     working_days: payload.workingDays,
     is_active: payload.isActive,
+    warehouse_id: payload.warehouseId,
+    warehouse_name: payload.warehouseName,
   };
   const { data } = await apiClient.post<ApiResponse<ShiftResponse>>(
     `${BASE}/create`,
@@ -61,6 +67,8 @@ export async function updateShift(
     break_minutes: payload.breakMinutes,
     working_days: payload.workingDays,
     is_active: payload.isActive,
+    warehouse_id: payload.warehouseId,
+    warehouse_name: payload.warehouseName,
   };
   const { data } = await apiClient.put<ApiResponse<ShiftResponse>>(
     `${BASE}/${id}`,

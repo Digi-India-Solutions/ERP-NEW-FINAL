@@ -11,6 +11,7 @@ import {
   type QualityType,
   type QualityApplicable
 } from '@/api/qualityparameter.api';
+import { useWarehouseStore } from '@/stores/warehouseStore';
 
 interface QualityParameter {
   id: string;
@@ -22,6 +23,7 @@ interface QualityParameter {
   maxValue: number | null;
   applicableTo: QualityApplicable;
   isActive: boolean;
+  warehouseId?: string | null;
 }
 
 const TYPE_OPTIONS: { value: QualityType; label: string }[] = [
@@ -77,6 +79,8 @@ export default function QualityParametersPage() {
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  const { selectedWarehouseId } = useWarehouseStore();
+
   const mapApiToQualityParameter = (r: QualityParameterResponse): QualityParameter => ({
     id: r.id,
     name: r.name,
@@ -87,6 +91,7 @@ export default function QualityParametersPage() {
     maxValue: r.max_value != null ? Number(r.max_value) : null,
     applicableTo: r.applicable_to,
     isActive: r.is_active,
+    warehouseId: r.warehouse_id || null,
   });
 
   const fetchQualityParameters = async () => {
@@ -107,8 +112,13 @@ export default function QualityParametersPage() {
     fetchQualityParameters();
   }, []);
 
+  const warehouseQualityParameters = useMemo(() => {
+    if (!selectedWarehouseId) return items;
+    return items.filter((it) => it.warehouseId === selectedWarehouseId);
+  }, [items, selectedWarehouseId]);
+
   const filtered = useMemo(() => {
-    return items.filter((it) => {
+    return warehouseQualityParameters.filter((it) => {
       const q = search.toLowerCase();
       const matchesSearch = !q || it.name.toLowerCase().includes(q) || it.code.toLowerCase().includes(q);
       const matchesType = typeFilter === 'ALL' || it.type === typeFilter;
@@ -116,15 +126,15 @@ export default function QualityParametersPage() {
       const matchesStatus = statusFilter === 'ALL' || (statusFilter === 'ACTIVE' ? it.isActive : !it.isActive);
       return matchesSearch && matchesType && matchesApplicable && matchesStatus;
     });
-  }, [items, search, typeFilter, applicableFilter, statusFilter]);
+  }, [warehouseQualityParameters, search, typeFilter, applicableFilter, statusFilter]);
 
   const stats = useMemo(() => {
-    const total = items.length;
-    const active = items.filter((i) => i.isActive).length;
-    const passFail = items.filter((i) => i.type === 'PASS_FAIL').length;
-    const numeric = items.filter((i) => i.type === 'NUMERIC').length;
+    const total = warehouseQualityParameters.length;
+    const active = warehouseQualityParameters.filter((i) => i.isActive).length;
+    const passFail = warehouseQualityParameters.filter((i) => i.type === 'PASS_FAIL').length;
+    const numeric = warehouseQualityParameters.filter((i) => i.type === 'NUMERIC').length;
     return { total, active, inactive: total - active, passFail, numeric };
-  }, [items]);
+  }, [warehouseQualityParameters]);
 
   const openAdd = useCallback(() => {
     setEditingId(null);
@@ -181,6 +191,7 @@ export default function QualityParametersPage() {
         maxValue: form.type === 'NUMERIC' ? (form.maxValue ?? null) : null,
         applicableTo: form.applicableTo!,
         isActive: form.isActive ?? true,
+        warehouseId: selectedWarehouseId || null,
       };
       if (editingId) {
         const res = await updateQualityParameter(editingId, payload);
@@ -401,7 +412,7 @@ export default function QualityParametersPage() {
           ← Scroll to see more →
         </p>
         <div className="px-4 py-3 border-t border-slate-200 text-xs text-slate-500">
-          Showing {filtered.length} of {items.length} parameters
+          Showing {filtered.length} of {warehouseQualityParameters.length} parameters
         </div>
       </div>
 

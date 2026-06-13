@@ -14,7 +14,8 @@ export const createRouting = async (req, res) => {
       status,
       stages,
       total_time_minutes,
-      is_active
+      is_active,
+      warehouse_id
     } = req.body;
 
     // ✅ Validation
@@ -48,8 +49,8 @@ export const createRouting = async (req, res) => {
     // ✅ Insert
     const result = await connectDB.query(
       `INSERT INTO public.routings
-      (id, name, code, item_id, item_name, version, status, stages, total_time_minutes, is_active)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      (id, name, code, item_id, item_name, version, status, stages, total_time_minutes, is_active, warehouse_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *`,
       [
         finalId,
@@ -61,7 +62,8 @@ export const createRouting = async (req, res) => {
         status.toUpperCase(),
         finalStages,
         finalTotalTime,
-        is_active ?? true
+        is_active ?? true,
+        warehouse_id || null
       ]
     );
 
@@ -90,7 +92,8 @@ export const updateRouting = async (req, res) => {
       status,
       stages,
       total_time_minutes,
-      is_active
+      is_active,
+      warehouse_id
     } = req.body;
 
     // 🔍 Check if routing exists
@@ -141,7 +144,8 @@ export const updateRouting = async (req, res) => {
         stages = COALESCE($7, stages),
         total_time_minutes = COALESCE($8, total_time_minutes),
         is_active = COALESCE($9, is_active),
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = CURRENT_TIMESTAMP,
+        warehouse_id = COALESCE($11, warehouse_id)
       WHERE id = $10
       RETURNING *`,
       [
@@ -154,7 +158,8 @@ export const updateRouting = async (req, res) => {
         finalStages,
         total_time_minutes !== undefined ? Number(total_time_minutes) : null,
         is_active !== undefined ? is_active : null,
-        id
+        id,
+        warehouse_id || null
       ]
     );
 

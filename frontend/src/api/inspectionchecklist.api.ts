@@ -8,6 +8,7 @@ export interface InspectionChecklistPayload {
   parameterIds: string[];
   samplingPlan: string;
   isActive?: boolean;
+  warehouseId?: string | null;
 }
 
 export interface InspectionChecklistResponse {
@@ -21,6 +22,7 @@ export interface InspectionChecklistResponse {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  warehouse_id?: string | null;
 }
 
 const BASE = '/api/v1/inspection-checklists';
@@ -36,6 +38,7 @@ export async function createInspectionChecklist(
     parameter_ids: payload.parameterIds,
     sampling_plan: payload.samplingPlan,
     is_active: payload.isActive,
+    warehouse_id: payload.warehouseId || null,
   };
   const { data } = await apiClient.post<ApiResponse<InspectionChecklistResponse>>(
     `${BASE}/create`,
@@ -65,6 +68,7 @@ export async function updateInspectionChecklist(
     parameter_ids: payload.parameterIds,
     sampling_plan: payload.samplingPlan,
     is_active: payload.isActive,
+    warehouse_id: payload.warehouseId !== undefined ? (payload.warehouseId || null) : undefined,
   };
   const { data } = await apiClient.put<ApiResponse<InspectionChecklistResponse>>(
     `${BASE}/${id}`,

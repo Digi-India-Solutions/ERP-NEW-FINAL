@@ -10,7 +10,8 @@ export const createInspectionChecklist = async (req, res) => {
       item_type_target,
       parameter_ids,
       sampling_plan,
-      is_active
+      is_active,
+      warehouse_id
     } = req.body;
 
     // ✅ Validation
@@ -53,8 +54,8 @@ export const createInspectionChecklist = async (req, res) => {
     // ✅ Insert
     const result = await connectDB.query(
       `INSERT INTO public."Inspection-Checklists"
-      (name, code, applicable_to, item_type_target, parameter_ids, sampling_plan, is_active)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      (name, code, applicable_to, item_type_target, parameter_ids, sampling_plan, is_active, warehouse_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *`,
       [
         name.trim(),
@@ -63,7 +64,8 @@ export const createInspectionChecklist = async (req, res) => {
         item_type_target.trim().toUpperCase(),
         cleanParams,
         sampling_plan.trim().toUpperCase(),
-        is_active ?? true
+        is_active ?? true,
+        warehouse_id || null
       ]
     );
 
@@ -90,7 +92,8 @@ export const updateInspectionChecklist = async (req, res) => {
       item_type_target,
       parameter_ids,
       sampling_plan,
-      is_active
+      is_active,
+      warehouse_id
     } = req.body;
 
     // 🔍 Check if inspection checklist exists
@@ -139,7 +142,8 @@ export const updateInspectionChecklist = async (req, res) => {
         parameter_ids = COALESCE($5, parameter_ids),
         sampling_plan = COALESCE($6, sampling_plan),
         is_active = COALESCE($7, is_active),
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = CURRENT_TIMESTAMP,
+        warehouse_id = COALESCE($9, warehouse_id)
       WHERE id = $8
       RETURNING *`,
       [
@@ -150,7 +154,8 @@ export const updateInspectionChecklist = async (req, res) => {
         cleanParams,
         sampling_plan ? sampling_plan.trim().toUpperCase() : null,
         is_active !== undefined ? is_active : null,
-        id
+        id,
+        warehouse_id || null
       ]
     );
 

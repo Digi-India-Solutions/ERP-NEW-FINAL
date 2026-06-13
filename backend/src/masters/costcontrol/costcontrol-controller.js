@@ -10,7 +10,8 @@ export const createCostCenter = async (req, res) => {
       manager_id,
       manager_name,
       budget_monthly,
-      is_active
+      is_active,
+      warehouse_id
     } = req.body;
 
     // ✅ Validation
@@ -44,8 +45,8 @@ export const createCostCenter = async (req, res) => {
     // ✅ Insert
     const result = await connectDB.query(
       `INSERT INTO public."Cost-Centers"
-      (name, code, type, manager_id, manager_name, budget_monthly, is_active)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      (name, code, type, manager_id, manager_name, budget_monthly, is_active, warehouse_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *`,
       [
         name.trim(),
@@ -54,7 +55,8 @@ export const createCostCenter = async (req, res) => {
         manager_id || null,
         manager_name || null,
         budget_monthly !== undefined ? Number(budget_monthly) : 0,
-        is_active ?? true
+        is_active ?? true,
+        warehouse_id || null
       ]
     );
 
@@ -81,7 +83,8 @@ export const updateCostCenter = async (req, res) => {
       manager_id,
       manager_name,
       budget_monthly,
-      is_active
+      is_active,
+      warehouse_id
     } = req.body;
 
     // 🔍 Check if cost center exists
@@ -127,7 +130,8 @@ export const updateCostCenter = async (req, res) => {
         manager_name = CASE WHEN $5 = 'null' THEN NULL WHEN $5 IS NULL THEN manager_name ELSE $5 END,
         budget_monthly = COALESCE($6, budget_monthly),
         is_active = COALESCE($7, is_active),
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = CURRENT_TIMESTAMP,
+        warehouse_id = COALESCE($9, warehouse_id)
       WHERE id = $8
       RETURNING *`,
       [
@@ -138,7 +142,8 @@ export const updateCostCenter = async (req, res) => {
         manager_name === null ? 'null' : (manager_name || null),
         budget_monthly !== undefined ? Number(budget_monthly) : null,
         is_active !== undefined ? is_active : null,
-        id
+        id,
+        warehouse_id || null
       ]
     );
 

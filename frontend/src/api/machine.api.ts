@@ -9,6 +9,7 @@ export interface MachinePayload {
   lastMaintenanceDate?: string | null;
   maintenanceFrequencyDays?: number | null;
   isActive?: boolean;
+  warehouseId?: string | null;
 }
 
 export interface MachineResponse {
@@ -24,6 +25,7 @@ export interface MachineResponse {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  warehouse_id?: string | null;
 }
 
 const BASE = '/api/v1/machines';
@@ -40,6 +42,7 @@ export async function createMachine(
     last_maintenance_date: payload.lastMaintenanceDate || null,
     maintenance_frequency_days: payload.maintenanceFrequencyDays !== undefined ? payload.maintenanceFrequencyDays : null,
     is_active: payload.isActive,
+    warehouse_id: payload.warehouseId || null,
   };
   const { data } = await apiClient.post<ApiResponse<MachineResponse>>(
     `${BASE}/create`,
@@ -70,6 +73,7 @@ export async function updateMachine(
     last_maintenance_date: payload.lastMaintenanceDate !== undefined ? (payload.lastMaintenanceDate || null) : undefined,
     maintenance_frequency_days: payload.maintenanceFrequencyDays !== undefined ? payload.maintenanceFrequencyDays : undefined,
     is_active: payload.isActive,
+    warehouse_id: payload.warehouseId !== undefined ? (payload.warehouseId || null) : undefined,
   };
   const { data } = await apiClient.put<ApiResponse<MachineResponse>>(
     `${BASE}/${id}`,

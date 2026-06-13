@@ -6,6 +6,8 @@ export interface RoutingStage {
   sequence: number;
   workCenterId: string;
   workCenterName: string;
+  machineId: string;
+  machineName: string;
   operationName: string;
   setupTimeMinutes: number;
   runTimeMinutes: number;
@@ -23,6 +25,7 @@ export interface RoutingPayload {
   stages: RoutingStage[];
   totalTimeMinutes?: number;
   isActive?: boolean;
+  warehouseId?: string | null;
 }
 
 export interface RoutingResponse {
@@ -38,6 +41,7 @@ export interface RoutingResponse {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  warehouse_id?: string | null;
 }
 
 const BASE = '/api/v1/routings';
@@ -56,6 +60,7 @@ export async function createRouting(
     stages: payload.stages,
     total_time_minutes: payload.totalTimeMinutes,
     is_active: payload.isActive,
+    warehouse_id: payload.warehouseId || null,
   };
   const { data } = await apiClient.post<ApiResponse<RoutingResponse>>(
     `${BASE}/create`,
@@ -83,6 +88,7 @@ export async function updateRouting(
     stages: payload.stages,
     total_time_minutes: payload.totalTimeMinutes,
     is_active: payload.isActive,
+    warehouse_id: payload.warehouseId !== undefined ? (payload.warehouseId || null) : undefined,
   };
   const { data } = await apiClient.put<ApiResponse<RoutingResponse>>(
     `${BASE}/${id}`,

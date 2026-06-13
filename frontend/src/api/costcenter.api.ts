@@ -10,6 +10,7 @@ export interface CostCenterPayload {
   managerName?: string | null;
   budgetMonthly: number;
   isActive?: boolean;
+  warehouseId?: string | null;
 }
 
 export interface CostCenterResponse {
@@ -23,6 +24,7 @@ export interface CostCenterResponse {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  warehouse_id?: string | null;
 }
 
 const BASE = '/api/v1/cost-control';
@@ -38,6 +40,7 @@ export async function createCostCenter(
     manager_name: payload.managerName || null,
     budget_monthly: payload.budgetMonthly,
     is_active: payload.isActive,
+    warehouse_id: payload.warehouseId || null,
   };
   const { data } = await apiClient.post<ApiResponse<CostCenterResponse>>(
     `${BASE}/create`,
@@ -67,6 +70,7 @@ export async function updateCostCenter(
     manager_name: payload.managerName !== undefined ? (payload.managerName || null) : undefined,
     budget_monthly: payload.budgetMonthly,
     is_active: payload.isActive,
+    warehouse_id: payload.warehouseId !== undefined ? (payload.warehouseId || null) : undefined,
   };
   const { data } = await apiClient.put<ApiResponse<CostCenterResponse>>(
     `${BASE}/${id}`,
