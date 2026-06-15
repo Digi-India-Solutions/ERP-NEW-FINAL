@@ -1,6 +1,6 @@
 // ─── Base ────────────────────────────────────────────────────────────────────
 const api =
-  import.meta.env.VITE_API_URL || 'https://asvapi.digiindiasolutions.com';
+  import.meta.env.VITE_API_URL || 'http://localhost:7001';
 
 const BASE = `${api}/api/v1/purchase-order`;
 

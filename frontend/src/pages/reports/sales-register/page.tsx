@@ -35,7 +35,7 @@ export const useSalesRegister = (
       }
  
       const res = await axios.get(
-        'https://asvapi.digiindiasolutions.com/api/v1/reports/sales-register',
+        'http://localhost:7001/api/v1/reports/sales-register',
         {
           params,
         },

@@ -23,7 +23,7 @@ import InwardGPForm, {
 
 // ─── API (inline for verify/reject — still direct fetch) ─────────────────────
 
-const API_BASE = `${import.meta.env.VITE_API_URL || 'https://asvapi.digiindiasolutions.com'}/api/v1/gatepass`;
+const API_BASE = `${import.meta.env.VITE_API_URL || 'http://localhost:7001'}/api/v1/gatepass`;
 const getToken = () => localStorage.getItem('token') ?? '';
 const authHeaders = (): HeadersInit => ({
   'Content-Type': 'application/json',

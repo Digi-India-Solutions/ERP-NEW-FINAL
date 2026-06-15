@@ -149,7 +149,7 @@ export default function GuardOutwardPage() {
   useEffect(() => {
     const token = localStorage.getItem('token');
 
-    fetch('https://asvapi.digiindiasolutions.com/api/v1/gatepass', {
+    fetch('http://localhost:7001/api/v1/gatepass', {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -189,7 +189,7 @@ export default function GuardOutwardPage() {
       const token = localStorage.getItem('token');
 
       const res = await fetch(
-        `https://asvapi.digiindiasolutions.com/api/v1/gatepass/${gpId}`,
+        `http://localhost:7001/api/v1/gatepass/${gpId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -220,7 +220,7 @@ export default function GuardOutwardPage() {
       console.log('🔐 TOKEN:', token);
 
       const res = await fetch(
-        `https://asvapi.digiindiasolutions.com/api/v1/gatepass/${gpId}/verify`,
+        `http://localhost:7001/api/v1/gatepass/${gpId}/verify`,
         {
           method: 'POST',
           headers: {
@@ -259,7 +259,7 @@ export default function GuardOutwardPage() {
       }
 
       const res = await fetch(
-        `https://asvapi.digiindiasolutions.com/api/v1/gatepass/${gpId}/reject`, // ✅ FIXED URL
+        `http://localhost:7001/api/v1/gatepass/${gpId}/reject`, // ✅ FIXED URL
         {
           method: 'POST',
           headers: {

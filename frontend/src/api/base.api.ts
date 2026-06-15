@@ -1,4 +1,4 @@
-const API = 'https://asvapi.digiindiasolutions.com/api/v1';
+const API = 'http://localhost:7001/api/v1';
 
 export async function apiFetch(path: string, options: RequestInit = {}) {
   const token = localStorage.getItem('token');

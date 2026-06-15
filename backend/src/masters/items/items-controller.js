@@ -661,196 +661,402 @@ export const getItemById = async (req, res) => {
 // ============================================
 // FILTER ITEMS (Advanced Search)
 // ============================================
-export const filterItems = async (req, res) => {
-  try {
-    const company_id = req.user?.company_id;
-    if (!company_id) {
-      return res.status(401).json({
+// export const filterItems = async (req, res) => {
+//   try {
+//     const company_id = req.user?.company_id;
+//     if (!company_id) {
+//       return res.status(401).json({
+//         success: false,
+//         message: 'Unauthorized',
+//       });
+//     }
+
+//     const {
+//       categoryId,
+//       categoryName,
+//       search,
+//       warehouseId,
+//       stockStatus,
+//       isActive,
+//       page = 1,
+//       limit = 20,
+//     } = req.query;
+
+//     const values = [company_id];
+//     let idx = 2;
+//     let hasWarehouseFilter = false;
+//     let warehouseUuid = null;
+//     if (hasWarehouseFilter) {
+//   countValues.push(warehouseUuid);
+//   countIdx = 3;
+// }
+
+//     // Validate warehouse
+//     if (
+//       warehouseId &&
+//       warehouseId.toUpperCase() !== 'ALL' &&
+//       isUuid(warehouseId)
+//     ) {
+//       warehouseUuid = warehouseId;
+//       hasWarehouseFilter = true;
+//       values.push(warehouseUuid);
+//       idx = 3;
+//     }
+
+//     // Stock JOIN based on warehouse filter
+//     let stockJoin;
+//     if (hasWarehouseFilter) {
+//       stockJoin = `
+//                 LEFT JOIN (
+//                     SELECT item_id, SUM(quantity)::int as stock
+//                     FROM warehouse_stock
+//                     WHERE warehouse_id = $2
+//                     GROUP BY item_id
+//                 ) ws ON ws.item_id = i.id
+//             `;
+//     } else {
+//       stockJoin = `
+//                 LEFT JOIN (
+//                     SELECT item_id, SUM(quantity)::int as stock
+//                     FROM warehouse_stock
+//                     GROUP BY item_id
+//                 ) ws ON ws.item_id = i.id
+//             `;
+//     }
+
+//     let query = `
+//             SELECT 
+//                 i.*,
+//                 COALESCE(ws.stock, 0) as stock
+//             FROM items i
+//             ${stockJoin}
+//             WHERE i.company_id = $1
+//         `;
+
+//     // Category filters
+//     if (
+//       categoryId &&
+//       categoryId.toUpperCase() !== 'ALL' &&
+//       isUuid(categoryId)
+//     ) {
+//       query += ` AND i.category_id = $${idx}`;
+//       values.push(categoryId);
+//       idx++;
+//     }
+
+//     if (categoryName && categoryName.toUpperCase() !== 'ALL') {
+//       query += ` AND LOWER(i.category) = LOWER($${idx})`;
+//       values.push(categoryName.trim());
+//       idx++;
+//     }
+
+//     // Search filter
+//     if (search && search.trim()) {
+//       query += ` AND (
+//                 i.name ILIKE $${idx} OR
+//                 i.code ILIKE $${idx} OR
+//                 i.barcode ILIKE $${idx}
+//             )`;
+//       values.push(`%${search.trim()}%`);
+//       idx++;
+//     }
+
+//     // Stock status filter
+//     if (stockStatus && stockStatus.toUpperCase() !== 'ALL') {
+//       const status = stockStatus.toUpperCase();
+//       if (status === 'IN_STOCK') {
+//         query += ` AND COALESCE(ws.stock, 0) > 0 
+//                           AND COALESCE(ws.stock, 0) >= COALESCE(i.min_stock_level, 0)`;
+//       } else if (status === 'LOW_STOCK') {
+//         query += ` AND COALESCE(ws.stock, 0) > 0 
+//                           AND COALESCE(ws.stock, 0) < COALESCE(i.min_stock_level, 0)`;
+//       } else if (status === 'OUT_OF_STOCK') {
+//         query += ` AND COALESCE(ws.stock, 0) = 0`;
+//       }
+//     }
+
+//     // Active filter
+//     if (isActive && isActive.toUpperCase() !== 'ALL') {
+//       query += ` AND i.is_active = $${idx}`;
+//       values.push(isActive.toLowerCase() === 'true');
+//       idx++;
+//     }
+
+//     // Pagination
+//     const offset = (parseInt(page) - 1) * parseInt(limit);
+//     query += ` ORDER BY i.created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`;
+//     values.push(parseInt(limit), offset);
+
+//     // Get total count
+//     let countQuery = `
+//             SELECT COUNT(*) as total
+//             FROM items i
+//             ${stockJoin}
+//             WHERE i.company_id = $1
+//         `;
+
+//     // Copy filters for count query (without pagination)
+//     let countIdx = 2;
+//     let countValues = [company_id];
+
+//     if (
+//       categoryId &&
+//       categoryId.toUpperCase() !== 'ALL' &&
+//       isUuid(categoryId)
+//     ) {
+//       countQuery += ` AND i.category_id = $${countIdx}`;
+//       countValues.push(categoryId);
+//       countIdx++;
+//     }
+//     if (categoryName && categoryName.toUpperCase() !== 'ALL') {
+//       countQuery += ` AND LOWER(i.category) = LOWER($${countIdx})`;
+//       countValues.push(categoryName.trim());
+//       countIdx++;
+//     }
+//     if (search && search.trim()) {
+//       countQuery += ` AND (i.name ILIKE $${countIdx} OR i.code ILIKE $${countIdx} OR i.barcode ILIKE $${countIdx})`;
+//       countValues.push(`%${search.trim()}%`);
+//       countIdx++;
+//     }
+//     if (stockStatus && stockStatus.toUpperCase() !== 'ALL') {
+//       const status = stockStatus.toUpperCase();
+//       if (status === 'IN_STOCK') {
+//         countQuery += ` AND COALESCE(ws.stock, 0) > 0 AND COALESCE(ws.stock, 0) >= COALESCE(i.min_stock_level, 0)`;
+//       } else if (status === 'LOW_STOCK') {
+//         countQuery += ` AND COALESCE(ws.stock, 0) > 0 AND COALESCE(ws.stock, 0) < COALESCE(i.min_stock_level, 0)`;
+//       } else if (status === 'OUT_OF_STOCK') {
+//         countQuery += ` AND COALESCE(ws.stock, 0) = 0`;
+//       }
+//     }
+//     if (isActive && isActive.toUpperCase() !== 'ALL') {
+//       countQuery += ` AND i.is_active = $${countIdx}`;
+//       countValues.push(isActive.toLowerCase() === 'true');
+//     }
+ 
+
+//     const countResult = await connectDB.query(countQuery, countValues);
+//     const total = parseInt(countResult.rows[0]?.total || 0);
+
+//     // Execute main query
+//     const result = await connectDB.query(query, values);
+//     const data = result.rows.map((row) => mapDbToFrontend(row));
+
+//     return res.json({
+//       success: true,
+//       data: data,
+//       pagination: {
+//         page: parseInt(page),
+//         limit: parseInt(limit),
+//         total: total,
+//         totalPages: Math.ceil(total / parseInt(limit)),
+//       },
+//     });
+//   } catch (error) {
+//     console.error('filterItems error:', error);
+//     return res.status(500).json({
+//       success: false,
+//       message: 'Internal server error',
+//     });
+//   }
+// };
+
+  export const filterItems = async (req, res) => {
+    try {
+      const company_id = req.user?.company_id;
+      if (!company_id) {
+        return res.status(401).json({
+          success: false,
+          message: 'Unauthorized',
+        });
+      }
+
+      const {
+        categoryId,
+        categoryName,
+        search,
+        warehouseId,
+        stockStatus,
+        isActive,
+        page = 1,
+        limit = 20,
+      } = req.query;
+
+      const values = [company_id];
+      let idx = 2;
+      let hasWarehouseFilter = false;
+      let warehouseUuid = null;
+
+      // Validate warehouse
+      if (
+        warehouseId &&
+        warehouseId.toUpperCase() !== 'ALL' &&
+        isUuid(warehouseId)
+      ) {
+        warehouseUuid = warehouseId;
+        hasWarehouseFilter = true;
+        values.push(warehouseUuid);
+        idx = 3;
+      }
+
+      // Stock JOIN based on warehouse filter
+      let stockJoin;
+      if (hasWarehouseFilter) {
+        stockJoin = `
+                  LEFT JOIN (
+                      SELECT item_id, SUM(quantity)::int as stock
+                      FROM warehouse_stock
+                      WHERE warehouse_id = $2
+                      GROUP BY item_id
+                  ) ws ON ws.item_id = i.id
+              `;
+      } else {
+        stockJoin = `
+                  LEFT JOIN (
+                      SELECT item_id, SUM(quantity)::int as stock
+                      FROM warehouse_stock
+                      GROUP BY item_id
+                  ) ws ON ws.item_id = i.id
+              `;
+      }
+
+      let query = `
+              SELECT 
+                  i.*,
+                  i.bom_id,
+                  i.bom_version,
+                  COALESCE(ws.stock, 0) as stock
+              FROM items i
+              ${stockJoin}
+              WHERE i.company_id = $1
+          `;
+
+      // Category filters
+      if (
+        categoryId &&
+        categoryId.toUpperCase() !== 'ALL' &&
+        isUuid(categoryId)
+      ) {
+        query += ` AND i.category_id = $${idx}`;
+        values.push(categoryId);
+        idx++;
+      }
+
+      if (categoryName && categoryName.toUpperCase() !== 'ALL') {
+        query += ` AND LOWER(i.category) = LOWER($${idx})`;
+        values.push(categoryName.trim());
+        idx++;
+      }
+
+      // Search filter
+      if (search && search.trim()) {
+        query += ` AND (
+                  i.name ILIKE $${idx} OR
+                  i.code ILIKE $${idx} OR
+                  i.barcode ILIKE $${idx}
+              )`;
+        values.push(`%${search.trim()}%`);
+        idx++;
+      }
+
+      // Stock status filter
+      if (stockStatus && stockStatus.toUpperCase() !== 'ALL') {
+        const status = stockStatus.toUpperCase();
+        if (status === 'IN_STOCK') {
+          query += ` AND COALESCE(ws.stock, 0) > 0 
+                            AND COALESCE(ws.stock, 0) >= COALESCE(i.min_stock_level, 0)`;
+        } else if (status === 'LOW_STOCK') {
+          query += ` AND COALESCE(ws.stock, 0) > 0 
+                            AND COALESCE(ws.stock, 0) < COALESCE(i.min_stock_level, 0)`;
+        } else if (status === 'OUT_OF_STOCK') {
+          query += ` AND COALESCE(ws.stock, 0) = 0`;
+        }
+      }
+
+      // Active filter
+      if (isActive && isActive.toUpperCase() !== 'ALL') {
+        query += ` AND i.is_active = $${idx}`;
+        values.push(isActive.toLowerCase() === 'true');
+        idx++;
+      }
+
+      // Pagination
+      const offset = (parseInt(page) - 1) * parseInt(limit);
+      query += ` ORDER BY i.created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`;
+      values.push(parseInt(limit), offset);
+
+      // Get total count
+      let countQuery = `
+              SELECT COUNT(*) as total
+              FROM items i
+              ${stockJoin}
+              WHERE i.company_id = $1
+          `;
+
+      // Copy filters for count query (without pagination)
+    let countIdx = 2;
+let countValues = [company_id];
+
+if (hasWarehouseFilter) {
+  countValues.push(warehouseUuid);
+  countIdx = 3;
+}
+
+      if (
+        categoryId &&
+        categoryId.toUpperCase() !== 'ALL' &&
+        isUuid(categoryId)
+      ) {
+        countQuery += ` AND i.category_id = $${countIdx}`;
+        countValues.push(categoryId);
+        countIdx++;
+      }
+      if (categoryName && categoryName.toUpperCase() !== 'ALL') {
+        countQuery += ` AND LOWER(i.category) = LOWER($${countIdx})`;
+        countValues.push(categoryName.trim());
+        countIdx++;
+      }
+      if (search && search.trim()) {
+        countQuery += ` AND (i.name ILIKE $${countIdx} OR i.code ILIKE $${countIdx} OR i.barcode ILIKE $${countIdx})`;
+        countValues.push(`%${search.trim()}%`);
+        countIdx++;
+      }
+      if (stockStatus && stockStatus.toUpperCase() !== 'ALL') {
+        const status = stockStatus.toUpperCase();
+        if (status === 'IN_STOCK') {
+          countQuery += ` AND COALESCE(ws.stock, 0) > 0 AND COALESCE(ws.stock, 0) >= COALESCE(i.min_stock_level, 0)`;
+        } else if (status === 'LOW_STOCK') {
+          countQuery += ` AND COALESCE(ws.stock, 0) > 0 AND COALESCE(ws.stock, 0) < COALESCE(i.min_stock_level, 0)`;
+        } else if (status === 'OUT_OF_STOCK') {
+          countQuery += ` AND COALESCE(ws.stock, 0) = 0`;
+        }
+      }
+      if (isActive && isActive.toUpperCase() !== 'ALL') {
+        countQuery += ` AND i.is_active = $${countIdx}`;
+        countValues.push(isActive.toLowerCase() === 'true');
+      }
+
+      const countResult = await connectDB.query(countQuery, countValues);
+      const total = parseInt(countResult.rows[0]?.total || 0);
+
+      // Execute main query
+      const result = await connectDB.query(query, values);
+      const data = result.rows.map((row) => mapDbToFrontend(row));
+
+      return res.json({
+        success: true,
+        data: data,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: total,
+          totalPages: Math.ceil(total / parseInt(limit)),
+        },
+      });
+    } catch (error) {
+      console.error('filterItems error:', error);
+      return res.status(500).json({
         success: false,
-        message: 'Unauthorized',
+        message: 'Internal server error',
       });
     }
-
-    const {
-      categoryId,
-      categoryName,
-      search,
-      warehouseId,
-      stockStatus,
-      isActive,
-      page = 1,
-      limit = 20,
-    } = req.query;
-
-    const values = [company_id];
-    let idx = 2;
-    let hasWarehouseFilter = false;
-    let warehouseUuid = null;
-
-    // Validate warehouse
-    if (
-      warehouseId &&
-      warehouseId.toUpperCase() !== 'ALL' &&
-      isUuid(warehouseId)
-    ) {
-      warehouseUuid = warehouseId;
-      hasWarehouseFilter = true;
-      values.push(warehouseUuid);
-      idx = 3;
-    }
-
-    // Stock JOIN based on warehouse filter
-    let stockJoin;
-    if (hasWarehouseFilter) {
-      stockJoin = `
-                LEFT JOIN (
-                    SELECT item_id, SUM(quantity)::int as stock
-                    FROM warehouse_stock
-                    WHERE warehouse_id = $2
-                    GROUP BY item_id
-                ) ws ON ws.item_id = i.id
-            `;
-    } else {
-      stockJoin = `
-                LEFT JOIN (
-                    SELECT item_id, SUM(quantity)::int as stock
-                    FROM warehouse_stock
-                    GROUP BY item_id
-                ) ws ON ws.item_id = i.id
-            `;
-    }
-
-    let query = `
-            SELECT 
-                i.*,
-                COALESCE(ws.stock, 0) as stock
-            FROM items i
-            ${stockJoin}
-            WHERE i.company_id = $1
-        `;
-
-    // Category filters
-    if (
-      categoryId &&
-      categoryId.toUpperCase() !== 'ALL' &&
-      isUuid(categoryId)
-    ) {
-      query += ` AND i.category_id = $${idx}`;
-      values.push(categoryId);
-      idx++;
-    }
-
-    if (categoryName && categoryName.toUpperCase() !== 'ALL') {
-      query += ` AND LOWER(i.category) = LOWER($${idx})`;
-      values.push(categoryName.trim());
-      idx++;
-    }
-
-    // Search filter
-    if (search && search.trim()) {
-      query += ` AND (
-                i.name ILIKE $${idx} OR
-                i.code ILIKE $${idx} OR
-                i.barcode ILIKE $${idx}
-            )`;
-      values.push(`%${search.trim()}%`);
-      idx++;
-    }
-
-    // Stock status filter
-    if (stockStatus && stockStatus.toUpperCase() !== 'ALL') {
-      const status = stockStatus.toUpperCase();
-      if (status === 'IN_STOCK') {
-        query += ` AND COALESCE(ws.stock, 0) > 0 
-                          AND COALESCE(ws.stock, 0) >= COALESCE(i.min_stock_level, 0)`;
-      } else if (status === 'LOW_STOCK') {
-        query += ` AND COALESCE(ws.stock, 0) > 0 
-                          AND COALESCE(ws.stock, 0) < COALESCE(i.min_stock_level, 0)`;
-      } else if (status === 'OUT_OF_STOCK') {
-        query += ` AND COALESCE(ws.stock, 0) = 0`;
-      }
-    }
-
-    // Active filter
-    if (isActive && isActive.toUpperCase() !== 'ALL') {
-      query += ` AND i.is_active = $${idx}`;
-      values.push(isActive.toLowerCase() === 'true');
-      idx++;
-    }
-
-    // Pagination
-    const offset = (parseInt(page) - 1) * parseInt(limit);
-    query += ` ORDER BY i.created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`;
-    values.push(parseInt(limit), offset);
-
-    // Get total count
-    let countQuery = `
-            SELECT COUNT(*) as total
-            FROM items i
-            ${stockJoin}
-            WHERE i.company_id = $1
-        `;
-
-    // Copy filters for count query (without pagination)
-    let countIdx = 2;
-    let countValues = [company_id];
-
-    if (
-      categoryId &&
-      categoryId.toUpperCase() !== 'ALL' &&
-      isUuid(categoryId)
-    ) {
-      countQuery += ` AND i.category_id = $${countIdx}`;
-      countValues.push(categoryId);
-      countIdx++;
-    }
-    if (categoryName && categoryName.toUpperCase() !== 'ALL') {
-      countQuery += ` AND LOWER(i.category) = LOWER($${countIdx})`;
-      countValues.push(categoryName.trim());
-      countIdx++;
-    }
-    if (search && search.trim()) {
-      countQuery += ` AND (i.name ILIKE $${countIdx} OR i.code ILIKE $${countIdx} OR i.barcode ILIKE $${countIdx})`;
-      countValues.push(`%${search.trim()}%`);
-      countIdx++;
-    }
-    if (stockStatus && stockStatus.toUpperCase() !== 'ALL') {
-      const status = stockStatus.toUpperCase();
-      if (status === 'IN_STOCK') {
-        countQuery += ` AND COALESCE(ws.stock, 0) > 0 AND COALESCE(ws.stock, 0) >= COALESCE(i.min_stock_level, 0)`;
-      } else if (status === 'LOW_STOCK') {
-        countQuery += ` AND COALESCE(ws.stock, 0) > 0 AND COALESCE(ws.stock, 0) < COALESCE(i.min_stock_level, 0)`;
-      } else if (status === 'OUT_OF_STOCK') {
-        countQuery += ` AND COALESCE(ws.stock, 0) = 0`;
-      }
-    }
-    if (isActive && isActive.toUpperCase() !== 'ALL') {
-      countQuery += ` AND i.is_active = $${countIdx}`;
-      countValues.push(isActive.toLowerCase() === 'true');
-    }
-
-    const countResult = await connectDB.query(countQuery, countValues);
-    const total = parseInt(countResult.rows[0]?.total || 0);
-
-    // Execute main query
-    const result = await connectDB.query(query, values);
-    const data = result.rows.map((row) => mapDbToFrontend(row));
-
-    return res.json({
-      success: true,
-      data: data,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: total,
-        totalPages: Math.ceil(total / parseInt(limit)),
-      },
-    });
-  } catch (error) {
-    console.error('filterItems error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
-  }
-};
+  };

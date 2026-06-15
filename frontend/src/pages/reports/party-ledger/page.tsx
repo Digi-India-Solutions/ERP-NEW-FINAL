@@ -209,7 +209,7 @@ const authHeaders = () => ({
  
 const getPartyLedgerApi = async (partyId: string, from: string, to: string, warehouseId: string) => {
   const res = await axios.get(
-    'https://asvapi.digiindiasolutions.com/api/v1/reports/party-ledger',
+    'http://localhost:7001/api/v1/reports/party-ledger',
     {
       params: { partyId, from, to, warehouseId: warehouseId || undefined },
       headers: authHeaders(),

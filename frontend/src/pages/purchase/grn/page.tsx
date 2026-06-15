@@ -134,7 +134,7 @@ export default function GRNListPage() {
     try {
       const token = localStorage.getItem('token') ?? '';
       const res = await fetch(
-        `https://asvapi.digiindiasolutions.com/api/v1/party/${fullGRN.supplierId}`,
+        `http://localhost:7001/api/v1/party/${fullGRN.supplierId}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       const data = await res.json();

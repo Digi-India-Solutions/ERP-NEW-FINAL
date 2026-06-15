@@ -185,7 +185,7 @@ export default function POHeaderBar({
           params.append('warehouse_id', selectedWarehouseId);
         }
 
-        const url = `${(import.meta.env.VITE_API_URL || 'https://asvapi.digiindiasolutions.com')}/api/v1/party/suppliers${params.toString() ? `?${params.toString()}` : ''}`;
+        const url = `${(import.meta.env.VITE_API_URL || 'http://localhost:7001')}/api/v1/party/suppliers${params.toString() ? `?${params.toString()}` : ''}`;
 
         const res = await fetch(url, {
           headers: {

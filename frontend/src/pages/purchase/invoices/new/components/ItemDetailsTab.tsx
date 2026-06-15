@@ -316,7 +316,7 @@ function isRowEmpty(row: PurchaseRow): boolean {
 // ─── API helpers ──────────────────────────────────────────────────────────────
 const BASE_URL =
   (import.meta.env.VITE_API_URL as string) ||
-  'https://asvapi.digiindiasolutions.com';
+  'http://localhost:7001';
 const getToken = () => localStorage.getItem('token') ?? '';
 
 // ─── Component ────────────────────────────────────────────────────────────────
