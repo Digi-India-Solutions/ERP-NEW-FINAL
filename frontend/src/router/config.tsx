@@ -87,6 +87,12 @@ import ProductionEntryPage from '@/pages/manifacturing/shop-floor/page';
 import DowntimeEntryPage from '@/pages/manifacturing/downtime/page';
 import LiveDashboardPage from '@/pages/manifacturing/live/page';
 import PurchaseSuggestionsPage from '@/pages/manifacturing/mrp/purchase/page';
+import CostingDashboardPage from '@/pages/manifacturing/costing/page';
+import CostingSetupPage from '@/pages/manifacturing/costing/setup/page';
+import OrderCostingPage from '@/pages/manifacturing/costing/orders/page';
+import VariancePage from '@/pages/manifacturing/costing/variance/page';
+import StandardCostPage from '@/pages/manifacturing/costing/standard/page';
+import ActualCostPage from '@/pages/manifacturing/costing/actual/page';
 
 
 const P = ({
@@ -155,9 +161,15 @@ const routes: RouteObject[] = [
   { path: '/login', element: <LoginPage /> },
   { path: '/forgot-password', element: <ForgetPasswordPage /> },
   { path: '/reset-password/:token', element: <ResetPasswordPage /> },
- 
- 
-  { path: '/', element: (<P><Dashboard /></P>),},
+
+  {
+    path: '/',
+    element: (
+      <P>
+        <Dashboard />
+      </P>
+    ),
+  },
 
   {
     path: '/settings',
@@ -579,6 +591,14 @@ const routes: RouteObject[] = [
     ),
   },
   {
+    path: '/manufacturing/bom/:id/edit',
+    element: (
+      <Perm module={MODULES.PURCHASE_PAYMENT} action="edit">
+        <BOMForm />
+      </Perm>
+    ),
+  },
+  {
     path: '/manufacturing/production-orders',
     element: (
       <Perm module={MODULES.PURCHASE_PAYMENT} action="view">
@@ -893,6 +913,14 @@ const routes: RouteObject[] = [
       </Perm>
     ),
   },
+
+// Costing Routes - Sirf 3 tabs
+ { path: '/manufacturing/costing', element: <P><CostingDashboardPage /></P> },
+  { path: '/manufacturing/costing/setup', element: <P><CostingSetupPage /></P> },
+  { path: '/manufacturing/costing/orders', element: <P><OrderCostingPage /></P> },
+  { path: '/manufacturing/costing/standard', element: <P><StandardCostPage /></P> },
+  { path: '/manufacturing/costing/actual', element: <P><ActualCostPage /></P> },
+  { path: '/manufacturing/costing/variance', element: <P><VariancePage /></P> },
 
   { path: '*', element: <NotFound /> },
 ];

@@ -199,8 +199,7 @@ export const salesService = {
     if (params?.status) qs.set('status', params.status);
     if (params?.warehouseId) qs.set('warehouseId', params.warehouseId);
 
-    const BASE_URL =
-      import.meta.env.VITE_API_URL ?? 'http://localhost:7000';
+    const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:7000';
     const token = localStorage.getItem('token'); // adjust to wherever you store it
 
     const res = await fetch(
@@ -306,8 +305,7 @@ export const salesService = {
       qs.set('warehouseId', params.warehouseId);
     }
 
-    const BASE_URL =
-      import.meta.env.VITE_API_URL ?? 'http://localhost:7000';
+    const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:7000';
 
     const token = localStorage.getItem('token');
 
@@ -376,8 +374,7 @@ export const salesService = {
     qs.set('limit', String(params?.limit ?? 50));
     if (params?.warehouseId) qs.set('warehouseId', params.warehouseId);
 
-    const BASE_URL =
-      import.meta.env.VITE_API_URL ?? 'http://localhost:7000';
+    const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:7000';
     const token = localStorage.getItem('token');
 
     const res = await fetch(

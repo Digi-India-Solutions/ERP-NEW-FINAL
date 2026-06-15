@@ -83,7 +83,7 @@ function UnitDropdown({ value, units, onChange, rowIdx }: UnitDropdownProps) {
   useEffect(() => {
     if (open && dropdownRef.current && activeIndex >= 0) {
       const activeEl = dropdownRef.current.querySelector(
-        `[data-unit-idx="${activeIndex}"]`
+        `[data-unit-idx="${activeIndex}"]`,
       ) as HTMLElement;
       if (activeEl) {
         activeEl.scrollIntoView({ block: 'nearest' });
@@ -194,7 +194,9 @@ function UnitDropdown({ value, units, onChange, rowIdx }: UnitDropdownProps) {
                       triggerRef.current?.focus();
                     } else if (e.key === 'ArrowDown') {
                       e.preventDefault();
-                      setActiveIndex((prev) => Math.min(prev + 1, filtered.length - 1));
+                      setActiveIndex((prev) =>
+                        Math.min(prev + 1, filtered.length - 1),
+                      );
                     } else if (e.key === 'ArrowUp') {
                       e.preventDefault();
                       setActiveIndex((prev) => Math.max(prev - 1, 0));
@@ -315,8 +317,7 @@ function isRowEmpty(row: PurchaseRow): boolean {
 
 // ─── API helpers ──────────────────────────────────────────────────────────────
 const BASE_URL =
-  (import.meta.env.VITE_API_URL as string) ||
-  'http://localhost:7000';
+  (import.meta.env.VITE_API_URL as string) || 'http://localhost:7000';
 const getToken = () => localStorage.getItem('token') ?? '';
 
 // ─── Component ────────────────────────────────────────────────────────────────

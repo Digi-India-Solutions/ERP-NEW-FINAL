@@ -78,7 +78,6 @@ export const generateItemCode = async (company_id, client) => {
 // ============================================
 const mapDbToFrontend = (dbRow) => {
   if (!dbRow) return null;
-
   return {
     id: dbRow.id,
     name: dbRow.name,
@@ -103,6 +102,25 @@ const mapDbToFrontend = (dbRow) => {
     stock: parseInt(dbRow.stock || 0),
     createdAt: dbRow.created_at,
     updatedAt: dbRow.updated_at,
+    // ✅ Naye fields
+    itemType: dbRow.item_type,
+    itemGroup: dbRow.item_group,
+    drawingNumber: dbRow.drawing_number,
+    specifications: dbRow.specifications,
+    productionUnit: dbRow.production_unit,
+    standardCost: parseFloat(dbRow.standard_cost || 0),
+    supplierLeadTime: parseInt(dbRow.supplier_lead_time || 0),
+    reorderPoint: parseInt(dbRow.reorder_point || 0),
+    reorderQty: parseInt(dbRow.reorder_qty || 0),
+    enableVariants: dbRow.enable_variants ?? false,
+    enableBatchTracking: dbRow.enable_batch_tracking ?? false,
+    enableSerialTracking: dbRow.enable_serial_tracking ?? false,
+    requiresIncomingQC: dbRow.requires_incoming_qc ?? false,
+    requiresFinalQC: dbRow.requires_final_qc ?? false,
+    hasExpiryDate: dbRow.has_expiry_date ?? false,
+    bomId: dbRow.bom_id, // ✅ ADD THIS
+    bomVersion: dbRow.bom_version, // ✅ ADD THIS
+    isBomLinked: !!dbRow.bom_id,
   };
 };
 
@@ -135,6 +153,22 @@ export const createItem = async (req, res) => {
       imageUrl,
       isActive,
       warehouseId,
+      itemType,
+      itemGroup,
+      drawingNumber,
+      specifications,
+      productionUnit,
+      standardCost,
+      supplierLeadTime,
+      reorderPoint,
+      reorderQty,
+
+      enableVariants,
+      enableBatchTracking,
+      enableSerialTracking,
+      requiresIncomingQC,
+      requiresFinalQC,
+      hasExpiryDate,
     } = req.body;
 
     const company_id = req.user.company_id;
@@ -246,44 +280,68 @@ export const createItem = async (req, res) => {
     }
 
     // INSERT ITEM
-    const { rows: inserted } = await client.query(
-      `INSERT INTO items (
-                company_id, name, code, barcode,
-                category_id, category, brand, hsn_code,
-                gst_rate, primary_unit_id, unit_name,
-                purchase_rate, sale_rate, mrp, min_stock_level,
-                article_no, size_color, image_url,
-                warehouse_id, is_active, created_by
-            ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8,
-                $9, $10, $11, $12, $13, $14, $15,
-                $16, $17, $18, $19, $20, $21
-            )
-            RETURNING *`,
-      [
-        company_id,
-        cleanName,
-        finalCode,
-        finalBarcode,
-        categoryId || null,
-        categoryName || null,
-        brand || null,
-        hsnCode || null,
-        taxRate ?? 18,
-        unitId || null,
-        unitName || null,
-        purchaseRate ?? 0,
-        saleRate ?? 0,
-        mrp ?? 0,
-        minStockLevel ?? 5,
-        articleNo || null,
-        sizeColor || null,
-        imageUrl || null,
-        warehouseId,
-        isActive ?? true,
-        created_by,
-      ],
-    );
+  const { rows: inserted } = await client.query(
+    `INSERT INTO items (
+    company_id, name, code, barcode,
+    category_id, category, brand, hsn_code,
+    gst_rate, primary_unit_id, unit_name,
+    purchase_rate, sale_rate, mrp, min_stock_level,
+    article_no, size_color, image_url,
+    warehouse_id, is_active, created_by,
+    item_type, item_group, drawing_number, specifications,
+    production_unit, standard_cost, supplier_lead_time,
+    reorder_point, reorder_qty,
+    enable_variants, enable_batch_tracking, enable_serial_tracking,
+    requires_incoming_qc, requires_final_qc,has_expiry_date
+  ) VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8,
+    $9, $10, $11, $12, $13, $14, $15,
+    $16, $17, $18, $19, $20, $21,
+    $22, $23, $24, $25,
+    $26, $27, $28,
+    $29, $30,
+    $31, $32, $33,
+    $34, $35, $36
+  ) RETURNING *`,
+    [
+      company_id,
+      cleanName,
+      finalCode,
+      finalBarcode,
+      categoryId || null,
+      categoryName || null,
+      brand || null,
+      hsnCode || null,
+      taxRate ?? 18,
+      unitId || null,
+      unitName || null,
+      purchaseRate ?? 0,
+      saleRate ?? 0,
+      mrp ?? 0,
+      minStockLevel ?? 5,
+      articleNo || null,
+      sizeColor || null,
+      imageUrl || null,
+      warehouseId,
+      isActive ?? true,
+      created_by,
+      itemType || null,
+      itemGroup || null,
+      drawingNumber || null,
+      specifications || null,
+      productionUnit || null,
+      standardCost ?? 0,
+      supplierLeadTime ?? 0,
+      reorderPoint ?? 0,
+      reorderQty ?? 0,
+      enableVariants ?? false,
+      enableBatchTracking ?? false,
+      enableSerialTracking ?? false,
+      requiresIncomingQC ?? false,
+      requiresFinalQC ?? false,
+      hasExpiryDate ?? false,
+    ],
+  );
 
     // Initialize stock in warehouse_stock table
     await client.query(
@@ -357,6 +415,22 @@ export const updateItem = async (req, res) => {
       imageUrl,
       isActive,
       warehouseId,
+      itemType,
+      itemGroup,
+      drawingNumber,
+      specifications,
+      productionUnit,
+      standardCost,
+      supplierLeadTime,
+      reorderPoint,
+      reorderQty,
+
+      enableVariants,
+      enableBatchTracking,
+      enableSerialTracking,
+      requiresIncomingQC,
+      requiresFinalQC,
+      hasExpiryDate,
     } = req.body;
 
     // Check if item exists
@@ -477,6 +551,87 @@ export const updateItem = async (req, res) => {
       updates.push(`is_active = $${paramIndex++}`);
       values.push(isActive);
     }
+    if (itemType !== undefined) {
+      updates.push(`item_type = $${paramIndex++}`);
+      values.push(itemType || null);
+    }
+
+    if (itemGroup !== undefined) {
+      updates.push(`item_group = $${paramIndex++}`);
+      values.push(itemGroup || null);
+    }
+
+    if (drawingNumber !== undefined) {
+      updates.push(`drawing_number = $${paramIndex++}`);
+      values.push(drawingNumber || null);
+    }
+
+    if (specifications !== undefined) {
+      updates.push(`specifications = $${paramIndex++}`);
+      values.push(specifications || null);
+    }
+
+    if (productionUnit !== undefined) {
+      updates.push(`production_unit = $${paramIndex++}`);
+      values.push(productionUnit || null);
+    }
+
+    if (standardCost !== undefined) {
+      updates.push(`standard_cost = $${paramIndex++}`);
+      values.push(standardCost);
+    }
+
+    if (supplierLeadTime !== undefined) {
+      updates.push(`supplier_lead_time = $${paramIndex++}`);
+      values.push(supplierLeadTime);
+    }
+
+    if (reorderPoint !== undefined) {
+      updates.push(`reorder_point = $${paramIndex++}`);
+      values.push(reorderPoint);
+    }
+
+    if (reorderQty !== undefined) {
+      updates.push(`reorder_qty = $${paramIndex++}`);
+      values.push(reorderQty);
+    }
+
+    if (enableVariants !== undefined) {
+      updates.push(`enable_variants = $${paramIndex++}`);
+      values.push(enableVariants);
+    }
+
+    if (enableBatchTracking !== undefined) {
+      updates.push(`enable_batch_tracking = $${paramIndex++}`);
+      values.push(enableBatchTracking);
+    }
+
+    if (enableSerialTracking !== undefined) {
+      updates.push(`enable_serial_tracking = $${paramIndex++}`);
+      values.push(enableSerialTracking);
+    }
+
+    if (requiresIncomingQC !== undefined) {
+      updates.push(`requires_incoming_qc = $${paramIndex++}`);
+      values.push(requiresIncomingQC);
+    }
+
+    if (requiresFinalQC !== undefined) {
+      updates.push(`requires_final_qc = $${paramIndex++}`);
+      values.push(requiresFinalQC);
+    }
+    if (hasExpiryDate !== undefined) {
+      updates.push(`has_expiry_date = $${paramIndex++}`);
+      values.push(hasExpiryDate);
+    }
+    if (req.body.bomId !== undefined) {
+      updates.push(`bom_id = $${paramIndex++}`);
+      values.push(req.body.bomId || null);
+    }
+    if (req.body.bomVersion !== undefined) {
+      updates.push(`bom_version = $${paramIndex++}`);
+      values.push(req.body.bomVersion || null);
+    }
 
     updates.push(`updated_at = NOW()`);
 
@@ -584,6 +739,8 @@ export const getAllItems = async (req, res) => {
     const query = `
             SELECT 
                 i.*,
+                   i.bom_id,
+                    i.bom_version,
                 COALESCE(ws.stock, 0) as stock
             FROM items i
             LEFT JOIN (
@@ -624,6 +781,8 @@ export const getItemById = async (req, res) => {
     const query = `
             SELECT 
                 i.*,
+                i.bom_id,
+                i.bom_version,
                 COALESCE(ws.stock, 0) as stock
             FROM items i
             LEFT JOIN (
@@ -661,214 +820,45 @@ export const getItemById = async (req, res) => {
 // ============================================
 // FILTER ITEMS (Advanced Search)
 // ============================================
-// export const filterItems = async (req, res) => {
-//   try {
-//     const company_id = req.user?.company_id;
-//     if (!company_id) {
-//       return res.status(401).json({
-//         success: false,
-//         message: 'Unauthorized',
-//       });
-//     }
 
-//     const {
-//       categoryId,
-//       categoryName,
-//       search,
-//       warehouseId,
-//       stockStatus,
-//       isActive,
-//       page = 1,
-//       limit = 20,
-//     } = req.query;
 
-//     const values = [company_id];
-//     let idx = 2;
-//     let hasWarehouseFilter = false;
-//     let warehouseUuid = null;
-//     if (hasWarehouseFilter) {
-//   countValues.push(warehouseUuid);
-//   countIdx = 3;
-// }
+export const filterItems = async (req, res) => {
+  try {
+    const company_id = req.user?.company_id;
+    if (!company_id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized',
+      });
+    }
 
-//     // Validate warehouse
-//     if (
-//       warehouseId &&
-//       warehouseId.toUpperCase() !== 'ALL' &&
-//       isUuid(warehouseId)
-//     ) {
-//       warehouseUuid = warehouseId;
-//       hasWarehouseFilter = true;
-//       values.push(warehouseUuid);
-//       idx = 3;
-//     }
+    const {
+      categoryId,
+      categoryName,
+      search,
+      warehouseId,
+      stockStatus,
+      isActive,
+      page = 1,
+      limit = 20,
+    } = req.query;
 
-//     // Stock JOIN based on warehouse filter
-//     let stockJoin;
-//     if (hasWarehouseFilter) {
-//       stockJoin = `
-//                 LEFT JOIN (
-//                     SELECT item_id, SUM(quantity)::int as stock
-//                     FROM warehouse_stock
-//                     WHERE warehouse_id = $2
-//                     GROUP BY item_id
-//                 ) ws ON ws.item_id = i.id
-//             `;
-//     } else {
-//       stockJoin = `
-//                 LEFT JOIN (
-//                     SELECT item_id, SUM(quantity)::int as stock
-//                     FROM warehouse_stock
-//                     GROUP BY item_id
-//                 ) ws ON ws.item_id = i.id
-//             `;
-//     }
+    const values = [company_id];
+    let idx = 2;
+    let hasWarehouseFilter = false;
+    let warehouseUuid = null;
 
-//     let query = `
-//             SELECT 
-//                 i.*,
-//                 COALESCE(ws.stock, 0) as stock
-//             FROM items i
-//             ${stockJoin}
-//             WHERE i.company_id = $1
-//         `;
-
-//     // Category filters
-//     if (
-//       categoryId &&
-//       categoryId.toUpperCase() !== 'ALL' &&
-//       isUuid(categoryId)
-//     ) {
-//       query += ` AND i.category_id = $${idx}`;
-//       values.push(categoryId);
-//       idx++;
-//     }
-
-//     if (categoryName && categoryName.toUpperCase() !== 'ALL') {
-//       query += ` AND LOWER(i.category) = LOWER($${idx})`;
-//       values.push(categoryName.trim());
-//       idx++;
-//     }
-
-//     // Search filter
-//     if (search && search.trim()) {
-//       query += ` AND (
-//                 i.name ILIKE $${idx} OR
-//                 i.code ILIKE $${idx} OR
-//                 i.barcode ILIKE $${idx}
-//             )`;
-//       values.push(`%${search.trim()}%`);
-//       idx++;
-//     }
-
-//     // Stock status filter
-//     if (stockStatus && stockStatus.toUpperCase() !== 'ALL') {
-//       const status = stockStatus.toUpperCase();
-//       if (status === 'IN_STOCK') {
-//         query += ` AND COALESCE(ws.stock, 0) > 0 
-//                           AND COALESCE(ws.stock, 0) >= COALESCE(i.min_stock_level, 0)`;
-//       } else if (status === 'LOW_STOCK') {
-//         query += ` AND COALESCE(ws.stock, 0) > 0 
-//                           AND COALESCE(ws.stock, 0) < COALESCE(i.min_stock_level, 0)`;
-//       } else if (status === 'OUT_OF_STOCK') {
-//         query += ` AND COALESCE(ws.stock, 0) = 0`;
-//       }
-//     }
-
-//     // Active filter
-//     if (isActive && isActive.toUpperCase() !== 'ALL') {
-//       query += ` AND i.is_active = $${idx}`;
-//       values.push(isActive.toLowerCase() === 'true');
-//       idx++;
-//     }
-
-//     // Pagination
-//     const offset = (parseInt(page) - 1) * parseInt(limit);
-//     query += ` ORDER BY i.created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`;
-//     values.push(parseInt(limit), offset);
-
-//     // Get total count
-//     let countQuery = `
-//             SELECT COUNT(*) as total
-//             FROM items i
-//             ${stockJoin}
-//             WHERE i.company_id = $1
-//         `;
-
-//     // Copy filters for count query (without pagination)
-//     let countIdx = 2;
-//     let countValues = [company_id];
-
-//     if (
-//       categoryId &&
-//       categoryId.toUpperCase() !== 'ALL' &&
-//       isUuid(categoryId)
-//     ) {
-//       countQuery += ` AND i.category_id = $${countIdx}`;
-//       countValues.push(categoryId);
-//       countIdx++;
-//     }
-//     if (categoryName && categoryName.toUpperCase() !== 'ALL') {
-//       countQuery += ` AND LOWER(i.category) = LOWER($${countIdx})`;
-//       countValues.push(categoryName.trim());
-//       countIdx++;
-//     }
-//     if (search && search.trim()) {
-//       countQuery += ` AND (i.name ILIKE $${countIdx} OR i.code ILIKE $${countIdx} OR i.barcode ILIKE $${countIdx})`;
-//       countValues.push(`%${search.trim()}%`);
-//       countIdx++;
-//     }
-//     if (stockStatus && stockStatus.toUpperCase() !== 'ALL') {
-//       const status = stockStatus.toUpperCase();
-//       if (status === 'IN_STOCK') {
-//         countQuery += ` AND COALESCE(ws.stock, 0) > 0 AND COALESCE(ws.stock, 0) >= COALESCE(i.min_stock_level, 0)`;
-//       } else if (status === 'LOW_STOCK') {
-//         countQuery += ` AND COALESCE(ws.stock, 0) > 0 AND COALESCE(ws.stock, 0) < COALESCE(i.min_stock_level, 0)`;
-//       } else if (status === 'OUT_OF_STOCK') {
-//         countQuery += ` AND COALESCE(ws.stock, 0) = 0`;
-//       }
-//     }
-//     if (isActive && isActive.toUpperCase() !== 'ALL') {
-//       countQuery += ` AND i.is_active = $${countIdx}`;
-//       countValues.push(isActive.toLowerCase() === 'true');
-//     }
- 
-
-//     const countResult = await connectDB.query(countQuery, countValues);
-//     const total = parseInt(countResult.rows[0]?.total || 0);
-
-//     // Execute main query
-//     const result = await connectDB.query(query, values);
-//     const data = result.rows.map((row) => mapDbToFrontend(row));
-
-//     return res.json({
-//       success: true,
-//       data: data,
-//       pagination: {
-//         page: parseInt(page),
-//         limit: parseInt(limit),
-//         total: total,
-//         totalPages: Math.ceil(total / parseInt(limit)),
-//       },
-//     });
-//   } catch (error) {
-//     console.error('filterItems error:', error);
-//     return res.status(500).json({
-//       success: false,
-//       message: 'Internal server error',
-//     });
-//   }
-// };
-
-  export const filterItems = async (req, res) => {
-    try {
-      const company_id = req.user?.company_id;
-      if (!company_id) {
-        return res.status(401).json({
-          success: false,
-          message: 'Unauthorized',
-        });
-      }
+    // Validate warehouse
+    if (
+      warehouseId &&
+      warehouseId.toUpperCase() !== 'ALL' &&
+      isUuid(warehouseId)
+    ) {
+      warehouseUuid = warehouseId;
+      hasWarehouseFilter = true;
+      values.push(warehouseUuid);
+      idx = 3;
+    }
 
       const {
         categoryId,
@@ -898,26 +888,16 @@ export const getItemById = async (req, res) => {
         idx = 3;
       }
 
-      // Stock JOIN based on warehouse filter
-      let stockJoin;
-      if (hasWarehouseFilter) {
-        stockJoin = `
-                  LEFT JOIN (
-                      SELECT item_id, SUM(quantity)::int as stock
-                      FROM warehouse_stock
-                      WHERE warehouse_id = $2
-                      GROUP BY item_id
-                  ) ws ON ws.item_id = i.id
-              `;
-      } else {
-        stockJoin = `
-                  LEFT JOIN (
-                      SELECT item_id, SUM(quantity)::int as stock
-                      FROM warehouse_stock
-                      GROUP BY item_id
-                  ) ws ON ws.item_id = i.id
-              `;
-      }
+    let query = `
+            SELECT 
+                i.*,
+                 i.bom_id,
+                 i.bom_version,
+                COALESCE(ws.stock, 0) as stock
+            FROM items i
+            ${stockJoin}
+            WHERE i.company_id = $1
+        `;
 
       let query = `
               SELECT 
@@ -1035,28 +1015,134 @@ if (hasWarehouseFilter) {
         countValues.push(isActive.toLowerCase() === 'true');
       }
 
-      const countResult = await connectDB.query(countQuery, countValues);
-      const total = parseInt(countResult.rows[0]?.total || 0);
+    return res.json({
+      success: true,
+      data: data,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: total,
+        totalPages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    console.error('filterItems error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
 
-      // Execute main query
-      const result = await connectDB.query(query, values);
-      const data = result.rows.map((row) => mapDbToFrontend(row));
 
-      return res.json({
-        success: true,
-        data: data,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total: total,
-          totalPages: Math.ceil(total / parseInt(limit)),
-        },
-      });
-    } catch (error) {
-      console.error('filterItems error:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Internal server error',
-      });
+
+// ============================================
+// GET ALL ITEMS WITH VARIANTS FOR BOM DROPDOWN (GROUPED)
+// ============================================
+// ============================================
+// GET ALL ITEMS WITH VARIANTS FOR BOM DROPDOWN (GROUPED)
+// ============================================
+export const getItemsWithVariantsForBOM = async (req, res) => {
+  try {
+    const company_id = req.user.company_id;
+
+    // 1. Get all active items
+    const itemsQuery = `
+      SELECT 
+        id, 
+        name, 
+        code, 
+        'item' as type,
+        NULL as parent_item_id,
+        NULL as parent_item_name,
+        NULL as variant_name,
+        NULL as variant_sku,
+        purchase_rate,
+        sale_rate,
+        unit_name,
+        category,
+        enable_variants,
+        bom_id,
+        bom_version
+      FROM items
+      WHERE company_id = $1 AND is_active = true
+      ORDER BY name ASC
+    `;
+    
+    const itemsResult = await connectDB.query(itemsQuery, [company_id]);
+    
+    // 2. Build grouped structure
+    const groupedItems = [];
+    
+    for (const item of itemsResult.rows) {
+      const group = {
+        id: item.id,
+        name: item.name,
+        code: item.code,
+        type: 'item',
+        category: item.category,
+        unit_name: item.unit_name,
+        purchase_rate: parseFloat(item.purchase_rate || 0),
+        sale_rate: parseFloat(item.sale_rate || 0),
+        bom_id: item.bom_id,
+        bom_version: item.bom_version,
+        variants: []
+      };
+      
+      // If item has variants, fetch them
+      if (item.enable_variants) {
+        const variantsQuery = `
+          SELECT 
+            id,
+            parent_item_id,
+            variant_name,
+            code,
+            variant_sku,
+            sale_rate,
+            purchase_rate,
+            mrp,
+            bom_id,
+            bom_version
+          FROM item_variants
+          WHERE parent_item_id = $1 AND is_active = true
+          ORDER BY variant_name ASC
+        `;
+        
+        const variantsResult = await connectDB.query(variantsQuery, [item.id]);
+        
+        for (const variant of variantsResult.rows) {
+          group.variants.push({
+            id: variant.id,
+            name: variant.variant_name,
+            code: variant.code,
+            type: 'variant',
+            parent_item_id: variant.parent_item_id,
+            parent_item_name: item.name,
+            variant_name: variant.variant_name,
+            variant_sku: variant.variant_sku,
+            purchase_rate: parseFloat(variant.purchase_rate || 0),
+            sale_rate: parseFloat(variant.sale_rate || 0),
+            unit_name: item.unit_name,
+            bom_id: variant.bom_id,
+            bom_version: variant.bom_version,
+          });
+        }
+      }
+      
+      groupedItems.push(group);
     }
-  };
+    
+    return res.json({
+      success: true,
+      count: groupedItems.length,
+      data: groupedItems,
+    });
+    
+  } catch (error) {
+    console.error('getItemsWithVariantsForBOM error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};

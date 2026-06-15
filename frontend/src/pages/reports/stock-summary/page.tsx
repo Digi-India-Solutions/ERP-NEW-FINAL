@@ -7,7 +7,6 @@ import { useWarehouseStore } from '@/stores/warehouseStore';
 
 import axios from 'axios';
 
-
 export const getStockSummaryApi = async (
   warehouseId?: string,
   categoryId?: string,
@@ -35,14 +34,11 @@ export const getStockSummaryApi = async (
 export const getCategories = async () => {
   const token = localStorage.getItem('token');
 
-  const res = await axios.get(
-    'http://localhost:7000/api/v1/categories/all',
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+  const res = await axios.get('http://localhost:7000/api/v1/categories/all', {
+    headers: {
+      Authorization: `Bearer ${token}`,
     },
-  );
+  });
 
   return res.data.data;
 };
@@ -62,7 +58,10 @@ const STATUS_META: Record<StockStatus, { label: string; cls: string }> = {
 export default function StockSummaryReport() {
   const today = new Date().toISOString().split('T')[0];
   const { selectedWarehouseId } = useWarehouseStore();
-  const warehouseId = selectedWarehouseId && selectedWarehouseId !== 'ALL' ? selectedWarehouseId : '';
+  const warehouseId =
+    selectedWarehouseId && selectedWarehouseId !== 'ALL'
+      ? selectedWarehouseId
+      : '';
   const [categoryId, setCategoryId] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [generated, setGenerated] = useState(false);

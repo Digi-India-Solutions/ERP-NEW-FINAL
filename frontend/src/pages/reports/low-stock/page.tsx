@@ -36,7 +36,10 @@ export const useLowStock = (warehouseId: string, enabled: boolean) => {
 
 export default function LowStockReport() {
   const { selectedWarehouseId } = useWarehouseStore();
-  const warehouseId = selectedWarehouseId && selectedWarehouseId !== 'ALL' ? selectedWarehouseId : '';
+  const warehouseId =
+    selectedWarehouseId && selectedWarehouseId !== 'ALL'
+      ? selectedWarehouseId
+      : '';
   const [generated, setGenerated] = useState(false);
   const { data = [], isFetching } = useLowStock(warehouseId, generated);
 

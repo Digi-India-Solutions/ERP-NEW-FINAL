@@ -44,6 +44,13 @@ export interface RoutingResponse {
   warehouse_id?: string | null;
 }
 
+export interface RoutingDropdownItem {
+  id: string;
+  name: string;
+  code: string;
+  status: string;
+}
+
 const BASE = '/api/v1/routings';
 
 export async function createRouting(
@@ -69,8 +76,12 @@ export async function createRouting(
   return data;
 }
 
-export async function getAllRoutings(): Promise<ApiResponse<RoutingResponse[]>> {
-  const { data } = await apiClient.get<ApiResponse<RoutingResponse[]>>(`${BASE}/`);
+export async function getAllRoutings(): Promise<
+  ApiResponse<RoutingResponse[]>
+> {
+  const { data } = await apiClient.get<ApiResponse<RoutingResponse[]>>(
+    `${BASE}/`,
+  );
   return data;
 }
 
@@ -88,7 +99,10 @@ export async function updateRouting(
     stages: payload.stages,
     total_time_minutes: payload.totalTimeMinutes,
     is_active: payload.isActive,
-    warehouse_id: payload.warehouseId !== undefined ? (payload.warehouseId || null) : undefined,
+    warehouse_id:
+      payload.warehouseId !== undefined
+        ? payload.warehouseId || null
+        : undefined,
   };
   const { data } = await apiClient.put<ApiResponse<RoutingResponse>>(
     `${BASE}/${id}`,
@@ -100,4 +114,12 @@ export async function updateRouting(
 export async function deleteRouting(id: string): Promise<ApiResponse<null>> {
   const { data } = await apiClient.delete<ApiResponse<null>>(`${BASE}/${id}`);
   return data;
+}
+
+// ✅ NEW: Get routings for dropdown
+export async function getRoutingsForDropdown(): Promise<RoutingDropdownItem[]> {
+  const { data } = await apiClient.get<ApiResponse<RoutingDropdownItem[]>>(
+    `${BASE}/dropdown`,
+  );
+  return data.data || [];
 }

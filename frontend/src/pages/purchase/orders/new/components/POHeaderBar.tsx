@@ -5,7 +5,10 @@ import { useWarehouseStore } from '@/stores/warehouseStore';
 import type { POSupplier } from '../page';
 
 // ── Indian states list with GST code ─────────────────────────────────────────
-interface StateOption { name: string; code: string }
+interface StateOption {
+  name: string;
+  code: string;
+}
 const INDIAN_STATES: StateOption[] = [
   { name: 'Jammu & Kashmir', code: '01' },
   { name: 'Himachal Pradesh', code: '02' },
@@ -60,9 +63,10 @@ function StateDropdown({
   const [search, setSearch] = useState('');
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  const filtered = INDIAN_STATES.filter((s) =>
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.code.includes(search)
+  const filtered = INDIAN_STATES.filter(
+    (s) =>
+      s.name.toLowerCase().includes(search.toLowerCase()) ||
+      s.code.includes(search),
   );
 
   useEffect(() => {
@@ -80,13 +84,18 @@ function StateDropdown({
     <div className="relative w-full" ref={wrapRef}>
       <button
         type="button"
-        onClick={() => { setOpen((v) => !v); setSearch(''); }}
+        onClick={() => {
+          setOpen((v) => !v);
+          setSearch('');
+        }}
         className={`${className} flex items-center justify-between gap-1 text-left`}
       >
         <span className={value ? 'text-slate-800' : 'text-slate-400'}>
           {value ? `${value.name} (${value.code})` : 'Select state...'}
         </span>
-        <i className={`ri-arrow-${open ? 'up' : 'down'}-s-line text-slate-400 text-xs shrink-0`} />
+        <i
+          className={`ri-arrow-${open ? 'up' : 'down'}-s-line text-slate-400 text-xs shrink-0`}
+        />
       </button>
 
       {open && (
@@ -119,7 +128,9 @@ function StateDropdown({
               </button>
             ))}
             {filtered.length === 0 && (
-              <p className="px-3 py-2 text-xs text-slate-400">No states found</p>
+              <p className="px-3 py-2 text-xs text-slate-400">
+                No states found
+              </p>
             )}
           </div>
         </div>
@@ -149,7 +160,9 @@ export default function POHeaderBar({
 }: Props) {
   const toast = useToast();
   const selectedWarehouseId = useWarehouseStore((s) => s.selectedWarehouseId);
-  const selectedWarehouseName = useWarehouseStore((s) => s.selectedWarehouseName);
+  const selectedWarehouseName = useWarehouseStore(
+    (s) => s.selectedWarehouseName,
+  );
 
   // ───────────── State ─────────────
   const [query, setQuery] = useState(supplier?.name ?? '');
@@ -185,7 +198,7 @@ export default function POHeaderBar({
           params.append('warehouse_id', selectedWarehouseId);
         }
 
-        const url = `${(import.meta.env.VITE_API_URL || 'http://localhost:7000')}/api/v1/party/suppliers${params.toString() ? `?${params.toString()}` : ''}`;
+        const url = `${import.meta.env.VITE_API_URL || 'http://localhost:7000'}/api/v1/party/suppliers${params.toString() ? `?${params.toString()}` : ''}`;
 
         const res = await fetch(url, {
           headers: {
@@ -297,20 +310,28 @@ export default function POHeaderBar({
     setSavingNew(true);
     try {
       // Pre-check duplicate check
-      const warehouseParam = selectedWarehouseId && selectedWarehouseId !== 'ALL'
-        ? selectedWarehouseId : undefined;
-      const dupRes = await filterParties({ isActive: true, warehouse_id: warehouseParam });
+      const warehouseParam =
+        selectedWarehouseId && selectedWarehouseId !== 'ALL'
+          ? selectedWarehouseId
+          : undefined;
+      const dupRes = await filterParties({
+        isActive: true,
+        warehouse_id: warehouseParam,
+      });
       const allData = dupRes.data ?? [];
 
       const phoneExists = allData.some(
         (p) => p.phone === mobileVal || p.mobile === mobileVal,
       );
       const emailExists = allData.some(
-        (p) => typeof p.email === 'string' && p.email.toLowerCase() === emailVal.toLowerCase(),
+        (p) =>
+          typeof p.email === 'string' &&
+          p.email.toLowerCase() === emailVal.toLowerCase(),
       );
 
       if (phoneExists || emailExists) {
-        if (phoneExists) setMobileError('This mobile number is already registered');
+        if (phoneExists)
+          setMobileError('This mobile number is already registered');
         if (emailExists) setEmailError('This email is already registered');
         return; // abort
       }
@@ -326,10 +347,14 @@ export default function POHeaderBar({
         billingAddress: newSupplier.city.trim() || undefined,
         stateCode: newSupplier.state?.code || undefined,
         stateName: newSupplier.state?.name || undefined,
-        warehouseId: selectedWarehouseId && selectedWarehouseId !== 'ALL'
-          ? selectedWarehouseId : undefined,
-        warehouseName: selectedWarehouseId && selectedWarehouseId !== 'ALL'
-          ? selectedWarehouseName : undefined,
+        warehouseId:
+          selectedWarehouseId && selectedWarehouseId !== 'ALL'
+            ? selectedWarehouseId
+            : undefined,
+        warehouseName:
+          selectedWarehouseId && selectedWarehouseId !== 'ALL'
+            ? selectedWarehouseName
+            : undefined,
         isActive: true,
       });
 
@@ -373,7 +398,13 @@ export default function POHeaderBar({
     } finally {
       setSavingNew(false);
     }
-  }, [newSupplier, onSupplierSelect, selectedWarehouseId, selectedWarehouseName, toast]);
+  }, [
+    newSupplier,
+    onSupplierSelect,
+    selectedWarehouseId,
+    selectedWarehouseName,
+    toast,
+  ]);
 
   // ───────────── Close dropdown on outside click ─────────────
   useEffect(() => {
@@ -486,14 +517,17 @@ export default function POHeaderBar({
                     onSupplierSelect(s);
                   }}
                   onMouseEnter={() => setHighlighted(idx)}
-                  className={`w-full flex justify-between px-3 py-2.5 text-sm ${idx === highlighted
+                  className={`w-full flex justify-between px-3 py-2.5 text-sm ${
+                    idx === highlighted
                       ? 'bg-indigo-50 text-[#4f46e5]'
                       : 'hover:bg-slate-50 text-[#1e293b]'
-                    }`}
+                  }`}
                 >
                   <span className="font-medium">
                     {s.name}
-                    {s?.phone && <p className="text-xs text-slate-500">{s?.phone}</p>}
+                    {s?.phone && (
+                      <p className="text-xs text-slate-500">{s?.phone}</p>
+                    )}
                   </span>
                   {s.gstin && (
                     <span className="text-xs text-slate-400">{s.gstin}</span>
@@ -511,7 +545,9 @@ export default function POHeaderBar({
               <div className="grid grid-cols-2 gap-2">
                 {/* Name */}
                 <div>
-                  <label className={lb}>Full Name <span className="text-red-500">*</span></label>
+                  <label className={lb}>
+                    Full Name <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
                     value={newSupplier.name}
@@ -528,7 +564,9 @@ export default function POHeaderBar({
 
                 {/* Mobile */}
                 <div>
-                  <label className={lb}>Mobile <span className="text-red-500">*</span></label>
+                  <label className={lb}>
+                    Mobile <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="tel"
                     value={newSupplier.mobile}
@@ -536,7 +574,10 @@ export default function POHeaderBar({
                       const nextValue = e.target.value
                         .replace(/\D/g, '')
                         .slice(0, 10);
-                      setNewSupplier((prev) => ({ ...prev, mobile: nextValue }));
+                      setNewSupplier((prev) => ({
+                        ...prev,
+                        mobile: nextValue,
+                      }));
                       setMobileError('');
                     }}
                     placeholder="10-digit mobile"
@@ -546,19 +587,28 @@ export default function POHeaderBar({
                   {mobileError && (
                     <p className="text-xs text-red-500 mt-0.5">{mobileError}</p>
                   )}
-                  {newSupplier.mobile && newSupplier.mobile.length < 10 && !mobileError && (
-                    <p className="text-xs text-amber-500 mt-0.5">{newSupplier.mobile.length}/10 digits</p>
-                  )}
+                  {newSupplier.mobile &&
+                    newSupplier.mobile.length < 10 &&
+                    !mobileError && (
+                      <p className="text-xs text-amber-500 mt-0.5">
+                        {newSupplier.mobile.length}/10 digits
+                      </p>
+                    )}
                 </div>
 
                 {/* Email */}
                 <div>
-                  <label className={lb}>Email <span className="text-red-500">*</span></label>
+                  <label className={lb}>
+                    Email <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="email"
                     value={newSupplier.email}
                     onChange={(e) => {
-                      setNewSupplier((prev) => ({ ...prev, email: e.target.value }));
+                      setNewSupplier((prev) => ({
+                        ...prev,
+                        email: e.target.value,
+                      }));
                       setEmailError('');
                     }}
                     placeholder="supplier@example.com"
@@ -592,7 +642,9 @@ export default function POHeaderBar({
                   <label className={lb}>State</label>
                   <StateDropdown
                     value={newSupplier.state}
-                    onChange={(s) => setNewSupplier((prev) => ({ ...prev, state: s }))}
+                    onChange={(s) =>
+                      setNewSupplier((prev) => ({ ...prev, state: s }))
+                    }
                     className="h-8 w-full rounded-lg border border-[#e2e8f0] bg-white px-2 text-sm focus:outline-none focus:border-[#4f46e5]"
                   />
                 </div>

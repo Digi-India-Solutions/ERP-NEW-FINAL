@@ -188,14 +188,11 @@ export default function GuardOutwardPage() {
       console.log('CLICKED GP:', gpId);
       const token = localStorage.getItem('token');
 
-      const res = await fetch(
-        `http://localhost:7000/api/v1/gatepass/${gpId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+      const res = await fetch(`http://localhost:7000/api/v1/gatepass/${gpId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      );
+      });
 
       const data = await res.json();
 

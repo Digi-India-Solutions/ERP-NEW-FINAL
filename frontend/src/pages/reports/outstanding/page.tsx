@@ -162,7 +162,7 @@ import axios from 'axios';
 import ReportLayout from '@/pages/reports/components/ReportLayout';
 import SummaryCards from '@/pages/reports/components/SummaryCards';
 import { useWarehouseStore } from '@/stores/warehouseStore';
- 
+
 // ─────────────────────────────────────────────────────────────
 // API
 // ─────────────────────────────────────────────────────────────
@@ -183,11 +183,15 @@ const getOutstandingApi = async (asOfDate: string, warehouseId: string) => {
     agingDays: Number(r.agingDays || 0),
   }));
 };
- 
+
 // ─────────────────────────────────────────────────────────────
 // HOOK
 // ─────────────────────────────────────────────────────────────
-const useOutstanding = (asOfDate: string, warehouseId: string, enabled: boolean) => {
+const useOutstanding = (
+  asOfDate: string,
+  warehouseId: string,
+  enabled: boolean,
+) => {
   return useQuery({
     queryKey: ['outstanding', asOfDate, warehouseId],
     queryFn: () => getOutstandingApi(asOfDate, warehouseId),
@@ -250,15 +254,18 @@ export default function OutstandingReport() {
   const today = new Date().toISOString().split('T')[0];
   const [asOfDate, setAsOfDate] = useState(today);
   const { selectedWarehouseId } = useWarehouseStore();
-  const warehouseId = selectedWarehouseId && selectedWarehouseId !== 'ALL' ? selectedWarehouseId : '';
+  const warehouseId =
+    selectedWarehouseId && selectedWarehouseId !== 'ALL'
+      ? selectedWarehouseId
+      : '';
   const [generated, setGenerated] = useState(false);
- 
+
   const {
     data = [],
     isFetching,
     refetch,
   } = useOutstanding(asOfDate, warehouseId, generated);
- 
+
   const handleGenerate = () => {
     setGenerated(true);
     if (generated) refetch();

@@ -199,15 +199,20 @@ import ReportLayout from '@/pages/reports/components/ReportLayout';
 import SummaryCards from '@/pages/reports/components/SummaryCards';
 import { filterParties } from '@/api/party.api';
 import { useWarehouseStore } from '@/stores/warehouseStore';
- 
+
 // ─────────────────────────────────────────────────────────────
 // API
 // ─────────────────────────────────────────────────────────────
 const authHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem('token')}`,
 });
- 
-const getPartyLedgerApi = async (partyId: string, from: string, to: string, warehouseId: string) => {
+
+const getPartyLedgerApi = async (
+  partyId: string,
+  from: string,
+  to: string,
+  warehouseId: string,
+) => {
   const res = await axios.get(
     'http://localhost:7000/api/v1/reports/party-ledger',
     {
@@ -215,7 +220,7 @@ const getPartyLedgerApi = async (partyId: string, from: string, to: string, ware
       headers: authHeaders(),
     },
   );
- 
+
   const raw = res.data?.data ?? [];
   return {
     party: res.data?.party ?? null,
@@ -228,7 +233,7 @@ const getPartyLedgerApi = async (partyId: string, from: string, to: string, ware
     summary: res.data?.summary ?? {},
   };
 };
- 
+
 // ─────────────────────────────────────────────────────────────
 // HOOK
 // ─────────────────────────────────────────────────────────────
@@ -246,19 +251,19 @@ const usePartyLedger = (
     staleTime: 0,
   });
 };
- 
+
 // ─────────────────────────────────────────────────────────────
 // HELPERS & CONSTANTS
 // ─────────────────────────────────────────────────────────────
 function formatINR(n: number) {
   return `₹${Math.abs(n).toLocaleString('en-IN')}`;
 }
- 
+
 function getFirstDayOfMonth() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 }
- 
+
 const VOUCHER_COLORS: Record<string, string> = {
   'Opening Balance': 'bg-slate-100 text-slate-600',
   Sales: 'bg-green-100 text-green-700',
@@ -268,7 +273,7 @@ const VOUCHER_COLORS: Record<string, string> = {
   'Sales Return': 'bg-violet-100 text-violet-700',
   'Purchase Return': 'bg-orange-100 text-orange-700',
 };
- 
+
 const exportColumns = [
   { header: 'Date', key: 'date', width: 12 },
   { header: 'Voucher Type', key: 'voucherType', width: 18 },
@@ -278,7 +283,7 @@ const exportColumns = [
   { header: 'Credit', key: 'credit', width: 14 },
   { header: 'Balance', key: 'balance', width: 14 },
 ];
- 
+
 // ─────────────────────────────────────────────────────────────
 // PAGE
 // ─────────────────────────────────────────────────────────────
@@ -288,10 +293,13 @@ export default function PartyLedgerReport() {
   const [from, setFrom] = useState(getFirstDayOfMonth());
   const [to, setTo] = useState(today);
   const { selectedWarehouseId } = useWarehouseStore();
-  const warehouseId = selectedWarehouseId && selectedWarehouseId !== 'ALL' ? selectedWarehouseId : '';
+  const warehouseId =
+    selectedWarehouseId && selectedWarehouseId !== 'ALL'
+      ? selectedWarehouseId
+      : '';
   const [generated, setGenerated] = useState(false);
   const [parties, setParties] = useState<any[]>([]);
- 
+
   // ── load parties for dropdown ──────────────────────────────
   useEffect(() => {
     filterParties({
@@ -319,9 +327,9 @@ export default function PartyLedgerReport() {
   const suppliers = parties.filter(
     (p) => p.type === 'SUPPLIER' || p.type === 'BOTH',
   );
- 
+
   const canGenerate = !!partyId;
- 
+
   const {
     data: result,
     isFetching,

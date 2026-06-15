@@ -564,7 +564,9 @@ function SupplierReceivingForm({ onSaved, fromPO }: SupplierFormProps) {
       }
     };
     void load();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [userWarehouseId]);
 
   // Fetch real POs whenever supplierId changes
@@ -586,8 +588,14 @@ function SupplierReceivingForm({ onSaved, fromPO }: SupplierFormProps) {
   }, [supplierId]);
 
   const [supplierDropdownOpen, setSupplierDropdownOpen] = useState(false);
-  const [supplierSearchQuery, setSupplierSearchQuery] = useState(fromPO?.supplierName ?? '');
-  const [supplierDropdownPos, setSupplierDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+  const [supplierSearchQuery, setSupplierSearchQuery] = useState(
+    fromPO?.supplierName ?? '',
+  );
+  const [supplierDropdownPos, setSupplierDropdownPos] = useState({
+    top: 0,
+    left: 0,
+    width: 0,
+  });
   const supplierTriggerRef = useRef<HTMLDivElement>(null);
   const supplierInputRef = useRef<HTMLInputElement>(null);
 
@@ -851,32 +859,58 @@ function SupplierReceivingForm({ onSaved, fromPO }: SupplierFormProps) {
         notes.trim() || undefined,
       );
 
-      const selectedSupplierParty = supplierOptions.find(p => p.id === resolvedSupplierId);
-      const supplierData = selectedSupplierParty ? {
-        id: selectedSupplierParty.id,
-        name: selectedSupplierParty.name,
-        gstin: selectedSupplierParty.gstin ?? '',
-        phone: selectedSupplierParty.phone ?? selectedSupplierParty.mobile ?? '',
-        stateCode: selectedSupplierParty.stateCode ?? selectedSupplierParty.state_code ?? '',
-        state_code: selectedSupplierParty.stateCode ?? selectedSupplierParty.state_code ?? '',
-        address: selectedSupplierParty.billingAddress ?? selectedSupplierParty.billing_address ?? '',
-        creditLimit: selectedSupplierParty.creditLimit ?? selectedSupplierParty.credit_limit ?? 0,
-        credit_limit: selectedSupplierParty.creditLimit ?? selectedSupplierParty.credit_limit ?? 0,
-        openingBalance: selectedSupplierParty.openingBalance ?? selectedSupplierParty.opening_balance ?? 0,
-        opening_balance: selectedSupplierParty.openingBalance ?? selectedSupplierParty.opening_balance ?? 0,
-      } : {
-        id: resolvedSupplierId,
-        name: supplierName,
-        gstin: '',
-        phone: '',
-        stateCode: '',
-        state_code: '',
-        address: '',
-        creditLimit: 0,
-        credit_limit: 0,
-        openingBalance: 0,
-        opening_balance: 0,
-      };
+      const selectedSupplierParty = supplierOptions.find(
+        (p) => p.id === resolvedSupplierId,
+      );
+      const supplierData = selectedSupplierParty
+        ? {
+            id: selectedSupplierParty.id,
+            name: selectedSupplierParty.name,
+            gstin: selectedSupplierParty.gstin ?? '',
+            phone:
+              selectedSupplierParty.phone ?? selectedSupplierParty.mobile ?? '',
+            stateCode:
+              selectedSupplierParty.stateCode ??
+              selectedSupplierParty.state_code ??
+              '',
+            state_code:
+              selectedSupplierParty.stateCode ??
+              selectedSupplierParty.state_code ??
+              '',
+            address:
+              selectedSupplierParty.billingAddress ??
+              selectedSupplierParty.billing_address ??
+              '',
+            creditLimit:
+              selectedSupplierParty.creditLimit ??
+              selectedSupplierParty.credit_limit ??
+              0,
+            credit_limit:
+              selectedSupplierParty.creditLimit ??
+              selectedSupplierParty.credit_limit ??
+              0,
+            openingBalance:
+              selectedSupplierParty.openingBalance ??
+              selectedSupplierParty.opening_balance ??
+              0,
+            opening_balance:
+              selectedSupplierParty.openingBalance ??
+              selectedSupplierParty.opening_balance ??
+              0,
+          }
+        : {
+            id: resolvedSupplierId,
+            name: supplierName,
+            gstin: '',
+            phone: '',
+            stateCode: '',
+            state_code: '',
+            address: '',
+            creditLimit: 0,
+            credit_limit: 0,
+            openingBalance: 0,
+            opening_balance: 0,
+          };
 
       onSaved(
         {
@@ -986,9 +1020,12 @@ function SupplierReceivingForm({ onSaved, fromPO }: SupplierFormProps) {
                         }}
                         className="px-3 py-2 cursor-pointer transition-colors text-sm hover:bg-[#f8fafc] text-[#1e293b] flex flex-col"
                       >
-                        <span className="font-medium text-sm text-[#1e293b]">{s.name}</span>
+                        <span className="font-medium text-sm text-[#1e293b]">
+                          {s.name}
+                        </span>
                         <span className="text-[10px] text-slate-400">
-                          {s.type} · {s.phone || 'No phone'} {s.gstin ? `· GSTIN: ${s.gstin}` : ''}
+                          {s.type} · {s.phone || 'No phone'}{' '}
+                          {s.gstin ? `· GSTIN: ${s.gstin}` : ''}
                         </span>
                       </div>
                     ))
@@ -998,7 +1035,7 @@ function SupplierReceivingForm({ onSaved, fromPO }: SupplierFormProps) {
                     </div>
                   )}
                 </div>,
-                document.body
+                document.body,
               )}
           </div>
           <div>
@@ -1206,7 +1243,7 @@ function SupplierReceivingForm({ onSaved, fromPO }: SupplierFormProps) {
 
       <ShortcutBar
         onSave={handleSave}
-        onBack={() => { }}
+        onBack={() => {}}
         isSaving={saving}
         hidePrint
       />
@@ -1281,10 +1318,11 @@ export default function StockReceivingPage() {
               <button
                 type="button"
                 onClick={() => setMode('supplier')}
-                className={`flex items-center gap-2 h-8 px-4 rounded-md text-sm font-medium transition-all cursor-pointer whitespace-nowrap ${mode === 'supplier'
+                className={`flex items-center gap-2 h-8 px-4 rounded-md text-sm font-medium transition-all cursor-pointer whitespace-nowrap ${
+                  mode === 'supplier'
                     ? 'bg-white text-[#1e293b] shadow-sm'
                     : 'text-slate-500 hover:text-slate-700'
-                  }`}
+                }`}
               >
                 <i className="ri-truck-line" />
                 From Supplier
@@ -1292,10 +1330,11 @@ export default function StockReceivingPage() {
               <button
                 type="button"
                 onClick={() => setMode('direct')}
-                className={`flex items-center gap-2 h-8 px-4 rounded-md text-sm font-medium transition-all cursor-pointer whitespace-nowrap ${mode === 'direct'
+                className={`flex items-center gap-2 h-8 px-4 rounded-md text-sm font-medium transition-all cursor-pointer whitespace-nowrap ${
+                  mode === 'direct'
                     ? 'bg-white text-[#1e293b] shadow-sm'
                     : 'text-slate-500 hover:text-slate-700'
-                  }`}
+                }`}
               >
                 <i className="ri-refresh-line" />
                 Direct Stock Entry

@@ -1,7 +1,6 @@
 import axios from 'axios';
 
-const serverURL =
-  import.meta.env.VITE_API_URL || 'http://localhost:7000';
+const serverURL = import.meta.env.VITE_API_URL || 'http://localhost:7000';
 
 // ✅ Axios instance
 const api = axios.create({
