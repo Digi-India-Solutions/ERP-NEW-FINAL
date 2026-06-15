@@ -747,11 +747,10 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         to={item.path || '#'}
         end={item.path === '/'}
         title={collapsed ? item.label : undefined}
-        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 cursor-pointer ${
-          active
-            ? 'bg-[#4f46e5] text-white'
-            : 'text-slate-300 hover:bg-white/10 hover:text-white'
-        }`}
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 cursor-pointer ${active
+          ? 'bg-[#4f46e5] text-white'
+          : 'text-slate-300 hover:bg-white/10 hover:text-white'
+          }`}
       >
         <div className="w-5 h-5 flex items-center justify-center shrink-0">
           <i className={`${item.icon} text-lg leading-none`} />
@@ -788,9 +787,8 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           <>
             <button
               onClick={() => setOpen(!open)}
-              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg hover:bg-white/10 ${
-                isParentActive ? 'text-white' : 'text-slate-300' // ✅ Parent highlight
-              }`}
+              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg hover:bg-white/10 ${isParentActive ? 'text-white' : 'text-slate-300' // ✅ Parent highlight
+                }`}
             >
               <div className="flex items-center gap-2.5">
                 {item.icon && <i className={item.icon} />}
@@ -818,10 +816,9 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           <NavLink
             to={item.path || '#'}
             className={({ isActive }) =>
-              `flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm ${
-                isActive
-                  ? 'bg-[#4f46e5] text-white'
-                  : 'text-slate-400 hover:bg-white/10 hover:text-white'
+              `flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm ${isActive
+                ? 'bg-[#4f46e5] text-white'
+                : 'text-slate-400 hover:bg-white/10 hover:text-white'
               }`
             }
           >
@@ -851,11 +848,10 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             collapsed ? navigate(group.items[0]?.path || '/') : setOpen(!open)
           }
           title={collapsed ? group.label : undefined}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer ${
-            isGroupActive
-              ? 'bg-white/15 text-white'
-              : 'text-slate-300 hover:bg-white/10 hover:text-white'
-          }`}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer ${isGroupActive
+            ? 'bg-white/15 text-white'
+            : 'text-slate-300 hover:bg-white/10 hover:text-white'
+            }`}
         >
           <div className="w-5 h-5 flex items-center justify-center shrink-0">
             <i className={`${group.icon} text-lg leading-none`} />
@@ -866,9 +862,8 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 {group.label}
               </span>
               <i
-                className={`text-slate-400 text-sm transition-transform duration-200 ${
-                  open ? 'ri-arrow-down-s-line' : 'ri-arrow-right-s-line'
-                }`}
+                className={`text-slate-400 text-sm transition-transform duration-200 ${open ? 'ri-arrow-down-s-line' : 'ri-arrow-right-s-line'
+                  }`}
               />
             </>
           )}
@@ -1006,10 +1001,9 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 to="/"
                 end
                 className={({ isActive: a }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer ${
-                    a
-                      ? 'bg-[#4f46e5] text-white'
-                      : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer ${a
+                    ? 'bg-[#4f46e5] text-white'
+                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
                   }`
                 }
                 title={collapsed ? 'Dashboard' : undefined}

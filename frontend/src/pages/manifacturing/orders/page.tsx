@@ -1,20 +1,21 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/feature/AppLayout';
 import ConfirmDialog from '@/components/feature/ConfirmDialog';
 import { useToast } from '@/contexts/ToastContext';
+
 import {
-  mockProductionOrders,
-  mockWarehouseStock,
-  mockRoutings,
-  mockItems,
-  mockInspectionChecklists,
-} from '@/mocks/masters';
-import { mockInspections, calcSampleQty } from '@/mocks/qms';
+  getAllProductionOrders,
+  updateProductionOrderStatus,
+  deleteProductionOrder,
+  mapApiToProductionOrder,
+} from '@/api/productionOrder.api';
 import { formatDateIST } from '@/utils/format';
 import POPrintModal from '@/pages/manifacturing/orders/components/POPrintModal';
 import MTSSuggestModal from '@/pages/manifacturing/orders/components/MTSSuggestModal';
-import type { MockProductionOrder } from '@/mocks/masters';
+
+// ── Local type derived from the API mapper ────────────────────────────────────
+export type ProductionOrder = ReturnType<typeof mapApiToProductionOrder>;
 
 type Status =
   | 'DRAFT'
@@ -112,40 +113,58 @@ const priorityConfig: Record<
 };
 
 function formatShortDate(dateStr: string): string {
+  if (!dateStr) return '—';
   const d = new Date(dateStr);
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-}
-
-function getThisMonthCompleted(): number {
-  const now = new Date();
-  return mockProductionOrders.filter((po) => {
-    if (po.status !== 'COMPLETED' || !po.actualEndDate) return false;
-    const d = new Date(po.actualEndDate);
-    return (
-      d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-    );
-  }).length;
 }
 
 export default function ProductionOrdersPage() {
   const navigate = useNavigate();
   const toast = useToast();
 
+  // ── Data state ────────────────────────────────────────────────────────────
+  const [orders, setOrders] = useState<ProductionOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null); // poId being acted on
+
+  // ── Filter state ──────────────────────────────────────────────────────────
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<FilterType>('ALL');
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('ALL');
   const [priorityFilter, setPriorityFilter] = useState<FilterPriority>('ALL');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+
+  // ── Modal state ───────────────────────────────────────────────────────────
   const [cancelTarget, setCancelTarget] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [printPO, setPrintPO] = useState<MockProductionOrder | null>(null);
+  const [printPO, setPrintPO] = useState<ProductionOrder | null>(null);
   const [showMTSSuggest, setShowMTSSuggest] = useState(false);
 
-  const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+  // ── Fetch all production orders ───────────────────────────────────────────
+  const fetchOrders = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await getAllProductionOrders();
+      if (res.success && Array.isArray(res.data)) {
+        setOrders(res.data.map(mapApiToProductionOrder));
+      } else {
+        setOrders([]);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to load production orders');
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
 
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  // ── Filtered list ─────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
-    return mockProductionOrders.filter((po) => {
+    return orders.filter((po) => {
       if (typeFilter !== 'ALL' && po.type !== typeFilter) return false;
       if (statusFilter !== 'ALL' && po.status !== statusFilter) return false;
       if (priorityFilter !== 'ALL' && po.priority !== priorityFilter)
@@ -158,45 +177,40 @@ export default function ProductionOrdersPage() {
         const q = search.toLowerCase();
         return (
           po.poNumber.toLowerCase().includes(q) ||
-          po.productName.toLowerCase().includes(q) ||
-          (po.variantName?.toLowerCase().includes(q) ?? false) ||
-          po.productCode.toLowerCase().includes(q) ||
-          (po.salesOrderRef?.toLowerCase().includes(q) ?? false) ||
+          po.itemName.toLowerCase().includes(q) ||
+          po.itemCode.toLowerCase().includes(q) ||
           (po.notes?.toLowerCase().includes(q) ?? false)
         );
       }
       return true;
     });
-  }, [
-    search,
-    typeFilter,
-    statusFilter,
-    priorityFilter,
-    dateFrom,
-    dateTo,
-    refreshKey,
-  ]);
+  }, [orders, search, typeFilter, statusFilter, priorityFilter, dateFrom, dateTo]);
 
+  // ── Stats ─────────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
-    const total = mockProductionOrders.length;
-    const inProgress = mockProductionOrders.filter(
-      (po) => po.status === 'IN_PROGRESS',
-    ).length;
-    const planned = mockProductionOrders.filter(
-      (po) => po.status === 'PLANNED',
-    ).length;
-    const onHold = mockProductionOrders.filter(
-      (po) => po.status === 'ON_HOLD',
-    ).length;
-    const completedThisMonth = getThisMonthCompleted();
+    const total = orders.length;
+    const inProgress = orders.filter((po) => po.status === 'IN_PROGRESS').length;
+    const planned = orders.filter((po) => po.status === 'PLANNED').length;
+    const onHold = orders.filter((po) => po.status === 'ON_HOLD').length;
+
+    const now = new Date();
+    const completedThisMonth = orders.filter((po) => {
+      if (po.status !== 'COMPLETED' || !po.actualEndDate) return false;
+      const d = new Date(po.actualEndDate);
+      return (
+        d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+      );
+    }).length;
+
     const byStatus: Record<string, number> = {};
-    mockProductionOrders.forEach((po) => {
+    orders.forEach((po) => {
       byStatus[po.status] = (byStatus[po.status] ?? 0) + 1;
     });
-    return { total, inProgress, planned, onHold, completedThisMonth, byStatus };
-  }, [refreshKey]);
 
-  const completionPct = useCallback((po: MockProductionOrder) => {
+    return { total, inProgress, planned, onHold, completedThisMonth, byStatus };
+  }, [orders]);
+
+  const completionPct = useCallback((po: ProductionOrder) => {
     if (po.plannedQty === 0) return 0;
     return Math.min(
       100,
@@ -204,154 +218,104 @@ export default function ProductionOrdersPage() {
     );
   }, []);
 
-  // ── Status Transition Handlers ─────────────────────────────────────────────
-  const handleSubmit = useCallback(
-    (poId: string) => {
-      const idx = mockProductionOrders.findIndex((po) => po.id === poId);
-      if (idx < 0) return;
-      mockProductionOrders[idx] = {
-        ...mockProductionOrders[idx],
-        status: 'PLANNED',
-      };
-      toast.success(
-        `Production Order ${mockProductionOrders[idx].poNumber} → PLANNED`,
-      );
-      refresh();
+  // ── Status transition helper ──────────────────────────────────────────────
+  const changeStatus = useCallback(
+    async (poId: string, newStatus: string, successMsg: string) => {
+      setActionLoading(poId);
+      try {
+        const res = await updateProductionOrderStatus(poId, newStatus);
+        if (res.success) {
+          toast.success(successMsg);
+          // Optimistic update locally
+          setOrders((prev) =>
+            prev.map((po) =>
+              po.id === poId
+                ? {
+                    ...po,
+                    status: newStatus,
+                    ...(newStatus === 'IN_PROGRESS' && !po.actualStartDate
+                      ? { actualStartDate: new Date().toISOString().split('T')[0] }
+                      : {}),
+                    ...(newStatus === 'COMPLETED'
+                      ? { actualEndDate: new Date().toISOString().split('T')[0] }
+                      : {}),
+                  }
+                : po,
+            ),
+          );
+        } else {
+          toast.error((res as any).message || 'Status update failed');
+        }
+      } catch (err: any) {
+        toast.error(err?.message || 'Status update failed');
+      } finally {
+        setActionLoading(null);
+      }
     },
-    [toast, refresh],
+    [toast],
+  );
+
+  const handleSubmit = useCallback(
+    (po: ProductionOrder) =>
+      changeStatus(po.id, 'PLANNED', `${po.poNumber} → PLANNED`),
+    [changeStatus],
   );
 
   const handleStart = useCallback(
-    (poId: string) => {
-      const idx = mockProductionOrders.findIndex((po) => po.id === poId);
-      if (idx < 0) return;
-      const po = mockProductionOrders[idx];
-      mockProductionOrders[idx] = {
-        ...po,
-        status: 'IN_PROGRESS',
-        actualStartDate:
-          po.actualStartDate || new Date().toISOString().split('T')[0],
-      };
-      toast.success(`Production Order ${po.poNumber} → IN PROGRESS`);
-      refresh();
-    },
-    [toast, refresh],
+    (po: ProductionOrder) =>
+      changeStatus(po.id, 'IN_PROGRESS', `${po.poNumber} → IN PROGRESS`),
+    [changeStatus],
   );
 
   const handleComplete = useCallback(
-    (poId: string) => {
-      const idx = mockProductionOrders.findIndex((po) => po.id === poId);
-      if (idx < 0) return;
-      const po = mockProductionOrders[idx];
-      const today = new Date().toISOString().split('T')[0];
-      mockProductionOrders[idx] = {
-        ...po,
-        status: 'COMPLETED',
-        actualEndDate: today,
-      };
-      // Update finished goods stock
-      if (!mockWarehouseStock['wh-001']) mockWarehouseStock['wh-001'] = {};
-      const prev = mockWarehouseStock['wh-001'][po.productId] || 0;
-      mockWarehouseStock['wh-001'][po.productId] = prev + po.plannedQty;
-      toast.success(`Production Order ${po.poNumber} → COMPLETED`);
-      toast.success(`Stock updated: +${po.plannedQty} ${po.productName}`);
-
-      // Auto-trigger Final inspection if completedQty > 0
-      if (po.completedQty > 0) {
-        const item = mockItems.find((i) => i.id === po.productId);
-        const checklist =
-          mockInspectionChecklists.find(
-            (c) =>
-              c.applicableTo === 'FINAL' &&
-              c.itemTypeTarget === item?.itemType &&
-              c.isActive,
-          ) ||
-          mockInspectionChecklists.find(
-            (c) => c.applicableTo === 'FINAL' && c.isActive,
-          );
-        if (checklist) {
-          const nextNum = mockInspections.length + 1;
-          const sampleQty = calcSampleQty(
-            checklist.samplingPlan,
-            po.completedQty,
-          );
-          const newInspection = {
-            id: `insp-${Date.now()}`,
-            inspectionNumber: `QC-FN-2024-${String(nextNum).padStart(3, '0')}`,
-            type: 'FINAL' as const,
-            status: 'PENDING' as const,
-            triggeredBy: 'AUTO' as const,
-            sourceType: 'PRODUCTION_ORDER' as const,
-            sourceId: po.id,
-            sourceNumber: po.poNumber,
-            itemId: po.productId,
-            itemName: po.productName,
-            itemCode: item?.code || null,
-            isVariant: po.isVariant ?? false,
-            variantName: po.variantName || null,
-            checklistId: checklist.id,
-            checklistName: checklist.name,
-            samplingPlan: checklist.samplingPlan,
-            batchNumber: null,
-            lotNumber: null,
-            totalQty: po.completedQty,
-            sampleQty,
-            passedQty: 0,
-            failedQty: 0,
-            unit: po.unit,
-            inspectorId: null,
-            inspectorName: null,
-            scheduledDate: today,
-            completedDate: null,
-            warehouseId: null,
-            notes: `Auto-triggered on completion of ${po.poNumber}`,
-            createdAt: new Date().toISOString(),
-          };
-          mockInspections.push(newInspection);
-          toast.success(`Final inspection triggered for ${po.poNumber}`);
-        }
-      }
-
-      refresh();
-    },
-    [toast, refresh],
+    (po: ProductionOrder) =>
+      changeStatus(po.id, 'COMPLETED', `${po.poNumber} → COMPLETED`),
+    [changeStatus],
   );
 
   const handleHold = useCallback(
-    (poId: string) => {
-      const idx = mockProductionOrders.findIndex((po) => po.id === poId);
-      if (idx < 0) return;
-      const po = mockProductionOrders[idx];
-      mockProductionOrders[idx] = { ...po, status: 'ON_HOLD' };
-      toast.success(`Production Order ${po.poNumber} → ON HOLD`);
-      refresh();
-    },
-    [toast, refresh],
+    (po: ProductionOrder) =>
+      changeStatus(po.id, 'ON_HOLD', `${po.poNumber} → ON HOLD`),
+    [changeStatus],
   );
 
   const handleResume = useCallback(
-    (poId: string) => {
-      const idx = mockProductionOrders.findIndex((po) => po.id === poId);
-      if (idx < 0) return;
-      const po = mockProductionOrders[idx];
-      mockProductionOrders[idx] = { ...po, status: 'IN_PROGRESS' };
-      toast.success(`Production Order ${po.poNumber} → IN PROGRESS`);
-      refresh();
-    },
-    [toast, refresh],
+    (po: ProductionOrder) =>
+      changeStatus(po.id, 'IN_PROGRESS', `${po.poNumber} → IN PROGRESS`),
+    [changeStatus],
   );
 
-  const handleCancelConfirm = useCallback(() => {
+  const handleCancelConfirm = useCallback(async () => {
     if (!cancelTarget) return;
-    const idx = mockProductionOrders.findIndex((po) => po.id === cancelTarget);
-    if (idx >= 0) {
-      const po = mockProductionOrders[idx];
-      mockProductionOrders[idx] = { ...po, status: 'CANCELLED' };
-      toast.success(`Production Order ${po.poNumber} → CANCELLED`);
-      refresh();
+    const po = orders.find((o) => o.id === cancelTarget);
+    if (!po) {
+      setCancelTarget(null);
+      return;
     }
+    await changeStatus(cancelTarget, 'CANCELLED', `${po.poNumber} → CANCELLED`);
     setCancelTarget(null);
-  }, [cancelTarget, toast, refresh]);
+  }, [cancelTarget, orders, changeStatus]);
+
+  // ── Delete handler (unused in UI but imported) ────────────────────────────
+  const handleDelete = useCallback(
+    async (poId: string) => {
+      setActionLoading(poId);
+      try {
+        const res = await deleteProductionOrder(poId);
+        if (res.success) {
+          toast.success('Production order deleted');
+          setOrders((prev) => prev.filter((po) => po.id !== poId));
+        } else {
+          toast.error((res as any).message || 'Delete failed');
+        }
+      } catch (err: any) {
+        toast.error(err?.message || 'Delete failed');
+      } finally {
+        setActionLoading(null);
+      }
+    },
+    [toast],
+  );
 
   return (
     <AppLayout>
@@ -364,7 +328,7 @@ export default function ProductionOrdersPage() {
                 Production Orders
               </h1>
               <p className="text-xs text-[#64748b] mt-0.5">
-                {stats.total} orders
+                {loading ? 'Loading…' : `${stats.total} orders`}
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -377,7 +341,7 @@ export default function ProductionOrdersPage() {
               </button>
               <button
                 onClick={() =>
-                  navigate('/manufacturing/orders/new', {
+                  navigate('/manufacturing/production-orders/new', {
                     state: { type: 'MTO' },
                   })
                 }
@@ -388,7 +352,7 @@ export default function ProductionOrdersPage() {
               </button>
               <button
                 onClick={() =>
-                  navigate('/manufacturing/orders/new', {
+                  navigate('/manufacturing/production-orders/new', {
                     state: { type: 'MTS' },
                   })
                 }
@@ -521,7 +485,7 @@ export default function ProductionOrdersPage() {
                     </div>
                     <input
                       type="text"
-                      placeholder="Search by PO number or product name..."
+                      placeholder="Search by PO number, product name or code..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300"
@@ -553,6 +517,13 @@ export default function ProductionOrdersPage() {
                     <option value="NORMAL">Normal</option>
                     <option value="LOW">Low</option>
                   </select>
+                  <button
+                    onClick={fetchOrders}
+                    title="Refresh"
+                    className="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors cursor-pointer"
+                  >
+                    <i className={`ri-refresh-line text-sm ${loading ? 'animate-spin' : ''}`} />
+                  </button>
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -627,15 +598,24 @@ export default function ProductionOrdersPage() {
                       Status
                     </th>
                     <th className="text-left px-4 py-3 font-semibold text-[#475569] text-xs uppercase tracking-wider whitespace-nowrap">
-                      QC Status
-                    </th>
-                    <th className="text-left px-4 py-3 font-semibold text-[#475569] text-xs uppercase tracking-wider whitespace-nowrap">
                       Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.length === 0 ? (
+                  {loading ? (
+                    <tr>
+                      <td
+                        colSpan={9}
+                        className="px-4 py-12 text-center text-sm text-[#94a3b8]"
+                      >
+                        <div className="flex flex-col items-center gap-3">
+                          <i className="ri-loader-4-line text-2xl text-indigo-400 animate-spin" />
+                          <span>Loading production orders…</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : filtered.length === 0 ? (
                     <tr>
                       <td
                         colSpan={9}
@@ -649,12 +629,17 @@ export default function ProductionOrdersPage() {
                     </tr>
                   ) : (
                     filtered.map((po) => {
-                      const s = statusConfig[po.status];
-                      const p = priorityConfig[po.priority];
+                      const s =
+                        statusConfig[po.status as Status] ??
+                        statusConfig['DRAFT'];
+                      const p =
+                        priorityConfig[po.priority as Priority] ??
+                        priorityConfig['NORMAL'];
                       const pct = completionPct(po);
-                      const isComplete = po.completedQty === po.plannedQty;
+                      const isComplete = po.completedQty >= po.plannedQty && po.plannedQty > 0;
                       const hasStarted =
                         po.completedQty > 0 || po.rejectedQty > 0;
+                      const isActing = actionLoading === po.id;
                       return (
                         <tr
                           key={po.id}
@@ -664,14 +649,16 @@ export default function ProductionOrdersPage() {
                           <td className="px-4 py-3 whitespace-nowrap">
                             <button
                               onClick={() =>
-                                navigate(`/manufacturing/orders/${po.id}/edit`)
+                                navigate(
+                                  `/manufacturing/production-orders/${po.id}`,
+                                )
                               }
                               className="text-sm font-semibold text-[#4f46e5] hover:text-indigo-800 cursor-pointer text-left"
                             >
                               {po.poNumber}
                             </button>
                             <div className="text-[11px] text-[#94a3b8] mt-0.5">
-                              BOM v{po.bomVersion}
+                              BOM v{po.bomVersion || '—'}
                             </div>
                           </td>
                           {/* Type */}
@@ -689,21 +676,22 @@ export default function ProductionOrdersPage() {
                           {/* Product */}
                           <td className="px-4 py-3">
                             <p className="text-sm font-medium text-gray-900">
-                              {po.productName}
+                              {po.itemName}
                             </p>
-                            {po.isVariant && po.variantName && (
-                              <p className="text-xs text-gray-400 mt-0.5">
-                                {po.variantName}
+                            <p className="text-[11px] text-gray-400">
+                              {po.itemCode}
+                            </p>
+                            {po.warehouseName && (
+                              <p className="text-[11px] text-gray-400 mt-0.5">
+                                <i className="ri-store-2-line mr-0.5" />
+                                {po.warehouseName}
                               </p>
                             )}
-                            <p className="text-[11px] text-gray-400">
-                              {po.productCode}
-                            </p>
                           </td>
                           {/* Qty */}
                           <td className="px-4 py-3 whitespace-nowrap">
                             <div className="text-sm font-medium text-[#1e293b]">
-                              {po.plannedQty} {po.unit}
+                              {po.plannedQty}
                             </div>
                             {po.rejectedQty > 0 && (
                               <div className="text-[11px] text-rose-500 mt-0.5">
@@ -752,169 +740,124 @@ export default function ProductionOrdersPage() {
                               {s.label}
                             </span>
                           </td>
-                          {/* QC Status */}
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            {(() => {
-                              const linkedInspections = mockInspections.filter(
-                                (i) =>
-                                  i.sourceType === 'PRODUCTION_ORDER' &&
-                                  i.sourceId === po.id,
-                              );
-                              if (linkedInspections.length === 0) {
-                                return (
-                                  <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200 font-medium whitespace-nowrap">
-                                    No QC
-                                  </span>
-                                );
-                              }
-                              const allPassed = linkedInspections.every(
-                                (i) => i.status === 'PASSED',
-                              );
-                              const anyFailed = linkedInspections.some(
-                                (i) => i.status === 'FAILED',
-                              );
-                              const anyPending = linkedInspections.some(
-                                (i) =>
-                                  i.status === 'PENDING' ||
-                                  i.status === 'IN_PROGRESS',
-                              );
-                              if (anyFailed)
-                                return (
-                                  <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200 font-medium whitespace-nowrap">
-                                    ❌ QC Failed
-                                  </span>
-                                );
-                              if (allPassed)
-                                return (
-                                  <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium whitespace-nowrap">
-                                    ✅ QC Passed
-                                  </span>
-                                );
-                              if (anyPending)
-                                return (
-                                  <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-medium whitespace-nowrap">
-                                    ⏳ QC Pending
-                                  </span>
-                                );
-                              return (
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200 font-medium whitespace-nowrap">
-                                  No QC
-                                </span>
-                              );
-                            })()}
-                          </td>
                           {/* Actions */}
                           <td className="px-4 py-3 whitespace-nowrap">
                             <div className="flex items-center gap-1 flex-wrap">
-                              {/* Status transition buttons */}
-                              {po.status === 'DRAFT' && (
-                                <button
-                                  onClick={() => handleSubmit(po.id)}
-                                  title="Submit for Planning"
-                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-sky-50 text-sky-700 text-[11px] font-medium border border-sky-200 hover:bg-sky-100 cursor-pointer whitespace-nowrap"
-                                >
-                                  <i className="ri-send-plane-line" />
-                                  Submit
-                                </button>
-                              )}
-                              {po.status === 'PLANNED' && (
-                                <button
-                                  onClick={() => handleStart(po.id)}
-                                  title="Start Production"
-                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-50 text-amber-700 text-[11px] font-medium border border-amber-200 hover:bg-amber-100 cursor-pointer whitespace-nowrap"
-                                >
-                                  <i className="ri-play-line" />
-                                  Start
-                                </button>
-                              )}
-                              {po.status === 'IN_PROGRESS' && (
+                              {isActing ? (
+                                <i className="ri-loader-4-line animate-spin text-indigo-400 text-base" />
+                              ) : (
                                 <>
-                                  <button
-                                    onClick={() => handleComplete(po.id)}
-                                    title="Complete Production"
-                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-medium border border-emerald-200 hover:bg-emerald-100 cursor-pointer whitespace-nowrap"
-                                  >
-                                    <i className="ri-check-line" />
-                                    Complete
-                                  </button>
-                                  <button
-                                    onClick={() => handleHold(po.id)}
-                                    title="Put on Hold"
-                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-50 text-rose-700 text-[11px] font-medium border border-rose-200 hover:bg-rose-100 cursor-pointer whitespace-nowrap"
-                                  >
-                                    <i className="ri-pause-line" />
-                                    Hold
-                                  </button>
-                                </>
-                              )}
-                              {po.status === 'ON_HOLD' && (
-                                <>
-                                  <button
-                                    onClick={() => handleResume(po.id)}
-                                    title="Resume Production"
-                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-50 text-amber-700 text-[11px] font-medium border border-amber-200 hover:bg-amber-100 cursor-pointer whitespace-nowrap"
-                                  >
-                                    <i className="ri-play-line" />
-                                    Resume
-                                  </button>
-                                  <button
-                                    onClick={() => setCancelTarget(po.id)}
-                                    title="Cancel"
-                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-50 text-slate-600 text-[11px] font-medium border border-slate-200 hover:bg-slate-100 cursor-pointer whitespace-nowrap"
-                                  >
-                                    <i className="ri-close-line" />
-                                    Cancel
-                                  </button>
-                                </>
-                              )}
+                                  {/* Status transition buttons */}
+                                  {po.status === 'DRAFT' && (
+                                    <button
+                                      onClick={() => handleSubmit(po)}
+                                      title="Submit for Planning"
+                                      className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-sky-50 text-sky-700 text-[11px] font-medium border border-sky-200 hover:bg-sky-100 cursor-pointer whitespace-nowrap"
+                                    >
+                                      <i className="ri-send-plane-line" />
+                                      Submit
+                                    </button>
+                                  )}
+                                  {po.status === 'PLANNED' && (
+                                    <button
+                                      onClick={() => handleStart(po)}
+                                      title="Start Production"
+                                      className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-50 text-amber-700 text-[11px] font-medium border border-amber-200 hover:bg-amber-100 cursor-pointer whitespace-nowrap"
+                                    >
+                                      <i className="ri-play-line" />
+                                      Start
+                                    </button>
+                                  )}
+                                  {po.status === 'IN_PROGRESS' && (
+                                    <>
+                                      <button
+                                        onClick={() => handleComplete(po)}
+                                        title="Complete Production"
+                                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-medium border border-emerald-200 hover:bg-emerald-100 cursor-pointer whitespace-nowrap"
+                                      >
+                                        <i className="ri-check-line" />
+                                        Complete
+                                      </button>
+                                      <button
+                                        onClick={() => handleHold(po)}
+                                        title="Put on Hold"
+                                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-50 text-rose-700 text-[11px] font-medium border border-rose-200 hover:bg-rose-100 cursor-pointer whitespace-nowrap"
+                                      >
+                                        <i className="ri-pause-line" />
+                                        Hold
+                                      </button>
+                                    </>
+                                  )}
+                                  {po.status === 'ON_HOLD' && (
+                                    <>
+                                      <button
+                                        onClick={() => handleResume(po)}
+                                        title="Resume Production"
+                                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-50 text-amber-700 text-[11px] font-medium border border-amber-200 hover:bg-amber-100 cursor-pointer whitespace-nowrap"
+                                      >
+                                        <i className="ri-play-line" />
+                                        Resume
+                                      </button>
+                                      <button
+                                        onClick={() => setCancelTarget(po.id)}
+                                        title="Cancel"
+                                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-50 text-slate-600 text-[11px] font-medium border border-slate-200 hover:bg-slate-100 cursor-pointer whitespace-nowrap"
+                                      >
+                                        <i className="ri-close-line" />
+                                        Cancel
+                                      </button>
+                                    </>
+                                  )}
 
-                              {/* Print button */}
-                              <button
-                                onClick={() => setPrintPO(po)}
-                                title="Print Production Order"
-                                className="w-7 h-7 flex items-center justify-center rounded-md text-[#64748b] hover:bg-slate-100 hover:text-[#1e293b] transition-colors cursor-pointer"
-                              >
-                                <i className="ri-printer-line text-sm" />
-                              </button>
-                              {/* Edit */}
-                              <button
-                                onClick={() =>
-                                  navigate(
-                                    `/manufacturing/orders/${po.id}/edit`,
-                                  )
-                                }
-                                title="Edit"
-                                className="w-7 h-7 flex items-center justify-center rounded-md text-[#64748b] hover:bg-slate-100 hover:text-[#1e293b] transition-colors cursor-pointer"
-                              >
-                                <i className="ri-pencil-line text-sm" />
-                              </button>
-                              {/* Work Orders */}
-                              <button
-                                onClick={() =>
-                                  navigate(
-                                    `/manufacturing/work-orders?poId=${po.id}`,
-                                  )
-                                }
-                                title="Work Orders"
-                                className="w-7 h-7 flex items-center justify-center rounded-md text-[#64748b] hover:bg-slate-100 hover:text-[#1e293b] transition-colors cursor-pointer"
-                              >
-                                <i className="ri-stack-line text-sm" />
-                              </button>
-                              {/* Cancel (not draft/on-hold/cancelled/completed) */}
-                              {po.status !== 'CANCELLED' &&
-                                po.status !== 'COMPLETED' &&
-                                po.status !== 'ON_HOLD' &&
-                                po.status !== 'DRAFT' &&
-                                po.status !== 'PLANNED' &&
-                                po.status !== 'IN_PROGRESS' && (
+                                  {/* Print button */}
                                   <button
-                                    onClick={() => setCancelTarget(po.id)}
-                                    title="Cancel"
-                                    className="w-7 h-7 flex items-center justify-center rounded-md text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer"
+                                    onClick={() => setPrintPO(po)}
+                                    title="Print Production Order"
+                                    className="w-7 h-7 flex items-center justify-center rounded-md text-[#64748b] hover:bg-slate-100 hover:text-[#1e293b] transition-colors cursor-pointer"
                                   >
-                                    <i className="ri-close-circle-line text-sm" />
+                                    <i className="ri-printer-line text-sm" />
                                   </button>
-                                )}
+                                  {/* Edit */}
+                                  <button
+                                    onClick={() =>
+                                      navigate(
+                                        `/manufacturing/production-orders/${po.id}/edit`,
+                                      )
+                                    }
+                                    title="Edit"
+                                    className="w-7 h-7 flex items-center justify-center rounded-md text-[#64748b] hover:bg-slate-100 hover:text-[#1e293b] transition-colors cursor-pointer"
+                                  >
+                                    <i className="ri-pencil-line text-sm" />
+                                  </button>
+                                  {/* Work Orders */}
+                                  <button
+                                    onClick={() =>
+                                      navigate(
+                                        `/manufacturing/work-orders?poId=${po.id}`,
+                                      )
+                                    }
+                                    title="Work Orders"
+                                    className="w-7 h-7 flex items-center justify-center rounded-md text-[#64748b] hover:bg-slate-100 hover:text-[#1e293b] transition-colors cursor-pointer"
+                                  >
+                                    <i className="ri-stack-line text-sm" />
+                                  </button>
+                                  {/* Cancel — for statuses that allow it */}
+                                  {po.status !== 'CANCELLED' &&
+                                    po.status !== 'COMPLETED' &&
+                                    po.status !== 'ON_HOLD' &&
+                                    po.status !== 'DRAFT' &&
+                                    po.status !== 'PLANNED' &&
+                                    po.status !== 'IN_PROGRESS' && (
+                                      <button
+                                        onClick={() => setCancelTarget(po.id)}
+                                        title="Cancel"
+                                        className="w-7 h-7 flex items-center justify-center rounded-md text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer"
+                                      >
+                                        <i className="ri-close-circle-line text-sm" />
+                                      </button>
+                                    )}
+                                </>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -928,9 +871,17 @@ export default function ProductionOrdersPage() {
             {/* Footer */}
             <div className="px-4 py-3 border-t border-slate-200 flex items-center justify-between bg-slate-50/50">
               <span className="text-xs text-[#64748b]">
-                Showing {filtered.length} of {mockProductionOrders.length}{' '}
-                production orders
+                Showing {filtered.length} of {orders.length} production orders
               </span>
+              {!loading && (
+                <button
+                  onClick={fetchOrders}
+                  className="text-xs text-indigo-500 hover:text-indigo-700 cursor-pointer flex items-center gap-1"
+                >
+                  <i className="ri-refresh-line" />
+                  Refresh
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -944,7 +895,7 @@ export default function ProductionOrdersPage() {
       {showMTSSuggest && (
         <MTSSuggestModal
           onClose={() => setShowMTSSuggest(false)}
-          onCreated={refresh}
+          onCreated={fetchOrders}
         />
       )}
 
