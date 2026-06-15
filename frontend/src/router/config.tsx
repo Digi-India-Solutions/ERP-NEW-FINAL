@@ -155,9 +155,15 @@ const routes: RouteObject[] = [
   { path: '/login', element: <LoginPage /> },
   { path: '/forgot-password', element: <ForgetPasswordPage /> },
   { path: '/reset-password/:token', element: <ResetPasswordPage /> },
- 
- 
-  { path: '/', element: (<P><Dashboard /></P>),},
+
+  {
+    path: '/',
+    element: (
+      <P>
+        <Dashboard />
+      </P>
+    ),
+  },
 
   {
     path: '/settings',
@@ -566,6 +572,14 @@ const routes: RouteObject[] = [
     path: '/manufacturing/create-bom',
     element: (
       <Perm module={MODULES.PURCHASE_PAYMENT} action="view">
+        <BOMForm />
+      </Perm>
+    ),
+  },
+  {
+    path: '/manufacturing/bom/:id/edit',
+    element: (
+      <Perm module={MODULES.PURCHASE_PAYMENT} action="edit">
         <BOMForm />
       </Perm>
     ),

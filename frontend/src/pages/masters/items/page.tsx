@@ -9,6 +9,9 @@ import { useDebounce } from '@/utils/debounce';
 import { formatINR } from '@/utils/format';
 import { MODULES } from '@/utils/permissions.js';
 import { useAuth } from '@/contexts/AuthContext';
+import SingleVariantModal from './components/SingleVariantModal';
+import BulkVariantModal from './components/BulkVariantModal';
+import EditVariantModal from './components/EditVariantModal';
 import {
   filterItems,
   createItem,
@@ -46,7 +49,6 @@ interface Item {
   stock: number;
   createdAt?: string;
   updatedAt?: string;
-  // 🆕 Variants support
   isParent?: boolean;
   hasVariants?: boolean;
   variantCount?: number;
@@ -55,6 +57,13 @@ interface Item {
   variantName?: string | null;
   variantAttributes?: Record<string, string> | null;
   variantSku?: string | null;
+  // ✅ YE ADD KARO
+  itemType?: string;
+  enableVariants?: boolean;
+  enableBatchTracking?: boolean;
+  enableSerialTracking?: boolean;
+  requiresIncomingQC?: boolean;
+  requiresFinalQC?: boolean;
 }
 
 type StockStatus = 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
@@ -98,6 +107,8 @@ export default function ItemsPage() {
     [],
   );
   const [totalItems, setTotalItems] = useState(0);
+  const [singleVariantItem, setSingleVariantItem] = useState<Item | null>(null);
+  const [bulkVariantItem, setBulkVariantItem] = useState<Item | null>(null);
 
   // 🆕 Variants state
   const [showVariants, setShowVariants] = useState(true);
@@ -116,24 +127,58 @@ export default function ItemsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
 
+  const [variantsMap, setVariantsMap] = useState<Record<string, any[]>>({});
+  const [loadingVariants, setLoadingVariants] = useState<Set<string>>(
+    new Set(),
+  );
   // ── Drawer / modal state ──
   const [slideOpen, setSlideOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Item | null>(null);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [editingVariant, setEditingVariant] = useState<any | null>(null);
 
   // 🆕 Toggle expand for parent items
-  const toggleExpand = (parentId: string) => {
-    setExpandedParents((prev) => {
-      const next = new Set(prev);
-      if (next.has(parentId)) {
-        next.delete(parentId);
-      } else {
-        next.add(parentId);
-      }
-      return next;
-    });
-  };
+ const toggleExpand = async (parentId: string) => {
+   setExpandedParents((prev) => {
+     const next = new Set(prev);
+     if (next.has(parentId)) {
+       next.delete(parentId);
+     } else {
+       next.add(parentId);
+     }
+     return next;
+   });
+
+   // Agar pehle se loaded hai toh skip karo
+   if (variantsMap[parentId]) return;
+
+   // Variants fetch karo
+   setLoadingVariants((prev) => new Set(prev).add(parentId));
+   try {
+     const res = await fetch(
+       `http://localhost:7000/api/v1/item/${parentId}/variants`,
+       {
+         headers: {
+           'Content-Type': 'application/json',
+           Authorization: `Bearer ${localStorage.getItem('token')}`,
+         },
+       },
+     );
+     const data = await res.json();
+     if (data.success) {
+       setVariantsMap((prev) => ({ ...prev, [parentId]: data.data ?? [] }));
+     }
+   } catch {
+     // silent
+   } finally {
+     setLoadingVariants((prev) => {
+       const next = new Set(prev);
+       next.delete(parentId);
+       return next;
+     });
+   }
+ };
 
   // ── Fetch items from API ──
   const fetchItems = useCallback(async () => {
@@ -142,7 +187,14 @@ export default function ItemsPage() {
       const params: any = {};
 
       if (search.trim()) params.search = search.trim();
-      if (filterCat !== 'ALL') params.categoryId = filterCat;
+      // fetchItems mein
+      if (filterCat !== 'ALL') {
+        const selectedCat = categories.find((c) => c.name === filterCat);
+        if (selectedCat) {
+          params.categoryId = selectedCat.id; // ID bhi
+          params.categoryName = selectedCat.name; // Name bhi
+        }
+      }
       if (filterStatus !== 'ALL') params.stockStatus = filterStatus;
       if (filterActive !== 'ALL') params.isActive = filterActive;
       if (selectedWarehouseId) params.warehouseId = selectedWarehouseId;
@@ -151,31 +203,45 @@ export default function ItemsPage() {
       const response = await filterItems(params);
       console.log('API Response:', response);
 
-      if (response.success && response.data) {
-        // Map API response to Item interface
-        const mappedItems = response.data.map((apiItem: ItemResponse) => {
-          const mapped = mapApiToItem(apiItem);
-          return {
-            ...mapped,
-            stock: typeof mapped.stock === 'number' ? mapped.stock : 0,
-            // 🆕 Initialize variants fields
-            isParent: false,
-            hasVariants: false,
-            variantCount: 0,
-            isVariant: false,
-            parentItemId: null,
-            variantName: null,
-            variantAttributes: null,
-            variantSku: null,
-          } as Item;
-        });
+     if (response.success && response.data) {
+       let mappedItems = response.data.map((apiItem: ItemResponse) => {
+         const mapped = mapApiToItem(apiItem);
+         return {
+           ...mapped,
+           stock: typeof mapped.stock === 'number' ? mapped.stock : 0,
+           isParent: mapped.enableVariants ?? false,
+           hasVariants: false,
+           variantCount: 0,
+           isVariant: false,
+           parentItemId: null,
+           variantName: null,
+           variantAttributes: null,
+           variantSku: null,
+           itemType: mapped.itemType ?? '',
+           enableVariants: mapped.enableVariants ?? false,
+           enableBatchTracking: mapped.enableBatchTracking ?? false,
+           enableSerialTracking: mapped.enableSerialTracking ?? false,
+           requiresIncomingQC: mapped.requiresIncomingQC ?? false,
+           requiresFinalQC: mapped.requiresFinalQC ?? false,
+         } as Item;
+       });
 
-        setItems(mappedItems);
-        setTotalItems(response.count || mappedItems.length);
-      } else {
-        setItems([]);
-        setTotalItems(0);
-      }
+       // ✅ Frontend filters
+       if (filterCat !== 'ALL') {
+         mappedItems = mappedItems.filter((i) => i.categoryName === filterCat);
+       }
+       if (filterActive !== 'ALL') {
+         mappedItems = mappedItems.filter(
+           (i) => String(i.isActive) === filterActive,
+         );
+       }
+
+       setItems(mappedItems);
+       setTotalItems(mappedItems.length); // ✅ filtered count use karo
+     } else {
+       setItems([]);
+       setTotalItems(0);
+     }
     } catch (err) {
       console.error('Fetch items error:', err);
       toastError(err instanceof Error ? err.message : 'Failed to load items');
@@ -191,6 +257,7 @@ export default function ItemsPage() {
     filterActive,
     selectedWarehouseId,
     toastError,
+    categories,
   ]);
 
   // Load categories
@@ -210,9 +277,15 @@ export default function ItemsPage() {
   };
 
   // Fetch items when filters change
+  // Categories sirf ek baar load karo
+  useEffect(() => {
+    loadCategories();
+  }, []); // ✅ empty dependency
+
+  // Items filters change hone par load karo
   useEffect(() => {
     fetchItems();
-  }, [fetchItems]);
+  }, [fetchItems]); // ✅ alag rakho
 
   // ── Stats ──
   const stats = useMemo(
@@ -247,12 +320,22 @@ export default function ItemsPage() {
   // ── Save handler ──
   const handleSave = async (formData: ItemFormData) => {
     try {
+      // ✅ Frontend isParent → Backend enableVariants map karo
+      const payload = {
+        ...formData,
+        enableVariants: formData.isParent ?? false,
+        enableBatchTracking: formData.enableBatchTracking ?? false,
+        enableSerialTracking: formData.enableSerialTracking ?? false,
+        requiresIncomingQC: formData.requiresIncomingQC ?? false,
+        requiresFinalQC: formData.requiresFinalQC ?? false,
+      };
+
       if (editingItem) {
-        const res = await updateItem(editingItem.id, formData);
+        const res = await updateItem(editingItem.id, payload);
         if (!res.success) throw new Error(res.message);
         success('Item updated successfully');
       } else {
-        const res = await createItem(formData as any);
+        const res = await createItem(payload as any);
         if (!res.success) throw new Error(res.message);
         success('Item created successfully');
       }
@@ -458,7 +541,7 @@ export default function ItemsPage() {
           >
             <option value="ALL">All Categories</option>
             {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
+              <option key={cat.id} value={cat.name}>
                 {cat.name}
               </option>
             ))}
@@ -546,6 +629,15 @@ export default function ItemsPage() {
                     ITEM NAME
                   </th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-[#64748b] uppercase tracking-wide">
+                    TYPE
+                  </th>
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-[#64748b] uppercase tracking-wide">
+                    BOM
+                  </th>
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-[#64748b] uppercase tracking-wide">
+                    TRACKING
+                  </th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-[#64748b] uppercase tracking-wide">
                     CATEGORY
                   </th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-[#64748b] uppercase tracking-wide">
@@ -579,11 +671,17 @@ export default function ItemsPage() {
                 {isLoading &&
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i} className="border-b border-[#f1f5f9]">
-                      {Array.from({ length: 11 }).map((_, j) => (
-                        <td key={j} className="px-4 py-3">
-                          <div className="h-4 bg-[#f1f5f9} rounded animate-pulse" />
-                        </td>
-                      ))}
+                      {Array.from({ length: 14 }).map(
+                        (
+                          _,
+                          j, // ✅ 14
+                        ) => (
+                          <td key={j} className="px-4 py-3">
+                            <div className="h-4 bg-[#f1f5f9] rounded animate-pulse" />{' '}
+                            {/* ✅ closing brace fix */}
+                          </td>
+                        ),
+                      )}
                     </tr>
                   ))}
 
@@ -640,6 +738,66 @@ export default function ItemsPage() {
                               </div>
                             </div>
                           </td>
+                          {/* ── TYPE ── */}
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            {item.itemType ? (
+                              <span
+                                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                                  item.itemType === 'Finished Good'
+                                    ? 'bg-green-50 text-green-700'
+                                    : item.itemType === 'Raw Material'
+                                      ? 'bg-blue-50 text-blue-700'
+                                      : item.itemType === 'Semi-Finished'
+                                        ? 'bg-amber-50 text-amber-700'
+                                        : item.itemType === 'Consumable'
+                                          ? 'bg-purple-50 text-purple-700'
+                                          : item.itemType === 'Service'
+                                            ? 'bg-sky-50 text-sky-700'
+                                            : item.itemType === 'Asset'
+                                              ? 'bg-rose-50 text-rose-700'
+                                              : 'bg-slate-50 text-slate-600'
+                                }`}
+                              >
+                                {item.itemType}
+                              </span>
+                            ) : (
+                              <span className="text-[#94a3b8]">—</span>
+                            )}
+                          </td>
+
+                          {/* ── BOM ── */}
+                          <td className="px-4 py-3 text-center whitespace-nowrap">
+                            {item.enableVariants ? (
+                              <span className="flex items-center gap-1 text-[10px] font-semibold text-green-600">
+                                <i className="ri-checkbox-circle-fill text-sm" />{' '}
+                                Linked
+                              </span>
+                            ) : (
+                              <span className="text-[#94a3b8] text-xs">—</span>
+                            )}
+                          </td>
+
+                          {/* ── TRACKING ── */}
+                          <td className="px-4 py-3 text-center whitespace-nowrap">
+                            <div className="flex flex-col gap-0.5 items-center">
+                              {item.enableBatchTracking && (
+                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">
+                                  Batch
+                                </span>
+                              )}
+                              {item.enableSerialTracking && (
+                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-600">
+                                  Serial
+                                </span>
+                              )}
+                              {!item.enableBatchTracking &&
+                                !item.enableSerialTracking && (
+                                  <span className="text-[#94a3b8] text-xs">
+                                    —
+                                  </span>
+                                )}
+                            </div>
+                          </td>
                           <td className="px-4 py-3 text-[#64748b] text-xs whitespace-nowrap">
                             {item.categoryName || '—'}
                           </td>
@@ -679,6 +837,25 @@ export default function ItemsPage() {
                               className="flex items-center justify-center gap-1"
                               onClick={(e) => e.stopPropagation()}
                             >
+                              {/* ✅ Variant wale items ke liye + aur Bulk buttons */}
+                              {canEditItem && item.enableVariants && (
+                                <>
+                                  <button
+                                    onClick={() => setSingleVariantItem(item)}
+                                    className="p-1.5 rounded-md hover:bg-indigo-50 text-[#64748b] hover:text-indigo-600 transition-colors cursor-pointer"
+                                    title="Add single variant"
+                                  >
+                                    <i className="ri-add-line text-sm" />
+                                  </button>
+                                  <button
+                                    onClick={() => setBulkVariantItem(item)}
+                                    className="flex items-center gap-1 h-7 px-2 rounded-md border border-indigo-200 bg-indigo-50 text-indigo-600 text-xs font-semibold hover:bg-indigo-100 transition-colors cursor-pointer"
+                                    title="Add bulk variants"
+                                  >
+                                    <i className="ri-stack-line text-xs" /> Bulk
+                                  </button>
+                                </>
+                              )}
                               {canEditItem && (
                                 <button
                                   onClick={() => openEdit(item)}
@@ -718,6 +895,207 @@ export default function ItemsPage() {
 
                         {/* 🆕 Variant Rows - only show when Variants ON and parent is expanded */}
                         {/* Note: For now, this is a placeholder. You'll need to fetch variants from API */}
+
+                        {/* Variant Rows */}
+                        {isParent &&
+                          showVariants &&
+                          expandedParents.has(item.id) && (
+                            <>
+                              {loadingVariants.has(item.id) ? (
+                                <tr className="border-b border-[#f1f5f9]">
+                                  <td
+                                    colSpan={14}
+                                    className="px-4 py-3 text-center"
+                                  >
+                                    <div className="flex items-center justify-center gap-2 text-xs text-[#94a3b8]">
+                                      <i className="ri-loader-4-line animate-spin" />{' '}
+                                      Loading variants...
+                                    </div>
+                                  </td>
+                                </tr>
+                              ) : (variantsMap[item.id] ?? []).length === 0 ? (
+                                <tr className="border-b border-[#f1f5f9]">
+                                  <td
+                                    colSpan={14}
+                                    className="px-8 py-2 text-xs text-[#94a3b8]"
+                                  >
+                                    No variants found
+                                  </td>
+                                </tr>
+                              ) : (
+                                (variantsMap[item.id] ?? []).map((variant) => (
+                                  <tr
+                                    key={variant.id}
+                                    className="border-b border-[#f1f5f9] bg-indigo-50/30 hover:bg-indigo-50/50"
+                                  >
+                                    {/* Code */}
+                                    <td className="px-4 py-2.5 whitespace-nowrap pl-8">
+                                      <span className="font-mono text-xs text-[#64748b]">
+                                        {variant.code || '—'}
+                                      </span>
+                                    </td>
+
+                                    {/* Name + Attributes */}
+                                    <td className="px-4 py-2.5">
+                                      <div className="flex items-center gap-2 pl-4">
+                                        <i className="ri-corner-down-right-line text-[#94a3b8] text-xs shrink-0" />
+                                        <div>
+                                          <p className="text-sm font-medium text-[#1e293b]">
+                                            {variant.variant_name}
+                                          </p>
+                                          {variant.variant_attributes && (
+                                            <div className="flex flex-wrap gap-1 mt-0.5">
+                                              {Object.entries(
+                                                variant.variant_attributes,
+                                              ).map(([k, v]) => (
+                                                <span
+                                                  key={k}
+                                                  className="text-[9px] px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-600 font-medium"
+                                                >
+                                                  {k}: {v as string}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </td>
+
+                                    {/* Type - parent se inherit */}
+                                    <td className="px-4 py-2.5 whitespace-nowrap">
+                                      {item.itemType ? (
+                                        <span
+                                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                                            item.itemType === 'Finished Good'
+                                              ? 'bg-green-50 text-green-700'
+                                              : item.itemType === 'Raw Material'
+                                                ? 'bg-blue-50 text-blue-700'
+                                                : item.itemType ===
+                                                    'Semi-Finished'
+                                                  ? 'bg-amber-50 text-amber-700'
+                                                  : item.itemType ===
+                                                      'Consumable'
+                                                    ? 'bg-purple-50 text-purple-700'
+                                                    : item.itemType ===
+                                                        'Service'
+                                                      ? 'bg-sky-50 text-sky-700'
+                                                      : 'bg-slate-50 text-slate-600'
+                                          }`}
+                                        >
+                                          {item.itemType}
+                                        </span>
+                                      ) : (
+                                        <span className="text-[#94a3b8] text-xs">
+                                          —
+                                        </span>
+                                      )}
+                                    </td>
+
+                                    {/* BOM - Linked dikhao */}
+                                    <td className="px-4 py-2.5 text-center whitespace-nowrap">
+                                      <span className="flex items-center justify-center gap-1 text-[10px] font-semibold text-indigo-500">
+                                        <i className="ri-checkbox-circle-fill text-sm" />{' '}
+                                        Linked
+                                      </span>
+                                    </td>
+
+                                    {/* Tracking - parent se inherit */}
+                                    <td className="px-4 py-2.5 text-center whitespace-nowrap">
+                                      <div className="flex flex-col gap-0.5 items-center">
+                                        {item.enableBatchTracking && (
+                                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">
+                                            Batch
+                                          </span>
+                                        )}
+                                        {item.enableSerialTracking && (
+                                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-600">
+                                            Serial
+                                          </span>
+                                        )}
+                                        {!item.enableBatchTracking &&
+                                          !item.enableSerialTracking && (
+                                            <span className="text-[#94a3b8] text-xs">
+                                              —
+                                            </span>
+                                          )}
+                                      </div>
+                                    </td>
+
+                                    {/* Category - parent se */}
+                                    <td className="px-4 py-2.5 text-[#94a3b8] text-xs">
+                                      {item.categoryName || '—'}
+                                    </td>
+                                    {/* HSN - parent se */}
+                                    <td className="px-4 py-2.5">
+                                      <span className="font-mono text-xs text-[#94a3b8]">
+                                        {item.hsnCode || '—'}
+                                      </span>
+                                    </td>
+                                    {/* GST - parent se */}
+                                    <td className="px-4 py-2.5">
+                                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-[#4f46e5]">
+                                        {item.taxRate}%
+                                      </span>
+                                    </td>
+                                    {/* Unit - parent se */}
+                                    <td className="px-4 py-2.5 text-[#94a3b8] text-xs">
+                                      {item.unitName || '—'}
+                                    </td>
+
+                                    {/* Purchase Rate */}
+                                    <td className="px-4 py-2.5 text-right text-[#64748b] whitespace-nowrap text-sm">
+                                      {formatINR(
+                                        parseFloat(variant.purchase_rate || 0),
+                                      )}
+                                    </td>
+                                    {/* Sale Rate */}
+                                    <td className="px-4 py-2.5 text-right font-semibold text-[#1e293b] whitespace-nowrap text-sm">
+                                      {formatINR(
+                                        parseFloat(variant.sale_rate || 0),
+                                      )}
+                                    </td>
+                                    {/* Stock */}
+                                    <td className="px-4 py-2.5 text-right whitespace-nowrap text-sm text-[#64748b]">
+                                      {variant.initial_stock ?? 0}
+                                    </td>
+                                    {/* Status */}
+                                    <td className="px-4 py-2.5 text-center">
+                                      <span
+                                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                                          variant.is_active
+                                            ? 'bg-green-100 text-green-700'
+                                            : 'bg-red-100 text-red-600'
+                                        }`}
+                                      >
+                                        {variant.is_active
+                                          ? 'Active'
+                                          : 'Inactive'}
+                                      </span>
+                                    </td>
+                                    {/* Actions - Edit button */}
+                                    <td className="px-4 py-2.5 text-center whitespace-nowrap">
+                                      <div
+                                        className="flex items-center justify-center gap-1"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        {canEditItem && (
+                                          <button
+                                            onClick={() =>
+                                              setEditingVariant(variant)
+                                            }
+                                            className="p-1.5 rounded-md hover:bg-[#f1f5f9] text-[#64748b] hover:text-[#4f46e5] transition-colors cursor-pointer"
+                                            title="Edit variant"
+                                          >
+                                            <i className="ri-pencil-line text-sm" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </>
+                          )}
                       </Fragment>
                     );
                   })}
@@ -725,7 +1103,7 @@ export default function ItemsPage() {
                 {/* Empty State */}
                 {!isLoading && items.length === 0 && (
                   <tr>
-                    <td colSpan={11} className="px-4 py-12 text-center">
+                    <td colSpan={14} className="px-4 py-12 text-center">
                       <i className="ri-box-3-line text-4xl text-[#e2e8f0] block mb-2" />
                       <p className="text-[#94a3b8] text-sm">No items found</p>
                       {searchInput && (
@@ -791,6 +1169,58 @@ export default function ItemsPage() {
         onConfirm={confirmDelete}
         onCancel={() => setDeleteConfirm(null)}
       />
+
+      {/* Single Variant Modal */}
+      {singleVariantItem && (
+        <SingleVariantModal
+          item={singleVariantItem}
+          onClose={() => setSingleVariantItem(null)}
+          onSave={async () => {
+            await fetchItems();
+            setSingleVariantItem(null);
+          }}
+        />
+      )}
+
+      {/* Bulk Variant Modal */}
+      {bulkVariantItem && (
+        <BulkVariantModal
+          item={bulkVariantItem}
+          onClose={() => setBulkVariantItem(null)}
+          onSave={async () => {
+            await fetchItems();
+            setBulkVariantItem(null);
+          }}
+        />
+      )}
+      {/* Edit Variant Modal */}
+      {editingVariant && (
+        <EditVariantModal
+          variant={editingVariant}
+          onClose={() => setEditingVariant(null)}
+          onSave={async () => {
+            const res = await fetch(
+              `http://localhost:7000/api/v1/item/${editingVariant.parent_item_id}/variants`,
+              {
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${localStorage.getItem('token')}`,
+                },
+              },
+            );
+            const data = await res.json();
+            if (data.success) {
+              setVariantsMap((prev) => ({
+                ...prev,
+                [editingVariant.parent_item_id]: data.data ?? [],
+              }));
+            }
+            setEditingVariant(null);
+          }}
+        />
+      )}
+
+      
     </AppLayout>
   );
 }

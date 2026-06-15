@@ -15,10 +15,11 @@ import BOMPrintModal from './components/BOMPrintModal';
 import axios from 'axios';
 import { useWarehouseStore } from '@/stores/warehouseStore';
 import {
-  filterItems,
+  getItemsWithVariantsForBOM,
   type ItemResponse,
-  type ApiResponse,
-} from '../../../api/item.api'; // ✅ Your existing API
+  type BOMDropdownGroup,
+  BOMDropdownVariant,
+} from '../../../api/item.api';
 
 // ============================================
 // TYPES
@@ -45,9 +46,8 @@ interface FormBOMItem {
 // ============================================
 // API SERVICE
 // ============================================
-const API_BASE =
-  import.meta.env.VITE_API_URL || 'https://localhost:7000/api';
-const BOM_API_BASE = `${API_BASE}/api/v1/manufacturing/bom`;
+const API_BASE =  'http://localhost:7000/api';
+const BOM_API_BASE = `${API_BASE}/v1/manufacturing/bom`;
 
 const getAuthHeaders = () => ({
   headers: {
@@ -81,6 +81,14 @@ const bomAPI = {
     );
     return response.data;
   },
+  linkToItemMaster: async (id: string) => {
+    const response = await axios.post(
+      `${BOM_API_BASE}/${id}/link`,
+      {},
+      getAuthHeaders(),
+    );
+    return response.data;
+  },
 };
 
 // ============================================
@@ -93,27 +101,6 @@ function getDescendantIds(items: FormBOMItem[], parentId: string): string[] {
     result.push(child.id);
     result.push(...getDescendantIds(items, child.id));
   });
-  return result;
-}
-
-function getDisplayOrder(
-  items: FormBOMItem[],
-  expanded: Set<string>,
-): FormBOMItem[] {
-  const result: FormBOMItem[] = [];
-  const roots = items
-    .filter((i) => i.parentId === null)
-    .sort((a, b) => a.itemName.localeCompare(b.itemName));
-  function walk(item: FormBOMItem) {
-    result.push(item);
-    if (expanded.has(item.id)) {
-      const children = items
-        .filter((i) => i.parentId === item.id)
-        .sort((a, b) => a.itemName.localeCompare(b.itemName));
-      children.forEach(walk);
-    }
-  }
-  roots.forEach(walk);
   return result;
 }
 
@@ -146,17 +133,17 @@ export default function BOMForm() {
   const { id: editId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const toast = useToast();
-  const [searchParams] = useSearchParams();
-  const location = useLocation();
   const isEditing = !!editId;
 
   // ✅ Global warehouse store
   const { selectedWarehouseId, selectedWarehouseName } = useWarehouseStore();
 
   // ✅ Dynamic data states
-  const [itemsList, setItemsList] = useState<ItemResponse[]>([]);
+  const [itemsList, setItemsList] = useState<BOMDropdownGroup[]>([]);
   const [loadingItems, setLoadingItems] = useState(true);
   const [initialLoading, setInitialLoading] = useState(isEditing);
+  const [linkToItemMaster, setLinkToItemMaster] = useState(false);
+  const [showLinkConfirm, setShowLinkConfirm] = useState(false);
 
   // Form state
   const [selectedProductId, setSelectedProductId] = useState<string | null>(
@@ -170,7 +157,7 @@ export default function BOMForm() {
   const [effectiveFrom, setEffectiveFrom] = useState(
     new Date().toISOString().split('T')[0],
   );
-  const [status, setStatus] = useState<'ACTIVE' | 'DRAFT' | 'OBSOLETE'>(
+  const [status, setStatus] = useState<'ACTIVE' | 'DRAFT' | 'OBSOLUTE'>(
     'DRAFT',
   );
   const [notes, setNotes] = useState('');
@@ -191,17 +178,14 @@ export default function BOMForm() {
   const [showPrintModal, setShowPrintModal] = useState(false);
 
   // ============================================
-  // FETCH ITEMS FROM YOUR API
+  // FETCH ITEMS + VARIANTS FOR BOM DROPDOWN
   // ============================================
   useEffect(() => {
     const fetchItems = async () => {
       try {
         setLoadingItems(true);
-        // Use your existing filterItems API
-        const response = await filterItems({});
-        if (response.success && response.data) {
-          setItemsList(response.data);
-        }
+        const data = await getItemsWithVariantsForBOM();
+        if (data) setItemsList(data);
       } catch (error) {
         console.error('Failed to fetch items:', error);
         toast.error('Failed to load items');
@@ -215,6 +199,9 @@ export default function BOMForm() {
   // ============================================
   // FETCH EXISTING BOM (if editing)
   // ============================================
+  // ============================================
+  // FETCH EXISTING BOM (if editing)
+  // ============================================
   useEffect(() => {
     if (isEditing && editId) {
       const loadBom = async () => {
@@ -224,40 +211,66 @@ export default function BOMForm() {
           if (response.success && response.data) {
             const bom = response.data;
 
+            // ✅ Set product details
             setSelectedProductId(bom.product_id);
             const product = itemsList.find((i) => i.id === bom.product_id);
             setSelectedProduct(product || null);
             setBomCode(bom.code);
             setVersion(bom.version);
+            setLinkToItemMaster(bom.link_to_item_master || false);
             setEffectiveFrom(
               new Date(bom.effective_from).toISOString().split('T')[0],
             );
             setStatus(bom.status);
             setNotes(bom.notes || '');
 
+            // ✅ CREATE ROOT ITEM (product itself)
+            const rootId = crypto.randomUUID();
+            const rootItem: FormBOMItem = {
+              id: rootId,
+              parentId: null,
+              itemId: bom.product_id,
+              itemName: bom.product_name,
+              itemCode: bom.product_code || '',
+              itemType: 'FINISHED_GOOD',
+              qtyPerUnit: 1,
+              unit: product?.unit_name || 'Pcs',
+              scrapPct: 0,
+              standardCost: parseFloat(String(bom.total_material_cost || 0)),
+              level: 0,
+              hasSubBOM: false,
+              subBOMId: null,
+              qcRequired: false,
+              notes: null,
+            };
+
+            // ✅ FORMAT COMPONENTS (level > 0)
+            let formattedComponents: FormBOMItem[] = [];
             if (bom.items && bom.items.length > 0) {
-              const formattedItems: FormBOMItem[] = bom.items.map(
-                (item: any) => ({
-                  id: item.id,
-                  parentId: item.parent_id || null,
-                  itemId: item.item_id,
-                  itemName: item.item_name,
-                  itemCode: item.item_code,
-                  itemType: item.item_type || 'RAW_MATERIAL',
-                  qtyPerUnit: item.quantity,
-                  unit: item.unit_of_measure || 'Pcs',
-                  scrapPct: item.scrap_percentage,
-                  standardCost: item.unit_price,
-                  level: item.level || 0,
-                  hasSubBOM: item.has_sub_bom || false,
-                  subBOMId: item.sub_bom_id || null,
-                  qcRequired: false,
-                  notes: item.notes || null,
-                }),
-              );
-              setItems(formattedItems);
-              setExpandedRows(new Set(formattedItems.map((i) => i.id)));
+              formattedComponents = bom.items.map((item: any) => ({
+                id: item.id || crypto.randomUUID(),
+                parentId: item.parent_id || rootId,
+                itemId: item.item_id,
+                itemName: item.item_name,
+                itemCode: item.item_code || '',
+                itemType: item.item_type || 'RAW_MATERIAL',
+                qtyPerUnit: parseFloat(item.quantity) || 1,
+                unit: item.unit_of_measure || item.unit_name || 'Pcs',
+                scrapPct: parseFloat(item.scrap_percentage) || 0,
+                standardCost: parseFloat(item.unit_price) || 0,
+                level: item.level || 1,
+                hasSubBOM: item.has_sub_bom || false,
+                subBOMId: item.sub_bom_id || null,
+                qcRequired: item.qc_required || false,
+                notes: item.notes || null,
+              }));
             }
+
+            // ✅ SET ITEMS = ROOT + COMPONENTS
+            setItems([rootItem, ...formattedComponents]);
+            setExpandedRows(
+              new Set([rootId, ...formattedComponents.map((i) => i.id)]),
+            );
           }
         } catch (error) {
           console.error('Failed to load BOM:', error);
@@ -271,64 +284,69 @@ export default function BOMForm() {
   }, [isEditing, editId, itemsList, toast]);
 
   // ============================================
-  // DERIVED
+  // DERIVED VALUES
   // ============================================
   const displayItems = useMemo(
-    () => getDisplayOrder(items, expandedRows),
-    [items, expandedRows],
+    () => items.filter((item) => item.level > 0),
+    [items],
   );
+
   const maxLevel = useMemo(
     () => (items.length ? Math.max(...items.map((i) => i.level)) : 0),
     [items],
   );
 
   const costSummary = useMemo(() => {
-    const raw = items
-      .filter((i) => i.itemType === 'RAW_MATERIAL')
-      .reduce(
-        (s, i) => s + i.qtyPerUnit * (1 + i.scrapPct / 100) * i.standardCost,
-        0,
-      );
-    const semi = items
-      .filter((i) => i.itemType === 'SEMI_FINISHED')
-      .reduce(
-        (s, i) => s + i.qtyPerUnit * (1 + i.scrapPct / 100) * i.standardCost,
-        0,
-      );
-    const consumable = items
-      .filter((i) => i.itemType === 'CONSUMABLE')
-      .reduce(
-        (s, i) => s + i.qtyPerUnit * (1 + i.scrapPct / 100) * i.standardCost,
-        0,
-      );
-    const packaging = items
-      .filter((i) => i.itemType === 'PACKAGING')
-      .reduce(
-        (s, i) => s + i.qtyPerUnit * (1 + i.scrapPct / 100) * i.standardCost,
-        0,
-      );
+    const components = items.filter((i) => i.level > 0);
+    let raw = 0,
+      semi = 0,
+      consumable = 0,
+      packaging = 0,
+      scrapCost = 0;
+
+    components.forEach((i) => {
+      const baseCost = i.qtyPerUnit * i.standardCost;
+      const scrapAmount = baseCost * (i.scrapPct / 100);
+      const totalWithScrap = baseCost + scrapAmount;
+      scrapCost += scrapAmount;
+
+      if (i.itemType === 'RAW_MATERIAL') raw += totalWithScrap;
+      else if (i.itemType === 'SEMI_FINISHED') semi += totalWithScrap;
+      else if (i.itemType === 'CONSUMABLE') consumable += totalWithScrap;
+      else if (i.itemType === 'PACKAGING') packaging += totalWithScrap;
+    });
+
     const baseTotal = raw + semi + consumable + packaging;
     const total = rolledUpTotal > 0 ? rolledUpTotal : baseTotal;
-    return { raw, semi, consumable, packaging, total };
+    return { raw, semi, consumable, packaging, total, scrapCost };
   }, [items, rolledUpTotal]);
 
-  // ✅ Product dropdown - Only FINISHED_GOOD and SEMI_FINISHED
   const productDropdownData = useMemo(() => {
     const q = productSearchQuery.toLowerCase();
-    const products = itemsList.filter(
-      (m) => m.category === 'FINISHED_GOOD' || m.category === 'SEMI_FINISHED',
-    );
-    const filtered = products.filter(
-      (r) =>
-        r.name.toLowerCase().includes(q) ||
-        (r.code && r.code.toLowerCase().includes(q)),
-    );
-    return { regulars: filtered };
+    let filtered = itemsList;
+
+    if (q) {
+      filtered = filtered.filter((group) => {
+        const matchesItem =
+          group.name.toLowerCase().includes(q) ||
+          (group.code && group.code.toLowerCase().includes(q));
+        const matchesVariant = group.variants.some(
+          (v) =>
+            v.name.toLowerCase().includes(q) ||
+            (v.code && v.code.toLowerCase().includes(q)),
+        );
+        return matchesItem || matchesVariant;
+      });
+    }
+    return filtered;
   }, [itemsList, productSearchQuery]);
 
-  // ✅ Components for Add Modal - All items except FINISHED_GOOD
   const availableComponents = useMemo(() => {
-    return itemsList.filter((m) => m.category !== 'FINISHED_GOOD');
+    const allComponents: BOMDropdownGroup[] = [];
+    itemsList.forEach((group) => {
+      if (group.category !== 'FINISHED_GOOD') allComponents.push(group);
+    });
+    return allComponents;
   }, [itemsList]);
 
   // ============================================
@@ -336,12 +354,37 @@ export default function BOMForm() {
   // ============================================
 
   const handleSelectProduct = useCallback(
-    (productId: string) => {
-      const product = itemsList.find((m) => m.id === productId);
+    (
+      productId: string,
+      selectedItem?: BOMDropdownGroup | BOMDropdownVariant,
+    ) => {
+      let product = selectedItem || itemsList.find((m) => m.id === productId);
       if (!product) return;
 
       setSelectedProductId(productId);
-      setSelectedProduct(product);
+
+      let productName = product.name;
+      let productCode = product.code;
+      let productCategory = 'FINISHED_GOOD';
+      let productPurchaseRate = product.purchase_rate;
+      let productUnitName = product.unit_name;
+
+      if ('variant_name' in product && product.variant_name) {
+        productName = `${product.parent_item_name} - ${product.variant_name}`;
+        productCategory = 'FINISHED_GOOD';
+      } else if ('category' in product) {
+        productCategory = product.category || 'FINISHED_GOOD';
+      }
+
+      setSelectedProduct({
+        id: product.id,
+        name: productName,
+        code: productCode,
+        category: productCategory,
+        purchase_rate: productPurchaseRate,
+        unit_name: productUnitName,
+      } as ItemResponse);
+
       setShowProductSearch(false);
       setProductSearchQuery('');
 
@@ -350,13 +393,13 @@ export default function BOMForm() {
         id: rootId,
         parentId: null,
         itemId: product.id,
-        itemName: product.name,
-        itemCode: product.code || '',
-        itemType: product.category || 'FINISHED_GOOD',
+        itemName: productName,
+        itemCode: productCode || '',
+        itemType: productCategory,
         qtyPerUnit: 1,
-        unit: product.unit_name || 'Pcs',
+        unit: productUnitName || 'Pcs',
         scrapPct: 0,
-        standardCost: parseFloat(String(product.purchase_rate || 0)),
+        standardCost: parseFloat(String(productPurchaseRate || 0)),
         level: 0,
         hasSubBOM: false,
         subBOMId: null,
@@ -365,7 +408,7 @@ export default function BOMForm() {
       };
       setItems([rootItem]);
       setExpandedRows(new Set([rootId]));
-      setBomCode(`BOM-${product.code || product.name}-001`);
+      setBomCode(`BOM-${productCode || productName}-001`);
       setVersion('1.0');
     },
     [itemsList],
@@ -388,18 +431,31 @@ export default function BOMForm() {
   }, []);
 
   const handleAddComponent = useCallback(
-    (selectedItem: ItemResponse) => {
+    (selectedItem: BOMDropdownGroup | BOMDropdownVariant) => {
       const parentId = addModalParentId;
       const parent = items.find((i) => i.id === parentId);
       const level = parent ? parent.level + 1 : 0;
+
+      let itemType = 'RAW_MATERIAL';
+      let itemName = selectedItem.name;
+
+      if ('variant_name' in selectedItem && selectedItem.variant_name) {
+        itemType = 'RAW_MATERIAL';
+        itemName = `${selectedItem.parent_item_name} - ${selectedItem.variant_name}`;
+      } else if ('category' in selectedItem) {
+        itemType =
+          selectedItem.category === 'SEMI_FINISHED'
+            ? 'SEMI_FINISHED'
+            : 'RAW_MATERIAL';
+      }
 
       const newItem: FormBOMItem = {
         id: crypto.randomUUID(),
         parentId: parentId || null,
         itemId: selectedItem.id,
-        itemName: selectedItem.name,
+        itemName: itemName,
         itemCode: selectedItem.code || '',
-        itemType: selectedItem.category || 'RAW_MATERIAL',
+        itemType: itemType,
         qtyPerUnit: 1,
         unit: selectedItem.unit_name || 'Pcs',
         scrapPct: 0,
@@ -410,7 +466,6 @@ export default function BOMForm() {
         qcRequired: false,
         notes: null,
       };
-
       setItems((prev) => [...prev, newItem]);
       if (parentId) setExpandedRows((prev) => new Set([...prev, parentId]));
       setShowAddModal(false);
@@ -433,7 +488,6 @@ export default function BOMForm() {
     });
   }, []);
 
-  // Cost Rollup
   const handleCostRollup = useCallback(() => {
     const childrenMap = new Map<string, string[]>();
     items.forEach((it) => {
@@ -474,18 +528,15 @@ export default function BOMForm() {
     setShowCostConfirm(true);
   }, [items, toast]);
 
-  // Save BOM
   const handleSave = useCallback(async () => {
     if (!selectedProductId) {
       toast.error('Please select a product');
       return;
     }
-
     if (!selectedWarehouseId) {
       toast.error('Please select a warehouse from the top bar');
       return;
     }
-
     if (items.filter((i) => i.level > 0).length === 0) {
       toast.error('Add at least one component');
       return;
@@ -511,6 +562,7 @@ export default function BOMForm() {
         isVariantBom: false,
         variantName: undefined,
         warehouseId: selectedWarehouseId,
+        linkToItemMaster: linkToItemMaster,
         items: apiItems,
       };
 
@@ -523,6 +575,7 @@ export default function BOMForm() {
           effectiveTo: null,
           items: apiItems,
           warehouseId: selectedWarehouseId,
+          linkToItemMaster: linkToItemMaster,
         });
       } else {
         response = await bomAPI.create(bomData);
@@ -532,7 +585,7 @@ export default function BOMForm() {
         toast.success(
           isEditing ? 'BOM updated successfully' : 'BOM created successfully',
         );
-        navigate('/manufacturing/bom');
+        navigate('/manufacturing/bom-list');
       } else {
         toast.error(response.message || 'Failed to save BOM');
       }
@@ -552,6 +605,7 @@ export default function BOMForm() {
     version,
     effectiveFrom,
     status,
+    linkToItemMaster,
     toast,
     navigate,
   ]);
@@ -589,8 +643,8 @@ export default function BOMForm() {
             </p>
             {selectedWarehouseName && (
               <p className="text-xs text-slate-400 mt-1">
-                <i className="ri-building-line mr-1" />
-                Warehouse: {selectedWarehouseName}
+                <i className="ri-building-line mr-1" /> Warehouse:{' '}
+                {selectedWarehouseName}
               </p>
             )}
           </div>
@@ -676,19 +730,41 @@ export default function BOMForm() {
                       />
                     </div>
                     <div className="py-1">
-                      {productDropdownData.regulars.map((item) => (
-                        <button
-                          key={item.id}
-                          onClick={() => handleSelectProduct(item.id)}
-                          className="w-full px-3 py-2 text-left text-sm text-[#1e293b] hover:bg-indigo-50 cursor-pointer flex items-center gap-2"
-                        >
-                          <span>{item.name}</span>
-                          <span className="text-xs text-slate-400 ml-auto">
-                            {item.code}
-                          </span>
-                        </button>
+                      {productDropdownData.map((group) => (
+                        <div key={group.id}>
+                          <button
+                            onClick={() => handleSelectProduct(group.id, group)}
+                            className="w-full px-3 py-2 text-left text-sm font-semibold text-[#1e293b] hover:bg-indigo-50 cursor-pointer flex items-center justify-between"
+                          >
+                            <span>{group.name}</span>
+                            <span className="text-xs text-slate-400">
+                              {group.code}
+                            </span>
+                          </button>
+                          {group.variants.length > 0 && (
+                            <div className="ml-6 border-l border-slate-200 pl-2">
+                              {group.variants.map((variant) => (
+                                <button
+                                  key={variant.id}
+                                  onClick={() =>
+                                    handleSelectProduct(variant.id, variant)
+                                  }
+                                  className="w-full px-3 py-1.5 text-left text-sm text-[#64748b] hover:bg-indigo-50 cursor-pointer flex items-center justify-between"
+                                >
+                                  <div className="flex items-center gap-1">
+                                    <i className="ri-subtract-line text-xs text-slate-400" />
+                                    <span>{variant.name}</span>
+                                  </div>
+                                  <span className="text-xs text-slate-400">
+                                    {variant.code}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       ))}
-                      {productDropdownData.regulars.length === 0 && (
+                      {productDropdownData.length === 0 && (
                         <div className="px-3 py-4 text-center text-sm text-slate-400">
                           No products found
                         </div>
@@ -797,6 +873,22 @@ export default function BOMForm() {
                   <span className="text-sm font-semibold text-[#1e293b]">
                     {formatINR(costSummary.total)}
                   </span>
+                </div>
+
+                <div className="flex justify-between items-center pt-2 border-t border-[#e2e8f0]">
+                  <span className="text-sm text-slate-500">Link Status</span>
+                  {linkToItemMaster ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                      <i className="ri-link-m" /> Linked
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => setShowLinkConfirm(true)}
+                      className="text-xs font-medium text-indigo-600 hover:text-indigo-800 cursor-pointer"
+                    >
+                      Link to Item Master
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -992,7 +1084,37 @@ export default function BOMForm() {
           )}
         </div>
 
-        {/* Click outside to close */}
+        {/* COST SUMMARY - SIRF 3 LINES */}
+        {displayItems.length > 0 && (
+          <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-[#e2e8f0] space-y-2">
+            {costSummary.packaging > 0 && (
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-slate-600">Packaging:</span>
+                <span className="text-sm font-medium text-[#4f46e5]">
+                  {formatINR(costSummary.packaging)}
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between items-center pt-1">
+              <span className="text-sm font-semibold text-[#1e293b]">
+                Total Material Cost:
+              </span>
+              <span className="text-sm font-bold text-[#1e293b]">
+                {formatINR(costSummary.total)}
+              </span>
+            </div>
+            {costSummary.scrapCost > 0 && (
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-amber-600">Scrap Cost:</span>
+                <span className="text-sm font-medium text-amber-600">
+                  {formatINR(costSummary.scrapCost)}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Click outside to close product search */}
         {showProductSearch && (
           <div
             className="fixed inset-0 z-40"
@@ -1028,7 +1150,33 @@ export default function BOMForm() {
           />
         )}
 
-        {/* Dialogs */}
+        {/* Link to Item Master Confirmation Dialog */}
+        <ConfirmDialog
+          open={showLinkConfirm}
+          title="Link to Item Master"
+          message={`Link this BOM to ${selectedProduct?.name || 'product'} and update standard cost?`}
+          variant="warning"
+          confirmLabel="Link"
+          cancelLabel="Cancel"
+          onConfirm={async () => {
+            try {
+              if (isEditing && editId) {
+                await bomAPI.linkToItemMaster(editId);
+                setLinkToItemMaster(true);
+                toast.success(`BOM linked to ${selectedProduct?.name}`);
+              } else {
+                setLinkToItemMaster(true);
+                toast.info(`Will be linked when BOM is saved`);
+              }
+            } catch (error) {
+              toast.error('Failed to link BOM');
+            }
+            setShowLinkConfirm(false);
+          }}
+          onCancel={() => setShowLinkConfirm(false)}
+        />
+
+        {/* Cost Confirm Dialog */}
         <ConfirmDialog
           open={showCostConfirm}
           title="Cost Rollup"
@@ -1040,6 +1188,7 @@ export default function BOMForm() {
           onCancel={() => setShowCostConfirm(false)}
         />
 
+        {/* Duplicate Confirm Dialog */}
         <ConfirmDialog
           open={showDuplicateConfirm}
           title="Duplicate BOM"
@@ -1047,7 +1196,18 @@ export default function BOMForm() {
           variant="warning"
           confirmLabel="Duplicate"
           cancelLabel="Cancel"
-          onConfirm={() => {
+          onConfirm={async () => {
+            try {
+              if (editId) {
+                const response = await bomAPI.duplicate(editId);
+                if (response.success) {
+                  toast.success('BOM duplicated successfully');
+                  navigate(`/manufacturing/bom/${response.data.id}/edit`);
+                }
+              }
+            } catch (error) {
+              toast.error('Failed to duplicate BOM');
+            }
             setShowDuplicateConfirm(false);
           }}
           onCancel={() => setShowDuplicateConfirm(false)}

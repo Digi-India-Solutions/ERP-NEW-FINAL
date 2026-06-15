@@ -102,6 +102,7 @@ import operatorsRouter from "./src/masters/operators/operators-routes.js"
 import costcontrolRouter from "./src/masters/costcontrol/costcontrol-routes.js"
 import rejectioncoderouter from "./src/masters/rejectioncodes/rejectioncode-routes.js"
 import downtimecodeRouter from "./src/masters/downtimecode/downtimecode-routes.js"
+import itemVariantRoutes from './src/masters/items/itemVariant/itemVariantRoutes.js';
 
 app.use('/backups', express.static(path.join(process.cwd(), 'backups')));
 app.use("/api/v1/reports", reportsRouter);
@@ -140,7 +141,8 @@ app.use("/api/v1/dashboard", dashboardRouter)
 app.use("/api/v1/company", companyRouter);
 app.use("/api/v1/invoice-settings", invoiceSettingsRouter);
 app.use("/api/label-settings", barcodeRouter)
-app.use('/api/manufacturing/bom', bomRoutes);
+app.use('/api/v1/manufacturing/bom', bomRoutes);
+app.use('/api/v1', itemVariantRoutes);
 app.get("/", (req, res) => {
   res.send("Server is running");
 });
