@@ -3,43 +3,51 @@ import ReportLayout from '@/pages/reports/components/ReportLayout';
 import ReportTable from '@/pages/reports/components/ReportTable';
 import SummaryCards from '@/pages/reports/components/SummaryCards';
 import { useWarehouseStore } from '@/stores/warehouseStore';
- 
+
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
- 
-export const useGSTPurchase = (from: string, to: string, warehouseId: string, enabled: boolean) => {
+
+export const useGSTPurchase = (
+  from: string,
+  to: string,
+  warehouseId: string,
+  enabled: boolean,
+) => {
   return useQuery({
     queryKey: ['gst-purchase', from, to, warehouseId],
     queryFn: async () => {
       const res = await axios.get(
-        'https://asvapi.digiindiasolutions.com/api/v1/reports/gst-purchase',
+        'http://localhost:7000/api/v1/reports/gst-purchase',
         {
           params: { from, to, warehouseId: warehouseId || undefined },
         },
       );
       console.log(res.data.data);
- 
+
       return res.data.data; // ✅ FIX: return rows only
     },
     enabled, // only run when Generate clicked
   });
 };
- 
+
 function formatINR(n: number) {
   return n > 0 ? `₹${n.toLocaleString('en-IN')}` : '—';
 }
- 
+
 function getFirstDayOfMonth() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 }
- 
+
 export default function GSTPurchaseReport() {
   const today = new Date().toISOString().split('T')[0];
   const [from, setFrom] = useState(getFirstDayOfMonth());
   const [to, setTo] = useState(today);
   const { selectedWarehouseId } = useWarehouseStore();
-  const warehouseId = selectedWarehouseId && selectedWarehouseId !== 'ALL' ? selectedWarehouseId : '';
+  const warehouseId =
+    selectedWarehouseId && selectedWarehouseId !== 'ALL'
+      ? selectedWarehouseId
+      : '';
   const [generated, setGenerated] = useState(false);
   const {
     data = [],

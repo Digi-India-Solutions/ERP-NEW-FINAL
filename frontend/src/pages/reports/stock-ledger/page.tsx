@@ -10,7 +10,7 @@ export const getStockLedgerApi = async (params) => {
   const token = localStorage.getItem('token');
 
   const res = await axios.get(
-    'https://asvapi.digiindiasolutions.com/api/v1/reports/stock-ledger',
+    'http://localhost:7000/api/v1/reports/stock-ledger',
     {
       params,
       headers: {
@@ -36,7 +36,10 @@ export default function StockLedgerReport() {
   const today = new Date().toISOString().split('T')[0];
   const [itemId, setItemId] = useState('');
   const { selectedWarehouseId } = useWarehouseStore();
-  const warehouseId = selectedWarehouseId && selectedWarehouseId !== 'ALL' ? selectedWarehouseId : '';
+  const warehouseId =
+    selectedWarehouseId && selectedWarehouseId !== 'ALL'
+      ? selectedWarehouseId
+      : '';
   const [from, setFrom] = useState(getFirstDayOfMonth());
   const [to, setTo] = useState(today);
   const [generated, setGenerated] = useState(false);
@@ -48,7 +51,10 @@ export default function StockLedgerReport() {
   useEffect(() => {
     const loadItems = async () => {
       try {
-        const warehouseIdToUse = selectedWarehouseId && selectedWarehouseId !== 'ALL' ? selectedWarehouseId : '';
+        const warehouseIdToUse =
+          selectedWarehouseId && selectedWarehouseId !== 'ALL'
+            ? selectedWarehouseId
+            : '';
         if (!warehouseIdToUse) {
           setItems([]);
           setItemId('');
@@ -56,8 +62,8 @@ export default function StockLedgerReport() {
         }
         const res = await filterItems({ warehouseId: warehouseIdToUse });
         setItems(Array.isArray(res?.data) ? res.data : []);
-        setItemId(prev => {
-          const exists = (res?.data || []).some(item => item.id === prev);
+        setItemId((prev) => {
+          const exists = (res?.data || []).some((item) => item.id === prev);
           return exists ? prev : '';
         });
       } catch (err) {

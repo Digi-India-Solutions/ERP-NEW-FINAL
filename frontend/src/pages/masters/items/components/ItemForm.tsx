@@ -5,9 +5,7 @@ import { getWarehousesForUser } from '@/api/warehouse.api';
 import { useAuth } from '@/contexts/AuthContext';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const BASE_URL =
-  (import.meta.env.VITE_API_URL as string) ||
-  'https://asvapi.digiindiasolutions.com';
+const BASE_URL = 'http://localhost:7000/api';
 
 function getToken(): string {
   return localStorage.getItem('token') ?? '';
@@ -409,7 +407,8 @@ function WarehouseSelect({
   );
 }
 
-// ─── Toggle Row ───────────────────────────────────────────────────────────────
+
+// ─── Toggle Row (Toggle LEFT, Text RIGHT) ────────────────────────────────────
 function ToggleRow({
   label,
   hint,
@@ -422,15 +421,11 @@ function ToggleRow({
   onChange: () => void;
 }) {
   return (
-    <div className="flex items-start justify-between gap-3 py-2">
-      <div>
-        <p className="text-sm font-medium text-[#1e293b]">{label}</p>
-        <p className="text-xs text-[#94a3b8] mt-0.5">{hint}</p>
-      </div>
+    <div className="flex items-start gap-3 py-3">
       <button
         type="button"
         onClick={onChange}
-        className={`relative w-10 h-6 rounded-full shrink-0 mt-0.5 transition-colors duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#4f46e5]/30 ${
+        className={`relative w-10 h-6 rounded-full shrink-0 transition-colors duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#4f46e5]/30 mt-0.5 ${
           value ? 'bg-[#4f46e5]' : 'bg-[#e2e8f0]'
         }`}
       >
@@ -440,10 +435,13 @@ function ToggleRow({
           }`}
         />
       </button>
+      <div className="flex-1">
+        <p className="text-sm font-medium text-[#1e293b]">{label}</p>
+        <p className="text-xs text-[#94a3b8] mt-0.5">{hint}</p>
+      </div>
     </div>
   );
 }
-
 // ─── ItemForm types ───────────────────────────────────────────────────────────
 export interface ItemFormData {
   // Basic Info
@@ -478,6 +476,11 @@ export interface ItemFormData {
   enableSerialTracking: boolean;
   requiresIncomingQC: boolean;
   requiresFinalQC: boolean;
+  hasExpiryDate: boolean;
+  // 🆕 Variants support
+  isParent?: boolean;
+  hasVariants?: boolean;
+  variantCount?: number;
 }
 
 interface ItemFormProps {
@@ -523,6 +526,11 @@ const defaultForm: ItemFormData = {
   enableSerialTracking: false,
   requiresIncomingQC: false,
   requiresFinalQC: false,
+  hasExpiryDate: false,
+  // 🆕 Variants
+  isParent: false,
+  hasVariants: false,
+  variantCount: 0,
 };
 
 type ActiveTab = 'basic' | 'manufacturing' | 'tracking';
@@ -568,6 +576,7 @@ export default function ItemForm({
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [dropdownsLoading, setDropdownsLoading] = useState(false);
   const [warehousesLoading, setWarehousesLoading] = useState(false);
+  
 
   // ── Fetch categories + units ───────────────────────────────────────────────
   useEffect(() => {
@@ -576,10 +585,10 @@ export default function ItemForm({
     void (async () => {
       try {
         const [catRes, unitRes] = await Promise.all([
-          fetch(`${BASE_URL}/api/v1/categories/all`, {
+          fetch(`${BASE_URL}/v1/categories/all`, {
             headers: authHeaders(),
           }),
-          fetch(`${BASE_URL}/api/v1/unit/all`, { headers: authHeaders() }),
+          fetch(`${BASE_URL}/v1/unit/all`, { headers: authHeaders() }),
         ]);
         const [catData, unitData] = await Promise.all([
           catRes.json(),
@@ -642,7 +651,7 @@ export default function ItemForm({
     setBarcodeMsg(null);
     setDuplicateWarning(null);
     setTimeout(() => barcodeRef.current?.focus(), 80);
-  }, [open, isEditing]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, isEditing, selectedWarehouseId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Stable field updater ───────────────────────────────────────────────────
   const update = useCallback(
@@ -871,6 +880,12 @@ export default function ItemForm({
     { key: 'tracking', label: 'Tracking', icon: 'ri-radar-line' },
   ];
 
+  // 🆕 Check if this item can have variants (parent item)
+  const canHaveVariants =
+    form.isParent === true ||
+    form.hasVariants === true ||
+    (form.variantCount && form.variantCount > 0);
+
   return (
     <div className="fixed inset-0 z-50 flex">
       {/* Overlay */}
@@ -921,6 +936,16 @@ export default function ItemForm({
               </button>
             ))}
           </div>
+
+          {/* 🆕 Variants indicator badge - shows if item is a parent */}
+          {canHaveVariants && !isEditing && (
+            <div className="mt-3 mb-2 flex items-center gap-2">
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-indigo-50 text-indigo-700 text-xs font-medium">
+                <i className="ri-git-branch-line text-xs" />
+                This item will have variants
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── Error banner ── */}
@@ -1306,6 +1331,7 @@ export default function ItemForm({
                 />
               </div>
 
+
               {/* ── ACTIVE TOGGLE ── */}
               <div className="flex items-center gap-3 pt-1">
                 <button
@@ -1499,6 +1525,39 @@ export default function ItemForm({
                       Standard qty to reorder when triggered
                     </p>
                   </div>
+
+                  {/* 🆕 VARIANTS TOGGLE - Only for Finished Good or Semi-Finished */}
+                  {['Finished Good', 'Semi-Finished'].includes(
+                    form.itemType,
+                  ) && (
+                    <>
+                      <div className="border-t border-[#f1f5f9] pt-4" />
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => update('isParent', !form.isParent)}
+                          className={`relative w-10 h-6 rounded-full transition-colors duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#4f46e5]/30 ${
+                            form.isParent ? 'bg-[#4f46e5]' : 'bg-[#e2e8f0]'
+                          }`}
+                        >
+                          <span
+                            className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${
+                              form.isParent ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                        <div>
+                          <label className="text-sm text-[#64748b] select-none cursor-pointer">
+                            Enable Variants
+                          </label>
+                          <p className="text-[10px] text-[#94a3b8]">
+                            Turn on if this product has variants (size, color,
+                            etc.)
+                          </p>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </>
@@ -1507,41 +1566,82 @@ export default function ItemForm({
           {/* ════════════════════════════════════════
               TRACKING TAB
           ════════════════════════════════════════ */}
+          {/* ════════════════════════════════════════
+    TRACKING TAB
+════════════════════════════════════════ */}
+          {/* ════════════════════════════════════════
+    TRACKING TAB
+════════════════════════════════════════ */}
           {activeTab === 'tracking' && (
             <>
               {/* Batch and Lot Tracking */}
               <div>
-                <p className="text-[11px] font-bold text-[#1e293b] uppercase tracking-widest mb-1">
+                <p className="text-[11px] font-bold text-[#1e293b] uppercase tracking-widest mb-3">
                   Batch and Lot Tracking
                 </p>
-                <div className="divide-y divide-[#f1f5f9]">
+                <div className="space-y-1">
                   <ToggleRow
                     label="Enable Batch Tracking"
                     hint="Recommended: food, pharma, chemicals, garments"
                     value={form.enableBatchTracking}
-                    onChange={() =>
-                      update('enableBatchTracking', !form.enableBatchTracking)
-                    }
+                    onChange={() => {
+                      // If turning ON Batch Tracking, turn OFF Serial Tracking
+                      if (!form.enableBatchTracking) {
+                        update('enableSerialTracking', false);
+                        update('hasExpiryDate', false);
+                      }
+                      update('enableBatchTracking', !form.enableBatchTracking);
+                    }}
                   />
                   <ToggleRow
                     label="Enable Serial Tracking"
                     hint="Recommended: electronics, machinery, vehicles"
                     value={form.enableSerialTracking}
-                    onChange={() =>
-                      update('enableSerialTracking', !form.enableSerialTracking)
-                    }
+                    onChange={() => {
+                      // If turning ON Serial Tracking, turn OFF Batch Tracking and Has Expiry Date
+                      if (!form.enableSerialTracking) {
+                        update('enableBatchTracking', false);
+                        update('hasExpiryDate', false);
+                      }
+                      update(
+                        'enableSerialTracking',
+                        !form.enableSerialTracking,
+                      );
+                    }}
                   />
                 </div>
               </div>
 
-              <div className="border-t border-[#f1f5f9]" />
+              {/* 🆕 Expiry and Shelf Life - Only show when Batch Tracking is ON */}
+              {form.enableBatchTracking && (
+                <>
+                  <div className="border-t border-[#f1f5f9] my-2" />
+                  <div>
+                    <p className="text-[11px] font-bold text-[#1e293b] uppercase tracking-widest mb-3">
+                      Expiry and Shelf Life
+                    </p>
+                    <div className="space-y-1">
+                      <ToggleRow
+                        label="Has Expiry Date"
+                        hint="Enable if items expire after a fixed period"
+                        value={form.hasExpiryDate}
+                        onChange={() => {
+                          update('hasExpiryDate', !form.hasExpiryDate);
+                        }}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="border-t border-[#f1f5f9] my-2" />
 
               {/* Quality Control */}
               <div>
-                <p className="text-[11px] font-bold text-[#1e293b] uppercase tracking-widest mb-1">
+                <p className="text-[11px] font-bold text-[#1e293b] uppercase tracking-widest mb-3">
                   Quality Control
                 </p>
-                <div className="divide-y divide-[#f1f5f9]">
+                <div className="space-y-1">
                   <ToggleRow
                     label="Requires Incoming QC"
                     hint="QC check triggered after GRN save"

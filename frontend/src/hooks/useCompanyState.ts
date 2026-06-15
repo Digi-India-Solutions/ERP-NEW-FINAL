@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 
 const BASE_URL =
-  (import.meta.env.VITE_API_URL as string) ||
-  'https://asvapi.digiindiasolutions.com';
+  (import.meta.env.VITE_API_URL as string) || 'http://localhost:7000';
 
 export function useCompanyState(): string {
   const [stateCode, setStateCode] = useState('');

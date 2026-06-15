@@ -1,5 +1,4 @@
-const api =
-  import.meta.env.VITE_API_URL || 'https://asvapi.digiindiasolutions.com';
+const api = import.meta.env.VITE_API_URL || 'http://localhost:7000';
 
 const BASE_URL = `${api}/api/v1`;
 
@@ -28,6 +27,23 @@ export interface ItemPayload {
   imageUrl?: string;
   isActive?: boolean;
   warehouseId: string;
+  // ✅ Manufacturing
+  itemType?: string;
+  itemGroup?: string;
+  drawingNumber?: string;
+  specifications?: string;
+  productionUnit?: string;
+  standardCost?: number;
+  supplierLeadTime?: number;
+  reorderPoint?: number;
+  reorderQty?: number;
+  // ✅ Tracking
+  enableVariants?: boolean;
+  enableBatchTracking?: boolean;
+  enableSerialTracking?: boolean;
+  requiresIncomingQC?: boolean;
+  requiresFinalQC?: boolean;
+  hasExpiryDate?: boolean;
 }
 
 /** What the API returns (snake_case, matches DB columns) */
@@ -38,10 +54,10 @@ export interface ItemResponse {
   code: string | null;
   barcode: string | null;
   category_id: string | null;
-  category: string | null; // categoryName stored as `category`
+  category: string | null;
   brand: string | null;
   hsn_code: string | null;
-  gst_rate: string | number | null; // DB returns numeric as string sometimes
+  gst_rate: string | number | null;
   primary_unit_id: string | null;
   purchase_rate: string | number | null;
   sale_rate: string | number | null;
@@ -71,6 +87,7 @@ export interface FilterItemsParams {
   warehouseId?: string;
   stockStatus?: 'ALL' | 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
   isActive?: 'ALL' | 'true' | 'false';
+  hasExpiryDate?: boolean;
 }
 
 const UUID_RE =
@@ -96,34 +113,52 @@ async function handleResponse<T>(res: Response): Promise<ApiResponse<T>> {
 
 // ─── Mapper: API response → local ItemFormData shape ─────────────────────────
 
-/**
- * DB returns snake_case + numeric fields as strings (Postgres numeric type).
- * This mapper normalises everything for the frontend.
- */
-export function mapApiToItem(r: ItemResponse) {
+export function mapApiToItem(r: any) {
   return {
     id: r.id,
     name: r.name,
     code: r.code ?? '',
     barcode: r.barcode ?? '',
-    categoryId: r.category_id ?? '',
-    categoryName: r.category ?? '', // DB column is `category`
+    categoryId: r.categoryId ?? r.category_id ?? '',
+    categoryName: r.categoryName ?? r.category ?? '',
     brand: r.brand ?? '',
-    hsnCode: r.hsn_code ?? '',
-    taxRate: parseFloat(String(r.gst_rate ?? 18)), // DB column is `gst_rate`
-    unitId: r.primary_unit_id ?? '', // DB column is `primary_unit_id`
-    unitName: r.unit_name ?? '',
-    purchaseRate: parseFloat(String(r.purchase_rate ?? 0)),
-    saleRate: parseFloat(String(r.sale_rate ?? 0)),
+    hsnCode: r.hsnCode ?? r.hsn_code ?? '',
+    taxRate: parseFloat(String(r.taxRate ?? r.gst_rate ?? 18)),
+    unitId: r.unitId ?? r.primary_unit_id ?? '',
+    unitName: r.unitName ?? r.unit_name ?? '',
+    purchaseRate: parseFloat(String(r.purchaseRate ?? r.purchase_rate ?? 0)),
+    saleRate: parseFloat(String(r.saleRate ?? r.sale_rate ?? 0)),
     mrp: parseFloat(String(r.mrp ?? 0)),
-    minStockLevel: parseFloat(String(r.min_stock_level ?? 0)),
-    articleNo: r.article_no ?? '',
-    sizeColor: r.size_color ?? '',
-    imageUrl: r.image_url ?? '',
-    isActive: r.is_active,
-    // stock comes from inventory table, not items — default 0
-    stock: (r as unknown as { stock?: number }).stock ?? 0,
-    warehouseId: r.warehouseid ?? '',
+    minStockLevel: parseFloat(
+      String(r.minStockLevel ?? r.min_stock_level ?? 0),
+    ),
+    articleNo: r.articleNo ?? r.article_no ?? '',
+    sizeColor: r.sizeColor ?? r.size_color ?? '',
+    imageUrl: r.imageUrl ?? r.image_url ?? '',
+    isActive: r.isActive ?? r.is_active,
+    stock: r.stock ?? 0,
+    warehouseId: r.warehouseId ?? r.warehouseid ?? '',
+    // ✅ Manufacturing fields
+    itemType: r.itemType ?? r.item_type ?? 'Raw Material',
+    itemGroup: r.itemGroup ?? r.item_group ?? '',
+    drawingNumber: r.drawingNumber ?? r.drawing_number ?? '',
+    specifications: r.specifications ?? '',
+    productionUnit: r.productionUnit ?? r.production_unit ?? '',
+    standardCost: parseFloat(String(r.standardCost ?? r.standard_cost ?? 0)),
+    supplierLeadTime: parseInt(
+      String(r.supplierLeadTime ?? r.supplier_lead_time ?? 0),
+    ),
+    reorderPoint: parseInt(String(r.reorderPoint ?? r.reorder_point ?? 0)),
+    reorderQty: parseInt(String(r.reorderQty ?? r.reorder_qty ?? 0)),
+    // ✅ Tracking fields
+    enableVariants: r.enableVariants ?? r.enable_variants ?? false,
+    enableBatchTracking:
+      r.enableBatchTracking ?? r.enable_batch_tracking ?? false,
+    enableSerialTracking:
+      r.enableSerialTracking ?? r.enable_serial_tracking ?? false,
+    requiresIncomingQC: r.requiresIncomingQC ?? r.requires_incoming_qc ?? false,
+    requiresFinalQC: r.requiresFinalQC ?? r.requires_final_qc ?? false,
+    hasExpiryDate: r.hasExpiryDate ?? r.has_expiry_date ?? false,
   };
 }
 
@@ -154,10 +189,7 @@ export async function updateItem(
   return handleResponse<ItemResponse>(res);
 }
 
-/**
- * DELETE /api/v1/item/:id
- * Controller does a SOFT DELETE (sets is_active = false)
- */
+/** DELETE /api/v1/item/:id (Soft delete) */
 export async function deleteItem(id: string): Promise<ApiResponse<null>> {
   const res = await fetch(`${BASE_URL}/item/${id}`, {
     method: 'DELETE',
@@ -175,12 +207,7 @@ export async function getAllItems(): Promise<ApiResponse<ItemResponse[]>> {
   return handleResponse<ItemResponse[]>(res);
 }
 
-/**
- * GET /api/v1/item/filter?categoryName=Electronics&search=laptop&categoryId=uuid
- *
- * Matches the backend filterItems controller which reads from req.query.
- * All params are optional — omitting them returns all active items.
- */
+/** GET /api/v1/item/filter */
 export async function filterItems(
   params: FilterItemsParams,
 ): Promise<ApiResponse<ItemResponse[]>> {
@@ -211,11 +238,8 @@ export async function filterItems(
   }
 
   const qs = query.toString();
-  const url = `${BASE_URL}/item/filter${qs ? `?${qs}` : ''}`;
-  console.log(
-    'REQUEST URL:',
-    `${BASE_URL}/item/filter${query.toString() ? `?${query.toString()}` : ''}`,
-  );
+  const url = `${BASE_URL}/item${qs ? `?${qs}` : ''}`;
+  console.log('REQUEST URL:', url);
   const res = await fetch(url, {
     method: 'GET',
     headers: getAuthHeaders(),
@@ -232,4 +256,45 @@ export async function searchItemByBarcode(barcode: string) {
   const data = await handleResponse<ItemResponse[]>(res);
 
   return data.data?.[0] || null;
+}
+
+// ============================================
+// BOM DROPDOWN - GROUPED ITEMS WITH VARIANTS
+// ============================================
+
+export interface BOMDropdownVariant {
+  id: string;
+  name: string;
+  code: string;
+  type: 'variant';
+  parent_item_id: string;
+  parent_item_name: string;
+  variant_name: string;
+  variant_sku: string | null;
+  purchase_rate: number;
+  sale_rate: number;
+  unit_name: string | null;
+}
+
+export interface BOMDropdownGroup {
+  id: string;
+  name: string;
+  code: string;
+  type: 'item';
+  category: string | null;
+  unit_name: string | null;
+  purchase_rate: number;
+  sale_rate: number;
+  variants: BOMDropdownVariant[];
+}
+
+export async function getItemsWithVariantsForBOM(): Promise<
+  BOMDropdownGroup[]
+> {
+  const res = await fetch(`${BASE_URL}/item/bom-dropdown`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+  const data = await handleResponse<BOMDropdownGroup[]>(res);
+  return data.data || [];
 }

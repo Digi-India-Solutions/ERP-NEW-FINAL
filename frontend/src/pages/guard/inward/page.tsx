@@ -147,12 +147,9 @@ export default function GuardInwardPage() {
     try {
       const token = localStorage.getItem('token');
 
-      const res = await fetch(
-        `https://asvapi.digiindiasolutions.com/api/v1/gatepass`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
+      const res = await fetch(`http://localhost:7000/api/v1/gatepass`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       const data = await res.json();
 
@@ -201,7 +198,7 @@ export default function GuardInwardPage() {
         return;
       }
       const res = await fetch(
-        `https://asvapi.digiindiasolutions.com/api/v1/gatepass/${gpId}/verify`,
+        `http://localhost:7000/api/v1/gatepass/${gpId}/verify`,
         {
           method: 'POST',
           headers: {
@@ -236,7 +233,7 @@ export default function GuardInwardPage() {
       }
 
       const res = await fetch(
-        `https://asvapi.digiindiasolutions.com/api/v1/gatepass/${gpId}/reject`,
+        `http://localhost:7000/api/v1/gatepass/${gpId}/reject`,
         {
           method: 'POST',
           headers: {

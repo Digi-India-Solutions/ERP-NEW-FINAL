@@ -104,15 +104,12 @@ export default function PrintPurchaseInvoiceView({
     const loadCompany = async () => {
       try {
         const token = localStorage.getItem('token'); // adjust key to match your auth storage
-        const res = await fetch(
-          'https://asvapi.digiindiasolutions.com/api/v1/company/get',
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
+        const res = await fetch('http://localhost:7000/api/v1/company/get', {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-        );
+        });
         const json = await res.json();
         setCompany(json?.data || json);
       } catch (err) {

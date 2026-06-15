@@ -1,7 +1,6 @@
 import type { WarehouseType } from '@/types/shared';
 
-const api =
-  import.meta.env.VITE_API_URL || 'https://asvapi.digiindiasolutions.com';
+const api = import.meta.env.VITE_API_URL || 'http://localhost:7000';
 
 const BASE_URL = `${api}/api/v1`;
 

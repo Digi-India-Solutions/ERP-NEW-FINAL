@@ -78,7 +78,6 @@ export const generateItemCode = async (company_id, client) => {
 // ============================================
 const mapDbToFrontend = (dbRow) => {
   if (!dbRow) return null;
-
   return {
     id: dbRow.id,
     name: dbRow.name,
@@ -103,6 +102,22 @@ const mapDbToFrontend = (dbRow) => {
     stock: parseInt(dbRow.stock || 0),
     createdAt: dbRow.created_at,
     updatedAt: dbRow.updated_at,
+    // ✅ Naye fields
+    itemType: dbRow.item_type,
+    itemGroup: dbRow.item_group,
+    drawingNumber: dbRow.drawing_number,
+    specifications: dbRow.specifications,
+    productionUnit: dbRow.production_unit,
+    standardCost: parseFloat(dbRow.standard_cost || 0),
+    supplierLeadTime: parseInt(dbRow.supplier_lead_time || 0),
+    reorderPoint: parseInt(dbRow.reorder_point || 0),
+    reorderQty: parseInt(dbRow.reorder_qty || 0),
+    enableVariants: dbRow.enable_variants ?? false,
+    enableBatchTracking: dbRow.enable_batch_tracking ?? false,
+    enableSerialTracking: dbRow.enable_serial_tracking ?? false,
+    requiresIncomingQC: dbRow.requires_incoming_qc ?? false,
+    requiresFinalQC: dbRow.requires_final_qc ?? false,
+    hasExpiryDate: dbRow.has_expiry_date ?? false,
   };
 };
 
@@ -135,6 +150,22 @@ export const createItem = async (req, res) => {
       imageUrl,
       isActive,
       warehouseId,
+      itemType,
+      itemGroup,
+      drawingNumber,
+      specifications,
+      productionUnit,
+      standardCost,
+      supplierLeadTime,
+      reorderPoint,
+      reorderQty,
+
+      enableVariants,
+      enableBatchTracking,
+      enableSerialTracking,
+      requiresIncomingQC,
+      requiresFinalQC,
+      hasExpiryDate,
     } = req.body;
 
     const company_id = req.user.company_id;
@@ -246,44 +277,68 @@ export const createItem = async (req, res) => {
     }
 
     // INSERT ITEM
-    const { rows: inserted } = await client.query(
-      `INSERT INTO items (
-                company_id, name, code, barcode,
-                category_id, category, brand, hsn_code,
-                gst_rate, primary_unit_id, unit_name,
-                purchase_rate, sale_rate, mrp, min_stock_level,
-                article_no, size_color, image_url,
-                warehouse_id, is_active, created_by
-            ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8,
-                $9, $10, $11, $12, $13, $14, $15,
-                $16, $17, $18, $19, $20, $21
-            )
-            RETURNING *`,
-      [
-        company_id,
-        cleanName,
-        finalCode,
-        finalBarcode,
-        categoryId || null,
-        categoryName || null,
-        brand || null,
-        hsnCode || null,
-        taxRate ?? 18,
-        unitId || null,
-        unitName || null,
-        purchaseRate ?? 0,
-        saleRate ?? 0,
-        mrp ?? 0,
-        minStockLevel ?? 5,
-        articleNo || null,
-        sizeColor || null,
-        imageUrl || null,
-        warehouseId,
-        isActive ?? true,
-        created_by,
-      ],
-    );
+  const { rows: inserted } = await client.query(
+    `INSERT INTO items (
+    company_id, name, code, barcode,
+    category_id, category, brand, hsn_code,
+    gst_rate, primary_unit_id, unit_name,
+    purchase_rate, sale_rate, mrp, min_stock_level,
+    article_no, size_color, image_url,
+    warehouse_id, is_active, created_by,
+    item_type, item_group, drawing_number, specifications,
+    production_unit, standard_cost, supplier_lead_time,
+    reorder_point, reorder_qty,
+    enable_variants, enable_batch_tracking, enable_serial_tracking,
+    requires_incoming_qc, requires_final_qc,has_expiry_date
+  ) VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8,
+    $9, $10, $11, $12, $13, $14, $15,
+    $16, $17, $18, $19, $20, $21,
+    $22, $23, $24, $25,
+    $26, $27, $28,
+    $29, $30,
+    $31, $32, $33,
+    $34, $35, $36
+  ) RETURNING *`,
+    [
+      company_id,
+      cleanName,
+      finalCode,
+      finalBarcode,
+      categoryId || null,
+      categoryName || null,
+      brand || null,
+      hsnCode || null,
+      taxRate ?? 18,
+      unitId || null,
+      unitName || null,
+      purchaseRate ?? 0,
+      saleRate ?? 0,
+      mrp ?? 0,
+      minStockLevel ?? 5,
+      articleNo || null,
+      sizeColor || null,
+      imageUrl || null,
+      warehouseId,
+      isActive ?? true,
+      created_by,
+      itemType || null,
+      itemGroup || null,
+      drawingNumber || null,
+      specifications || null,
+      productionUnit || null,
+      standardCost ?? 0,
+      supplierLeadTime ?? 0,
+      reorderPoint ?? 0,
+      reorderQty ?? 0,
+      enableVariants ?? false,
+      enableBatchTracking ?? false,
+      enableSerialTracking ?? false,
+      requiresIncomingQC ?? false,
+      requiresFinalQC ?? false,
+      hasExpiryDate ?? false,
+    ],
+  );
 
     // Initialize stock in warehouse_stock table
     await client.query(
@@ -357,6 +412,22 @@ export const updateItem = async (req, res) => {
       imageUrl,
       isActive,
       warehouseId,
+      itemType,
+      itemGroup,
+      drawingNumber,
+      specifications,
+      productionUnit,
+      standardCost,
+      supplierLeadTime,
+      reorderPoint,
+      reorderQty,
+
+      enableVariants,
+      enableBatchTracking,
+      enableSerialTracking,
+      requiresIncomingQC,
+      requiresFinalQC,
+      hasExpiryDate,
     } = req.body;
 
     // Check if item exists
@@ -476,6 +547,79 @@ export const updateItem = async (req, res) => {
     if (isActive !== undefined) {
       updates.push(`is_active = $${paramIndex++}`);
       values.push(isActive);
+    }
+    if (itemType !== undefined) {
+      updates.push(`item_type = $${paramIndex++}`);
+      values.push(itemType || null);
+    }
+
+    if (itemGroup !== undefined) {
+      updates.push(`item_group = $${paramIndex++}`);
+      values.push(itemGroup || null);
+    }
+
+    if (drawingNumber !== undefined) {
+      updates.push(`drawing_number = $${paramIndex++}`);
+      values.push(drawingNumber || null);
+    }
+
+    if (specifications !== undefined) {
+      updates.push(`specifications = $${paramIndex++}`);
+      values.push(specifications || null);
+    }
+
+    if (productionUnit !== undefined) {
+      updates.push(`production_unit = $${paramIndex++}`);
+      values.push(productionUnit || null);
+    }
+
+    if (standardCost !== undefined) {
+      updates.push(`standard_cost = $${paramIndex++}`);
+      values.push(standardCost);
+    }
+
+    if (supplierLeadTime !== undefined) {
+      updates.push(`supplier_lead_time = $${paramIndex++}`);
+      values.push(supplierLeadTime);
+    }
+
+    if (reorderPoint !== undefined) {
+      updates.push(`reorder_point = $${paramIndex++}`);
+      values.push(reorderPoint);
+    }
+
+    if (reorderQty !== undefined) {
+      updates.push(`reorder_qty = $${paramIndex++}`);
+      values.push(reorderQty);
+    }
+
+    if (enableVariants !== undefined) {
+      updates.push(`enable_variants = $${paramIndex++}`);
+      values.push(enableVariants);
+    }
+
+    if (enableBatchTracking !== undefined) {
+      updates.push(`enable_batch_tracking = $${paramIndex++}`);
+      values.push(enableBatchTracking);
+    }
+
+    if (enableSerialTracking !== undefined) {
+      updates.push(`enable_serial_tracking = $${paramIndex++}`);
+      values.push(enableSerialTracking);
+    }
+
+    if (requiresIncomingQC !== undefined) {
+      updates.push(`requires_incoming_qc = $${paramIndex++}`);
+      values.push(requiresIncomingQC);
+    }
+
+    if (requiresFinalQC !== undefined) {
+      updates.push(`requires_final_qc = $${paramIndex++}`);
+      values.push(requiresFinalQC);
+    }
+    if (hasExpiryDate !== undefined) {
+      updates.push(`has_expiry_date = $${paramIndex++}`);
+      values.push(hasExpiryDate);
     }
 
     updates.push(`updated_at = NOW()`);
@@ -848,6 +992,108 @@ export const filterItems = async (req, res) => {
     });
   } catch (error) {
     console.error('filterItems error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+
+
+// ============================================
+// GET ALL ITEMS WITH VARIANTS FOR BOM DROPDOWN (GROUPED)
+// ============================================
+export const getItemsWithVariantsForBOM = async (req, res) => {
+  try {
+    const company_id = req.user.company_id;
+
+    // 1. Get all active items
+    const itemsQuery = `
+      SELECT 
+        id, 
+        name, 
+        code, 
+        'item' as type,
+        NULL as parent_item_id,
+        NULL as parent_item_name,
+        NULL as variant_name,
+        NULL as variant_sku,
+        purchase_rate,
+        sale_rate,
+        unit_name,
+        category,
+        enable_variants
+      FROM items
+      WHERE company_id = $1 AND is_active = true
+      ORDER BY name ASC
+    `;
+    
+    const itemsResult = await connectDB.query(itemsQuery, [company_id]);
+    
+    // 2. Build grouped structure
+    const groupedItems = [];
+    
+    for (const item of itemsResult.rows) {
+      const group = {
+        id: item.id,
+        name: item.name,
+        code: item.code,
+        type: 'item',
+        category: item.category,
+        unit_name: item.unit_name,
+        purchase_rate: parseFloat(item.purchase_rate || 0),
+        sale_rate: parseFloat(item.sale_rate || 0),
+        variants: []
+      };
+      
+      // If item has variants, fetch them
+      if (item.enable_variants) {
+        const variantsQuery = `
+          SELECT 
+            id,
+            parent_item_id,
+            variant_name,
+            code,
+            variant_sku,
+            sale_rate,
+            purchase_rate,
+            mrp
+          FROM item_variants
+          WHERE parent_item_id = $1 AND is_active = true
+          ORDER BY variant_name ASC
+        `;
+        
+        const variantsResult = await connectDB.query(variantsQuery, [item.id]);
+        
+        for (const variant of variantsResult.rows) {
+          group.variants.push({
+            id: variant.id,
+            name: variant.variant_name,
+            code: variant.code,
+            type: 'variant',
+            parent_item_id: variant.parent_item_id,
+            parent_item_name: item.name,
+            variant_name: variant.variant_name,
+            variant_sku: variant.variant_sku,
+            purchase_rate: parseFloat(variant.purchase_rate || 0),
+            sale_rate: parseFloat(variant.sale_rate || 0),
+            unit_name: item.unit_name,
+          });
+        }
+      }
+      
+      groupedItems.push(group);
+    }
+    
+    return res.json({
+      success: true,
+      count: groupedItems.length,
+      data: groupedItems,
+    });
+    
+  } catch (error) {
+    console.error('getItemsWithVariantsForBOM error:', error);
     return res.status(500).json({
       success: false,
       message: 'Internal server error',

@@ -12,7 +12,7 @@ function formatINR(n: number) {
 
 import axios from 'axios';
 
-const BASE = 'https://asvapi.digiindiasolutions.com/api/v1/reports';
+const BASE = 'http://localhost:7000/api/v1/reports';
 
 const authHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -46,7 +46,13 @@ export const usePurchaseRegister = (
 ) => {
   return useQuery({
     queryKey: ['purchase-register', from, to, supplierId, warehouseId],
-    queryFn: () => getPurchaseRegisterApi(from, to, supplierId || undefined, warehouseId || undefined),
+    queryFn: () =>
+      getPurchaseRegisterApi(
+        from,
+        to,
+        supplierId || undefined,
+        warehouseId || undefined,
+      ),
     enabled,
   });
 };
@@ -62,7 +68,10 @@ export default function PurchaseRegisterReport() {
   const [to, setTo] = useState(today);
   const [supplierId, setSupplierId] = useState('');
   const { selectedWarehouseId } = useWarehouseStore();
-  const warehouseId = selectedWarehouseId && selectedWarehouseId !== 'ALL' ? selectedWarehouseId : '';
+  const warehouseId =
+    selectedWarehouseId && selectedWarehouseId !== 'ALL'
+      ? selectedWarehouseId
+      : '';
   const [generated, setGenerated] = useState(false);
   const [suppliers, setSuppliers] = useState([]);
 
@@ -114,7 +123,7 @@ export default function PurchaseRegisterReport() {
         // ✅ FIX: handle nested API response safely
         const list = res?.data || [];
         setSuppliers(list);
-        setSupplierId(prev => {
+        setSupplierId((prev) => {
           const exists = list.some((p: any) => p.id === prev);
           return exists ? prev : '';
         });
