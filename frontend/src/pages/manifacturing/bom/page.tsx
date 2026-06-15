@@ -341,7 +341,7 @@ export default function BOMListPage() {
               Create your first Bill of Materials to get started
             </p>
             <button
-              onClick={() => navigate('/manufacturing/bom/new')}
+              onClick={() => navigate('/manufacturing/create-bom')}
               className="mt-5 h-10 px-5 rounded-lg bg-[#4f46e5] text-white text-sm font-semibold hover:bg-[#4338ca] cursor-pointer whitespace-nowrap flex items-center gap-2 mx-auto"
             >
               <i className="ri-add-line" />

@@ -353,66 +353,68 @@ export default function BOMForm() {
   // HANDLERS
   // ============================================
 
-  const handleSelectProduct = useCallback(
-    (
-      productId: string,
-      selectedItem?: BOMDropdownGroup | BOMDropdownVariant,
-    ) => {
-      let product = selectedItem || itemsList.find((m) => m.id === productId);
-      if (!product) return;
+const handleSelectProduct = useCallback(
+  (productId: string, selectedItem?: BOMDropdownGroup | BOMDropdownVariant) => {
+    let product = selectedItem || itemsList.find((m) => m.id === productId);
+    if (!product) return;
 
-      setSelectedProductId(productId);
+    setSelectedProductId(productId);
 
-      let productName = product.name;
-      let productCode = product.code;
-      let productCategory = 'FINISHED_GOOD';
-      let productPurchaseRate = product.purchase_rate;
-      let productUnitName = product.unit_name;
+    let productName = product.name;
+    let productCode = product.code;
+    let productCategory = 'FINISHED_GOOD';
+    let productPurchaseRate = product.purchase_rate;
+    let productUnitName = product.unit_name;
 
-      if ('variant_name' in product && product.variant_name) {
-        productName = `${product.parent_item_name} - ${product.variant_name}`;
-        productCategory = 'FINISHED_GOOD';
-      } else if ('category' in product) {
-        productCategory = product.category || 'FINISHED_GOOD';
-      }
+    if ('variant_name' in product && product.variant_name) {
+      productName = `${product.parent_item_name} - ${product.variant_name}`;
+      productCategory = 'FINISHED_GOOD';
+    } else if ('category' in product) {
+      productCategory = product.category || 'FINISHED_GOOD';
+    }
 
-      setSelectedProduct({
-        id: product.id,
-        name: productName,
-        code: productCode,
-        category: productCategory,
-        purchase_rate: productPurchaseRate,
-        unit_name: productUnitName,
-      } as ItemResponse);
+    setSelectedProduct({
+      id: product.id,
+      name: productName,
+      code: productCode,
+      category: productCategory,
+      purchase_rate: productPurchaseRate,
+      unit_name: productUnitName,
+    } as ItemResponse);
 
-      setShowProductSearch(false);
-      setProductSearchQuery('');
+    setShowProductSearch(false);
+    setProductSearchQuery('');
 
-      const rootId = crypto.randomUUID();
-      const rootItem: FormBOMItem = {
-        id: rootId,
-        parentId: null,
-        itemId: product.id,
-        itemName: productName,
-        itemCode: productCode || '',
-        itemType: productCategory,
-        qtyPerUnit: 1,
-        unit: productUnitName || 'Pcs',
-        scrapPct: 0,
-        standardCost: parseFloat(String(productPurchaseRate || 0)),
-        level: 0,
-        hasSubBOM: false,
-        subBOMId: null,
-        qcRequired: false,
-        notes: null,
-      };
-      setItems([rootItem]);
-      setExpandedRows(new Set([rootId]));
-      setBomCode(`BOM-${productCode || productName}-001`);
-      setVersion('1.0');
-    },
-    [itemsList],
-  );
+    const rootId = crypto.randomUUID();
+    const rootItem: FormBOMItem = {
+      id: rootId,
+      parentId: null,
+      itemId: product.id,
+      itemName: productName,
+      itemCode: productCode || '',
+      itemType: productCategory,
+      qtyPerUnit: 1,
+      unit: productUnitName || 'Pcs',
+      scrapPct: 0,
+      standardCost: parseFloat(String(productPurchaseRate || 0)),
+      level: 0,
+      hasSubBOM: false,
+      subBOMId: null,
+      qcRequired: false,
+      notes: null,
+    };
+    setItems([rootItem]);
+    setExpandedRows(new Set([rootId]));
+
+    // ✅ Generate BOM Code with product code
+    const cleanCode = productCode
+      ? productCode.replace(/[^A-Za-z0-9]/g, '')
+      : 'ITEM';
+    setBomCode(`BOM-${cleanCode}-001`);
+    setVersion('1.0');
+  },
+  [itemsList],
+);
 
   const updateItemField = useCallback(
     (id: string, patch: Partial<FormBOMItem>) => {

@@ -21,6 +21,16 @@ import {
 } from '@/mocks/masters';
 import { mockInspections } from '@/mocks/qms';
 import { toInputDate } from '@/utils/format';
+import {
+  getItemsWithVariantsForBOM,
+  type BOMDropdownGroup,
+  type BOMDropdownVariant,
+} from '@/api/item.api';
+
+import {
+  getRoutingsForDropdown,
+  type RoutingDropdownItem,
+} from '@/api/routing.api';
 
 type POType = 'MTO' | 'MTS';
 type POStatus =
@@ -182,6 +192,7 @@ export default function ProductionOrderForm() {
   const [selectedProductId, setSelectedProductId] = useState<string | null>(
     () => existingPO?.productId || null,
   );
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [showProductSearch, setShowProductSearch] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [selectedBOMId, setSelectedBOMId] = useState<string>(
@@ -193,6 +204,13 @@ export default function ProductionOrderForm() {
   const [plannedQty, setPlannedQty] = useState(() =>
     (existingPO?.plannedQty ?? '').toString(),
   );
+  // Replace existing itemsList state
+  const [itemsList, setItemsList] = useState<BOMDropdownGroup[]>([]);
+  const [loadingItems, setLoadingItems] = useState(false);
+
+  const [routingsList, setRoutingsList] = useState<RoutingDropdownItem[]>([]);
+  const [loadingRoutings, setLoadingRoutings] = useState(false);
+
   const [unit, setUnit] = useState(() => existingPO?.unit || '');
   const [warehouseId, setWarehouseId] = useState(
     () => existingPO?.warehouseId || 'wh-005',
@@ -218,17 +236,26 @@ export default function ProductionOrderForm() {
   const [showPrint, setShowPrint] = useState(false);
   const [showMRPBanner, setShowMRPBanner] = useState(false);
 
-  const selectedProduct = useMemo(
-    () => mockItems.find((m) => m.id === selectedProductId) || null,
-    [selectedProductId],
-  );
-  const eligibleItems = useMemo(
-    () =>
-      mockItems.filter(
-        (m) => m.itemType === 'FINISHED_GOOD' || m.itemType === 'SEMI_FINISHED',
-      ),
-    [],
-  );
+  const eligibleItems = useMemo(() => {
+    const allItems: any[] = [];
+    itemsList.forEach((group) => {
+      // Show all items for now (remove category filter)
+      allItems.push({
+        id: group.id,
+        name: group.name,
+        code: group.code,
+        category: group.category,
+        unitName: group.unit_name,
+        isParent: group.variants.length > 0,
+        isVariant: false,
+        parentItemId: null,
+        variantName: null,
+        variantAttributes: null,
+        variants: group.variants,
+      });
+    });
+    return allItems;
+  }, [itemsList]);
 
   const availableBOMs = useMemo(() => {
     if (!selectedProductId) return [] as MockBOM[];
@@ -237,22 +264,18 @@ export default function ProductionOrderForm() {
     );
   }, [selectedProductId]);
 
-  const availableRoutings = useMemo(() => {
-    if (!selectedProductId) return [] as MockRouting[];
-    const product = mockItems.find((m) => m.id === selectedProductId);
-    const ids = [selectedProductId];
-    if (product?.isVariant && product.parentItemId)
-      ids.push(product.parentItemId);
-    return mockRoutings.filter(
-      (r) =>
-        r.status === 'ACTIVE' && (r.itemId ? ids.includes(r.itemId) : true),
-    );
-  }, [selectedProductId]);
+const availableRoutings = useMemo(() => {
+  // ✅ Show all routings, not just based on product
+  return routingsList.filter((r) => r.status === 'ACTIVE');
+}, [routingsList]);
 
-  const selectedRouting = useMemo(
-    () => mockRoutings.find((r) => r.id === selectedRoutingId) || null,
-    [selectedRoutingId],
-  );
+ const selectedRouting = useMemo(() => {
+   if (!selectedRoutingId) return null;
+   // You may need to fetch full routing details if needed
+   // For now, just return basic info
+   const routing = routingsList.find((r) => r.id === selectedRoutingId);
+   return routing || null;
+ }, [selectedRoutingId, routingsList]);
   const selectedBOM = useMemo(
     () => mockBOMs.find((b) => b.id === selectedBOMId) || null,
     [selectedBOMId],
@@ -261,6 +284,43 @@ export default function ProductionOrderForm() {
     () => mockWarehouses.find((w) => w.id === warehouseId) || null,
     [warehouseId],
   );
+
+  // ============================================
+  // FETCH ROUTINGS FOR DROPDOWN
+  // ============================================
+ useEffect(() => {
+   const fetchRoutings = async () => {
+     try {
+       setLoadingRoutings(true);
+       const data = await getRoutingsForDropdown();
+       console.log('Fetched routings:', data); // ✅ YEH DEKHO
+       if (data) setRoutingsList(data);
+     } catch (error) {
+       console.error('Failed to fetch routings:', error);
+     } finally {
+       setLoadingRoutings(false);
+     }
+   };
+   fetchRoutings();
+ }, []);
+  // ============================================
+  // FETCH ITEMS + VARIANTS FOR PRODUCT DROPDOWN
+  // ============================================
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        setLoadingItems(true);
+        const data = await getItemsWithVariantsForBOM();
+        if (data) setItemsList(data);
+      } catch (error) {
+        console.error('Failed to fetch items:', error);
+        toast.error('Failed to load items');
+      } finally {
+        setLoadingItems(false);
+      }
+    };
+    fetchItems();
+  }, [toast]);
 
   useEffect(() => {
     if (!plannedStart || !selectedRouting) return;
@@ -308,59 +368,90 @@ export default function ProductionOrderForm() {
 
   const productDropdownData = useMemo(() => {
     const q = productSearchQuery.toLowerCase();
-    const parents = eligibleItems.filter((m) => m.isParent);
-    const variants = eligibleItems.filter((m) => m.isVariant);
-    const regulars = eligibleItems.filter((m) => !m.isParent && !m.isVariant);
-    const filteredParents = parents.filter((p) => {
-      const matches =
-        p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q);
-      const hasMatchingVariant = variants.some(
-        (v) =>
-          v.parentItemId === p.id &&
-          (v.name.toLowerCase().includes(q) ||
-            v.code.toLowerCase().includes(q)),
-      );
-      return matches || hasMatchingVariant;
-    });
-    const filteredVariants = variants.filter(
-      (v) =>
-        v.name.toLowerCase().includes(q) || v.code.toLowerCase().includes(q),
-    );
-    const filteredRegulars = regulars.filter(
-      (r) =>
-        r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q),
-    );
-    return {
-      parents: filteredParents,
-      variants: filteredVariants,
-      regulars: filteredRegulars,
-    };
-  }, [eligibleItems, productSearchQuery]);
+    let filtered = itemsList;
 
-  const handleSelectProduct = useCallback((productId: string) => {
-    const product = mockItems.find((m) => m.id === productId);
-    if (!product) return;
-    setSelectedProductId(productId);
-    setShowProductSearch(false);
-    setProductSearchQuery('');
-    const boms = mockBOMs.filter(
-      (b) => b.productId === productId && b.status !== 'OBSOLETE',
-    );
-    if (boms.length === 1) setSelectedBOMId(boms[0].id);
-    else if (boms.length > 1) {
-      const active = boms.find((b) => b.status === 'ACTIVE');
-      setSelectedBOMId(active ? active.id : boms[0].id);
-    } else setSelectedBOMId('');
-    const ids = [productId];
-    if (product.isVariant && product.parentItemId)
-      ids.push(product.parentItemId);
-    const routings = mockRoutings.filter(
-      (r) =>
-        r.status === 'ACTIVE' && (r.itemId ? ids.includes(r.itemId) : true),
-    );
-    setSelectedRoutingId(routings.length >= 1 ? routings[0].id : '');
-    setUnit(product.unitName || 'Pcs');
-  }, []);
+    if (q) {
+      filtered = filtered.filter((group) => {
+        const matchesItem =
+          group.name.toLowerCase().includes(q) ||
+          (group.code && group.code.toLowerCase().includes(q));
+        const matchesVariant = group.variants.some(
+          (v) =>
+            v.name.toLowerCase().includes(q) ||
+            (v.code && v.code.toLowerCase().includes(q)),
+        );
+        return matchesItem || matchesVariant;
+      });
+    }
+
+    const parents: BOMDropdownGroup[] = [];
+    const variants: BOMDropdownVariant[] = [];
+    const regulars: BOMDropdownGroup[] = [];
+
+    // ✅ Show all items - no category filter
+    filtered.forEach((group) => {
+      if (group.variants.length > 0) {
+        parents.push(group);
+        variants.push(...group.variants);
+      } else {
+        regulars.push(group);
+      }
+    });
+
+    return { parents, variants, regulars };
+  }, [itemsList, productSearchQuery]);
+
+  const handleSelectProduct = useCallback(
+    (
+      productId: string,
+      selectedItem?: BOMDropdownGroup | BOMDropdownVariant,
+    ) => {
+      let product: any =
+        selectedItem || itemsList.find((m) => m.id === productId);
+      if (!product) return;
+
+      let productName = product.name;
+      let productCode = product.code;
+      let productUnitName = product.unit_name || 'Pcs';
+
+      if ('variant_name' in product && product.variant_name) {
+        productName = `${product.parent_item_name} - ${product.variant_name}`;
+        productCode = product.code;
+        productUnitName = product.unit_name || 'Pcs';
+      }
+
+      setSelectedProductId(productId);
+      setSelectedProduct({
+        id: product.id,
+        name: productName,
+        code: productCode,
+        unitName: productUnitName,
+        isVariant: 'variant_name' in product,
+        parentItemId:
+          'parent_item_id' in product ? product.parent_item_id : null,
+        variantName: 'variant_name' in product ? product.variant_name : null,
+      } as any);
+
+      setShowProductSearch(false);
+      setProductSearchQuery('');
+
+      // Reset dependent fields
+      setSelectedBOMId('');
+      setSelectedRoutingId('');
+      setUnit(productUnitName);
+
+      // Auto-select BOM if available
+      const boms = mockBOMs.filter(
+        (b) => b.productId === productId && b.status !== 'OBSOLETE',
+      );
+      if (boms.length === 1) setSelectedBOMId(boms[0].id);
+      else if (boms.length > 1) {
+        const active = boms.find((b) => b.status === 'ACTIVE');
+        setSelectedBOMId(active ? active.id : boms[0].id);
+      }
+    },
+    [itemsList],
+  );
 
   const handleSave = useCallback(async () => {
     if (!selectedProductId) {
@@ -873,9 +964,8 @@ export default function ProductionOrderForm() {
                     >
                       <span className={selectedProduct ? 'text-[#1e293b]' : ''}>
                         {selectedProduct
-                          ? selectedProduct.isVariant &&
-                            selectedProduct.parentItemId
-                            ? `${mockItems.find((m) => m.id === selectedProduct.parentItemId)?.name || ''} \u2192 ${selectedProduct.variantName || selectedProduct.name}`
+                          ? selectedProduct.isVariant
+                            ? selectedProduct.name // already includes parent name
                             : selectedProduct.name
                           : 'Search and select a product...'}
                       </span>
@@ -898,27 +988,25 @@ export default function ProductionOrderForm() {
                           />
                         </div>
                         <div className="py-1">
-                          {productDropdownData.parents.map((parent) => (
-                            <div key={parent.id}>
+                          {productDropdownData.parents.map((group) => (
+                            <div key={group.id}>
                               <div className="px-3 py-1.5 text-xs font-semibold text-slate-400 bg-slate-50 uppercase tracking-wide">
-                                {parent.name}
+                                {group.name}
                               </div>
                               {productDropdownData.variants
-                                .filter((v) => v.parentItemId === parent.id)
+                                .filter((v) => v.parent_item_id === group.id)
                                 .map((variant) => (
                                   <button
                                     key={variant.id}
                                     onClick={() =>
-                                      handleSelectProduct(variant.id)
+                                      handleSelectProduct(variant.id, variant)
                                     }
                                     className="w-full px-6 py-2 text-left text-sm text-[#1e293b] hover:bg-indigo-50 cursor-pointer flex items-center gap-2"
                                   >
                                     <span className="text-slate-400">
                                       \u2514
                                     </span>
-                                    <span>
-                                      {variant.variantName || variant.name}
-                                    </span>
+                                    <span>{variant.name}</span>
                                     <span className="text-xs text-slate-400 ml-auto">
                                       {variant.code}
                                     </span>
@@ -929,7 +1017,7 @@ export default function ProductionOrderForm() {
                           {productDropdownData.regulars.map((item) => (
                             <button
                               key={item.id}
-                              onClick={() => handleSelectProduct(item.id)}
+                              onClick={() => handleSelectProduct(item.id, item)}
                               className="w-full px-3 py-2 text-left text-sm text-[#1e293b] hover:bg-indigo-50 cursor-pointer flex items-center gap-2"
                             >
                               <span>{item.name}</span>
@@ -941,7 +1029,9 @@ export default function ProductionOrderForm() {
                           {productDropdownData.parents.length === 0 &&
                             productDropdownData.regulars.length === 0 && (
                               <div className="px-3 py-4 text-center text-sm text-slate-400">
-                                No products found
+                                {loadingItems
+                                  ? 'Loading products...'
+                                  : 'No products found'}
                               </div>
                             )}
                         </div>
@@ -985,12 +1075,22 @@ export default function ProductionOrderForm() {
                       className="w-full h-10 px-3 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-[#4f46e5] cursor-pointer"
                     >
                       <option value="">No routing</option>
-                      {availableRoutings.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.name} v{r.version} \u2014 {r.totalTimeMinutes} min
+                      {availableRoutings.map((routing) => (
+                        <option key={routing.id} value={routing.id}>
+                          {routing.name} ({routing.code})
                         </option>
                       ))}
                     </select>
+                    {availableRoutings.length === 0 && !loadingRoutings && (
+                      <p className="text-[11px] text-amber-600 mt-1">
+                        No active routings found
+                      </p>
+                    )}
+                    {availableRoutings.length === 0 && selectedProduct && (
+                      <p className="text-[11px] text-amber-600 mt-1">
+                        No active routings found
+                      </p>
+                    )}
                     {selectedRouting && (
                       <p className="text-[11px] text-[#94a3b8] mt-1">
                         {selectedRouting.stages.length} stages, total{' '}

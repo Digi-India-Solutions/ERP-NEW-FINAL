@@ -71,6 +71,9 @@ export interface ItemResponse {
   created_at: string;
   created_by: string;
   warehouseid: string;
+  bom_id?: string | null; // ✅ ADD THIS
+  bom_version?: string | null; // ✅ ADD THIS
+  is_bom_linked?: boolean; // ✅ ADD THIS
 }
 
 export interface ApiResponse<T> {
@@ -159,6 +162,9 @@ export function mapApiToItem(r: any) {
     requiresIncomingQC: r.requiresIncomingQC ?? r.requires_incoming_qc ?? false,
     requiresFinalQC: r.requiresFinalQC ?? r.requires_final_qc ?? false,
     hasExpiryDate: r.hasExpiryDate ?? r.has_expiry_date ?? false,
+    bomId: r.bom_id ?? r.bomId ?? null,
+    bomVersion: r.bom_version ?? r.bomVersion ?? null,
+    isBomLinked: !!r.bom_id,
   };
 }
 
@@ -274,6 +280,8 @@ export interface BOMDropdownVariant {
   purchase_rate: number;
   sale_rate: number;
   unit_name: string | null;
+  bom_id: string | null; // ✅ ADD THIS
+  bom_version: string | null; // ✅ ADD THIS
 }
 
 export interface BOMDropdownGroup {
@@ -286,6 +294,8 @@ export interface BOMDropdownGroup {
   purchase_rate: number;
   sale_rate: number;
   variants: BOMDropdownVariant[];
+  bom_id: string | null; // ✅ ADD THIS
+  bom_version: string | null;
 }
 
 export async function getItemsWithVariantsForBOM(): Promise<

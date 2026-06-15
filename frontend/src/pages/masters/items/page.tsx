@@ -701,14 +701,16 @@ export default function ItemsPage() {
                             idx % 2 !== 0 ? 'bg-[#f8fafc]/40' : ''
                           } ${isParent ? 'bg-slate-50' : ''}`}
                         >
+                          {/* CODE */}
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span className="font-mono text-xs text-[#64748b]">
                               {item.code || '—'}
                             </span>
                           </td>
+
+                          {/* ITEM NAME */}
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
-                              {/* 🆕 Expand button for parent items - only show when Variants ON */}
                               {isParent && showVariants && (
                                 <button
                                   onClick={(e) => {
@@ -738,7 +740,8 @@ export default function ItemsPage() {
                               </div>
                             </div>
                           </td>
-                          {/* ── TYPE ── */}
+
+                          {/* TYPE */}
                           <td className="px-4 py-3 whitespace-nowrap">
                             {item.itemType ? (
                               <span
@@ -765,19 +768,19 @@ export default function ItemsPage() {
                             )}
                           </td>
 
-                          {/* ── BOM ── */}
+                          {/* BOM */}
                           <td className="px-4 py-3 text-center whitespace-nowrap">
-                            {item.enableVariants ? (
-                              <span className="flex items-center gap-1 text-[10px] font-semibold text-green-600">
-                                <i className="ri-checkbox-circle-fill text-sm" />{' '}
-                                Linked
+                            {item.bomId ? (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                                <i className="ri-link-m" /> Linked v
+                                {item.bomVersion}
                               </span>
                             ) : (
                               <span className="text-[#94a3b8] text-xs">—</span>
                             )}
                           </td>
 
-                          {/* ── TRACKING ── */}
+                          {/* TRACKING */}
                           <td className="px-4 py-3 text-center whitespace-nowrap">
                             <div className="flex flex-col gap-0.5 items-center">
                               {item.enableBatchTracking && (
@@ -798,33 +801,49 @@ export default function ItemsPage() {
                                 )}
                             </div>
                           </td>
+
+                          {/* CATEGORY */}
                           <td className="px-4 py-3 text-[#64748b] text-xs whitespace-nowrap">
                             {item.categoryName || '—'}
                           </td>
+
+                          {/* HSN */}
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span className="font-mono text-xs text-[#64748b]">
                               {item.hsnCode || '—'}
                             </span>
                           </td>
+
+                          {/* GST */}
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-[#4f46e5]">
                               {item.taxRate}%
                             </span>
                           </td>
+
+                          {/* UNIT */}
                           <td className="px-4 py-3 text-[#64748b] whitespace-nowrap text-xs">
                             {item.unitName || '—'}
                           </td>
+
+                          {/* PURCHASE RATE */}
                           <td className="px-4 py-3 text-right text-[#64748b] whitespace-nowrap">
                             {formatINR(item.purchaseRate)}
                           </td>
+
+                          {/* SALE RATE */}
                           <td className="px-4 py-3 text-right font-semibold text-[#1e293b] whitespace-nowrap">
                             {formatINR(item.saleRate)}
                           </td>
+
+                          {/* STOCK */}
                           <td className="px-4 py-3 text-right whitespace-nowrap">
                             <span className={`font-semibold ${badge.cls}`}>
                               {item.stock}
                             </span>
                           </td>
+
+                          {/* STATUS */}
                           <td className="px-4 py-3 text-center whitespace-nowrap">
                             <span
                               className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${badge.cls}`}
@@ -832,24 +851,25 @@ export default function ItemsPage() {
                               {badge.label}
                             </span>
                           </td>
+
+                          {/* ACTIONS */}
                           <td className="px-4 py-3 text-center whitespace-nowrap">
                             <div
                               className="flex items-center justify-center gap-1"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              {/* ✅ Variant wale items ke liye + aur Bulk buttons */}
                               {canEditItem && item.enableVariants && (
                                 <>
                                   <button
                                     onClick={() => setSingleVariantItem(item)}
-                                    className="p-1.5 rounded-md hover:bg-indigo-50 text-[#64748b] hover:text-indigo-600 transition-colors cursor-pointer"
+                                    className="p-1.5 rounded-md hover:bg-indigo-50 text-[#64748b] hover:text-indigo-600 cursor-pointer"
                                     title="Add single variant"
                                   >
                                     <i className="ri-add-line text-sm" />
                                   </button>
                                   <button
                                     onClick={() => setBulkVariantItem(item)}
-                                    className="flex items-center gap-1 h-7 px-2 rounded-md border border-indigo-200 bg-indigo-50 text-indigo-600 text-xs font-semibold hover:bg-indigo-100 transition-colors cursor-pointer"
+                                    className="flex items-center gap-1 h-7 px-2 rounded-md border border-indigo-200 bg-indigo-50 text-indigo-600 text-xs font-semibold hover:bg-indigo-100 cursor-pointer"
                                     title="Add bulk variants"
                                   >
                                     <i className="ri-stack-line text-xs" /> Bulk
@@ -859,7 +879,7 @@ export default function ItemsPage() {
                               {canEditItem && (
                                 <button
                                   onClick={() => openEdit(item)}
-                                  className="p-1.5 rounded-md hover:bg-[#f1f5f9] text-[#64748b] hover:text-[#4f46e5] transition-colors cursor-pointer"
+                                  className="p-1.5 rounded-md hover:bg-[#f1f5f9] text-[#64748b] hover:text-[#4f46e5] cursor-pointer"
                                   title="Edit item"
                                 >
                                   <i className="ri-pencil-line text-sm" />
@@ -868,7 +888,7 @@ export default function ItemsPage() {
                               {canDeleteItem && item.isActive && (
                                 <button
                                   onClick={() => setDeleteConfirm(item)}
-                                  className="p-1.5 rounded-md hover:bg-[#fef2f2] text-[#64748b] hover:text-red-600 transition-colors cursor-pointer"
+                                  className="p-1.5 rounded-md hover:bg-[#fef2f2] text-[#64748b] hover:text-red-600 cursor-pointer"
                                   title="Deactivate item"
                                 >
                                   <i className="ri-delete-bin-line text-sm" />
@@ -877,11 +897,7 @@ export default function ItemsPage() {
                               {canEditItem && (
                                 <button
                                   onClick={() => handleToggleActive(item)}
-                                  className={`p-1.5 rounded-md hover:bg-[#f1f5f9] transition-colors cursor-pointer ${
-                                    item.isActive
-                                      ? 'text-green-600'
-                                      : 'text-[#64748b]'
-                                  }`}
+                                  className={`p-1.5 rounded-md hover:bg-[#f1f5f9] cursor-pointer ${item.isActive ? 'text-green-600' : 'text-[#64748b]'}`}
                                   title={item.isActive ? 'Active' : 'Inactive'}
                                 >
                                   <i
