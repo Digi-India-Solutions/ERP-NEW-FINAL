@@ -1,74 +1,101 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import AppLayout from '@/components/feature/AppLayout';
 import { useToast } from '@/contexts/ToastContext';
 import ConfirmDialog from '@/components/feature/ConfirmDialog';
 import {
-  mockInspectionChecklists,
-  mockQualityParameters,
-  MockInspectionChecklist,
-  MockQualityParameter,
-} from '@/mocks/masters';
+  createInspectionChecklist,
+  getAllInspectionChecklists,
+  updateInspectionChecklist,
+  deleteInspectionChecklist
+} from '@/api/inspectionchecklist.api';
+import {
+  getAllQualityParameters
+} from '@/api/qualityparameter.api';
+import { useWarehouseStore } from '@/stores/warehouseStore';
 
-const APPLICABLE_OPTIONS: { value: MockInspectionChecklist['applicableTo']; label: string }[] = [
+interface QualityParameter {
+  id: string;
+  name: string;
+  code: string;
+  type: string;
+  isActive: boolean;
+  warehouseId?: string | null;
+}
+
+interface InspectionChecklist {
+  id: string;
+  name: string;
+  code: string;
+  applicableTo: 'INCOMING' | 'IN_PROCESS' | 'FINAL';
+  itemTypeTarget: 'RAW_MATERIAL' | 'SEMI_FINISHED' | 'FINISHED_GOOD' | 'ALL';
+  parameters: string[]; // maps to parameter_ids array
+  samplingPlan: 'ALL' | 'RANDOM_10' | 'RANDOM_20' | 'AQL';
+  isActive: boolean;
+  warehouseId?: string | null;
+}
+
+const APPLICABLE_OPTIONS: { value: InspectionChecklist['applicableTo']; label: string }[] = [
   { value: 'INCOMING', label: 'Incoming' },
   { value: 'IN_PROCESS', label: 'In-Process' },
   { value: 'FINAL', label: 'Final' },
 ];
 
-const ITEM_TYPE_OPTIONS: { value: MockInspectionChecklist['itemTypeTarget']; label: string }[] = [
+const ITEM_TYPE_OPTIONS: { value: InspectionChecklist['itemTypeTarget']; label: string }[] = [
   { value: 'RAW_MATERIAL', label: 'Raw Material' },
   { value: 'SEMI_FINISHED', label: 'Semi-Finished' },
   { value: 'FINISHED_GOOD', label: 'Finished Good' },
   { value: 'ALL', label: 'All' },
 ];
 
-const SAMPLING_OPTIONS: { value: MockInspectionChecklist['samplingPlan']; label: string }[] = [
+const SAMPLING_OPTIONS: { value: InspectionChecklist['samplingPlan']; label: string }[] = [
   { value: 'ALL', label: 'All Units' },
   { value: 'RANDOM_10', label: 'Random 10%' },
   { value: 'RANDOM_20', label: 'Random 20%' },
   { value: 'AQL', label: 'AQL Level' },
 ];
 
-const APPLICABLE_BADGE: Record<MockInspectionChecklist['applicableTo'], { bg: string; text: string; label: string }> = {
+const APPLICABLE_BADGE: Record<InspectionChecklist['applicableTo'], { bg: string; text: string; label: string }> = {
   INCOMING: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Incoming' },
   IN_PROCESS: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'In-Process' },
   FINAL: { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'Final' },
 };
 
-const ITEM_TYPE_LABEL: Record<MockInspectionChecklist['itemTypeTarget'], string> = {
+const ITEM_TYPE_LABEL: Record<InspectionChecklist['itemTypeTarget'], string> = {
   RAW_MATERIAL: 'Raw Material',
   SEMI_FINISHED: 'Semi-Finished',
   FINISHED_GOOD: 'Finished Good',
   ALL: 'All Types',
 };
 
-const SAMPLING_LABEL: Record<MockInspectionChecklist['samplingPlan'], string> = {
+const SAMPLING_LABEL: Record<InspectionChecklist['samplingPlan'], string> = {
   ALL: 'All Units',
   RANDOM_10: 'Random 10%',
   RANDOM_20: 'Random 20%',
   AQL: 'AQL Level',
 };
 
-const QP_TYPE_BADGE: Record<MockQualityParameter['type'], { bg: string; text: string; label: string }> = {
+const QP_TYPE_BADGE: Record<string, { bg: string; text: string; label: string }> = {
   PASS_FAIL: { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'Pass/Fail' },
   NUMERIC: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Numeric' },
   TEXT: { bg: 'bg-slate-100', text: 'text-slate-700', label: 'Text' },
+  MISSING: { bg: 'bg-red-50 border border-red-200', text: 'text-red-700', label: 'Not Available' }
 };
-
-let nextId = 5;
 
 export default function InspectionChecklistsPage() {
   const toast = useToast();
-  const [items, setItems] = useState<MockInspectionChecklist[]>([...mockInspectionChecklists]);
+  const [items, setItems] = useState<InspectionChecklist[]>([]);
+  const [qualityParameters, setQualityParameters] = useState<QualityParameter[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [search, setSearch] = useState('');
-  const [applicableFilter, setApplicableFilter] = useState<'ALL' | MockInspectionChecklist['applicableTo']>('ALL');
-  const [itemTypeFilter, setItemTypeFilter] = useState<'ALL' | MockInspectionChecklist['itemTypeTarget']>('ALL');
+  const [applicableFilter, setApplicableFilter] = useState<'ALL' | InspectionChecklist['applicableTo']>('ALL');
+  const [itemTypeFilter, setItemTypeFilter] = useState<'ALL' | InspectionChecklist['itemTypeTarget']>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<Partial<MockInspectionChecklist>>({
+  const [form, setForm] = useState<Partial<InspectionChecklist>>({
     applicableTo: 'INCOMING',
     itemTypeTarget: 'RAW_MATERIAL',
     samplingPlan: 'ALL',
@@ -79,13 +106,69 @@ export default function InspectionChecklistsPage() {
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  const { selectedWarehouseId } = useWarehouseStore();
+
+  const warehouseQualityParameters = useMemo(() => {
+    if (!selectedWarehouseId) return qualityParameters;
+    return qualityParameters.filter((qp) => qp.warehouseId === selectedWarehouseId);
+  }, [qualityParameters, selectedWarehouseId]);
+
   const activeParameters = useMemo(
-    () => mockQualityParameters.filter((p) => p.isActive),
-    []
+    () => warehouseQualityParameters.filter((p) => p.isActive),
+    [warehouseQualityParameters]
   );
 
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const qpRes = await getAllQualityParameters();
+      if (qpRes.success && qpRes.data) {
+        setQualityParameters(
+          qpRes.data.map((qp) => ({
+            id: qp.id,
+            name: qp.name,
+            code: qp.code,
+            type: qp.type,
+            isActive: qp.is_active,
+            warehouseId: qp.warehouse_id || null,
+          })),
+        );
+      }
+
+      const clRes = await getAllInspectionChecklists();
+      if (clRes.success && clRes.data) {
+        setItems(
+          clRes.data.map((cl) => ({
+            id: cl.id,
+            name: cl.name,
+            code: cl.code,
+            applicableTo: cl.applicable_to as any,
+            itemTypeTarget: cl.item_type_target as any,
+            parameters: cl.parameter_ids || [],
+            samplingPlan: cl.sampling_plan as any,
+            isActive: cl.is_active,
+            warehouseId: cl.warehouse_id || null,
+          })),
+        );
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to fetch data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const warehouseInspectionChecklists = useMemo(() => {
+    if (!selectedWarehouseId) return items;
+    return items.filter((it) => it.warehouseId === selectedWarehouseId);
+  }, [items, selectedWarehouseId]);
+
   const filtered = useMemo(() => {
-    return items.filter((it) => {
+    return warehouseInspectionChecklists.filter((it) => {
       const q = search.toLowerCase();
       const matchesSearch = !q || it.name.toLowerCase().includes(q) || it.code.toLowerCase().includes(q);
       const matchesApplicable = applicableFilter === 'ALL' || it.applicableTo === applicableFilter;
@@ -93,22 +176,32 @@ export default function InspectionChecklistsPage() {
       const matchesStatus = statusFilter === 'ALL' || (statusFilter === 'ACTIVE' ? it.isActive : !it.isActive);
       return matchesSearch && matchesApplicable && matchesItemType && matchesStatus;
     });
-  }, [items, search, applicableFilter, itemTypeFilter, statusFilter]);
+  }, [warehouseInspectionChecklists, search, applicableFilter, itemTypeFilter, statusFilter]);
 
   const stats = useMemo(() => {
-    const total = items.length;
-    const active = items.filter((i) => i.isActive).length;
-    const incoming = items.filter((i) => i.applicableTo === 'INCOMING').length;
-    const inProcess = items.filter((i) => i.applicableTo === 'IN_PROCESS').length;
-    const final = items.filter((i) => i.applicableTo === 'FINAL').length;
+    const total = warehouseInspectionChecklists.length;
+    const active = warehouseInspectionChecklists.filter((i) => i.isActive).length;
+    const incoming = warehouseInspectionChecklists.filter((i) => i.applicableTo === 'INCOMING').length;
+    const inProcess = warehouseInspectionChecklists.filter((i) => i.applicableTo === 'IN_PROCESS').length;
+    const final = warehouseInspectionChecklists.filter((i) => i.applicableTo === 'FINAL').length;
     return { total, active, inactive: total - active, incoming, inProcess, final };
-  }, [items]);
+  }, [warehouseInspectionChecklists]);
 
   const getParameterNames = useCallback((paramIds: string[]) => {
-    return paramIds
-      .map((id) => mockQualityParameters.find((p) => p.id === id))
-      .filter(Boolean) as MockQualityParameter[];
-  }, []);
+    return paramIds.map((id) => {
+      const p = qualityParameters.find((qp) => qp.id === id);
+      if (p) return { ...p, rawId: null as string | null };
+      // Keep the original id as rawId so we can show it in the UI
+      return {
+        id,
+        rawId: id,
+        name: 'Deleted / Unavailable Parameter',
+        code: 'UNAVAILABLE',
+        type: 'MISSING',
+        isActive: false,
+      };
+    });
+  }, [qualityParameters]);
 
   const openAdd = useCallback(() => {
     setEditingId(null);
@@ -123,7 +216,7 @@ export default function InspectionChecklistsPage() {
     setModalOpen(true);
   }, []);
 
-  const openEdit = useCallback((it: MockInspectionChecklist) => {
+  const openEdit = useCallback((it: InspectionChecklist) => {
     setEditingId(it.id);
     setForm({
       ...it,
@@ -153,40 +246,90 @@ export default function InspectionChecklistsPage() {
     return true;
   }, [form, items, editingId]);
 
-  const save = useCallback(() => {
+  const save = async () => {
     if (!validate()) return;
-    const payload: MockInspectionChecklist = {
-      id: editingId ?? `cl-00${nextId++}`,
-      name: form.name!.trim(),
-      code: form.code!.trim().toUpperCase(),
-      applicableTo: form.applicableTo!,
-      itemTypeTarget: form.itemTypeTarget!,
-      samplingPlan: form.samplingPlan!,
-      parameters: form.parameters ?? [],
-      isActive: form.isActive ?? true,
-    };
-    if (editingId) {
-      setItems((prev) => prev.map((i) => (i.id === editingId ? payload : i)));
-      toast.success('Inspection checklist updated');
-    } else {
-      setItems((prev) => [...prev, payload]);
-      toast.success('Inspection checklist added');
+    setIsSaving(true);
+    try {
+      const payload = {
+        name: form.name!.trim(),
+        code: form.code!.trim().toUpperCase(),
+        applicableTo: form.applicableTo!,
+        itemTypeTarget: form.itemTypeTarget!,
+        samplingPlan: form.samplingPlan!,
+        parameterIds: form.parameters ?? [],
+        isActive: form.isActive ?? true,
+        warehouseId: selectedWarehouseId || null,
+      };
+      if (editingId) {
+        const res = await updateInspectionChecklist(editingId, payload);
+        if (res.success && res.data) {
+          setItems((prev) => prev.map((i) => (i.id === editingId ? {
+            id: res.data!.id,
+            name: res.data!.name,
+            code: res.data!.code,
+            applicableTo: res.data!.applicable_to as any,
+            itemTypeTarget: res.data!.item_type_target as any,
+            parameters: res.data!.parameter_ids || [],
+            samplingPlan: res.data!.sampling_plan as any,
+            isActive: res.data!.is_active,
+            warehouseId: res.data!.warehouse_id || null,
+          } : i)));
+          toast.success('Inspection checklist updated');
+        }
+      } else {
+        const res = await createInspectionChecklist(payload);
+        if (res.success && res.data) {
+          setItems((prev) => [{
+            id: res.data!.id,
+            name: res.data!.name,
+            code: res.data!.code,
+            applicableTo: res.data!.applicable_to as any,
+            itemTypeTarget: res.data!.item_type_target as any,
+            parameters: res.data!.parameter_ids || [],
+            samplingPlan: res.data!.sampling_plan as any,
+            isActive: res.data!.is_active,
+            warehouseId: res.data!.warehouse_id || null,
+          }, ...prev]);
+          toast.success('Inspection checklist added');
+        }
+      }
+      closeModal();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save checklist');
+    } finally {
+      setIsSaving(false);
     }
-    closeModal();
-  }, [form, editingId, validate, closeModal, toast]);
+  };
 
-  const toggleStatus = useCallback((id: string) => {
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, isActive: !i.isActive } : i)));
-    toast.success('Status updated');
-  }, [toast]);
+  const toggleStatus = async (id: string) => {
+    const it = items.find((i) => i.id === id);
+    if (!it) return;
+    const newStatus = !it.isActive;
+
+    // Optimistic update
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, isActive: newStatus } : i)));
+    try {
+      await updateInspectionChecklist(id, { isActive: newStatus });
+      toast.success('Status updated');
+    } catch (err) {
+      // Rollback
+      setItems((prev) => prev.map((i) => (i.id === id ? { ...i, isActive: !newStatus } : i)));
+      toast.error(err instanceof Error ? err.message : 'Failed to update status');
+    }
+  };
 
   const confirmDelete = useCallback((id: string) => setDeleteId(id), []);
-  const doDelete = useCallback(() => {
+  const doDelete = async () => {
     if (!deleteId) return;
-    setItems((prev) => prev.filter((i) => i.id !== deleteId));
-    toast.success('Inspection checklist deleted');
-    setDeleteId(null);
-  }, [deleteId, toast]);
+    try {
+      await deleteInspectionChecklist(deleteId);
+      setItems((prev) => prev.filter((i) => i.id !== deleteId));
+      toast.success('Inspection checklist deleted');
+      setDeleteId(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete checklist');
+    }
+  };
 
   const toggleParam = useCallback((paramId: string) => {
     setForm((f) => {
@@ -336,86 +479,118 @@ export default function InspectionChecklistsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((it) => {
+              {isLoading ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-12 text-center text-slate-400">
+                    <i className="ri-loader-4-line text-4xl text-[#4f46e5] animate-spin block mb-2" />
+                    <p className="text-sm">Loading inspection checklists...</p>
+                  </td>
+                </tr>
+              ) : filtered.map((it) => {
                 const badge = APPLICABLE_BADGE[it.applicableTo];
                 const isExpanded = expandedId === it.id;
                 const paramNames = getParameterNames(it.parameters);
                 return (
-                  <>
-                    <tr
-                      key={it.id}
-                      className="hover:bg-slate-50 transition-colors cursor-pointer"
-                      onClick={() => setExpandedId((prev) => (prev === it.id ? null : it.id))}
-                    >
-                      <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">{it.code}</td>
-                      <td className="px-4 py-3 text-slate-900 font-medium whitespace-nowrap">{it.name}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${badge.bg} ${badge.text}`}>
-                          {badge.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-slate-600 text-xs whitespace-nowrap">{ITEM_TYPE_LABEL[it.itemTypeTarget]}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">
-                          <i className="ri-microscope-line text-[10px]" />
-                          {it.parameters.length} param{it.parameters.length !== 1 ? 's' : ''}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-slate-600 text-xs whitespace-nowrap">{SAMPLING_LABEL[it.samplingPlan]}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); toggleStatus(it.id); }}
-                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors cursor-pointer ${it.isActive ? 'bg-[#4f46e5]' : 'bg-slate-300'}`}
-                        >
-                          <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${it.isActive ? 'translate-x-5' : 'translate-x-1'}`} />
-                        </button>
-                      </td>
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); openEdit(it); }}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:text-[#4f46e5] hover:bg-indigo-50 transition-colors cursor-pointer"
-                            title="Edit"
+                  <tr key={it.id} className="hover:bg-slate-50 transition-colors">
+                    <td colSpan={8} className="p-0">
+                      <table className="w-full text-sm border-collapse">
+                        <tbody>
+                          <tr
+                            className="cursor-pointer hover:bg-slate-50 transition-colors"
+                            onClick={() => setExpandedId((prev) => (prev === it.id ? null : it.id))}
                           >
-                            <i className="ri-edit-line" />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); confirmDelete(it.id); }}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                            title="Delete"
-                          >
-                            <i className="ri-delete-bin-line" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                    {isExpanded && (
-                      <tr>
-                        <td colSpan={8} className="px-4 py-3 bg-slate-50/60">
-                          <div className="flex flex-wrap gap-2">
-                            <span className="text-xs text-slate-500 font-medium mr-1 self-center">Parameters:</span>
-                            {paramNames.length > 0 ? paramNames.map((p) => {
-                              const tb = QP_TYPE_BADGE[p.type];
-                              return (
-                                <span
-                                  key={p.id}
-                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${tb.bg} ${tb.text}`}
+                            <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap w-[12%]">{it.code}</td>
+                            <td className="px-4 py-3 text-slate-900 font-medium whitespace-nowrap w-[20%]">{it.name}</td>
+                            <td className="px-4 py-3 whitespace-nowrap w-[15%]">
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${badge.bg} ${badge.text}`}>
+                                {badge.label}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-slate-600 text-xs whitespace-nowrap w-[15%]">{ITEM_TYPE_LABEL[it.itemTypeTarget]}</td>
+                            <td className="px-4 py-3 whitespace-nowrap w-[15%]">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">
+                                <i className="ri-microscope-line text-[10px]" />
+                                {it.parameters.length} param{it.parameters.length !== 1 ? 's' : ''}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-slate-600 text-xs whitespace-nowrap w-[12%]">{SAMPLING_LABEL[it.samplingPlan]}</td>
+                            <td className="px-4 py-3 whitespace-nowrap w-[10%]">
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); toggleStatus(it.id); }}
+                                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors cursor-pointer ${it.isActive ? 'bg-[#4f46e5]' : 'bg-slate-300'}`}
+                              >
+                                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${it.isActive ? 'translate-x-5' : 'translate-x-1'}`} />
+                              </button>
+                            </td>
+                            <td className="px-4 py-3 text-right whitespace-nowrap">
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); openEdit(it); }}
+                                  className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:text-[#4f46e5] hover:bg-indigo-50 transition-colors cursor-pointer"
+                                  title="Edit"
                                 >
-                                  <span className="font-mono text-[10px] opacity-70">{p.code}</span>
-                                  {p.name}
-                                </span>
-                              );
-                            }) : (
-                              <span className="text-xs text-slate-400">No parameters assigned</span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </>
+                                  <i className="ri-edit-line" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); confirmDelete(it.id); }}
+                                  className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                                  title="Delete"
+                                >
+                                  <i className="ri-delete-bin-line" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr>
+                              <td colSpan={8} className="px-4 py-3 bg-slate-50/60 border-t border-slate-100">
+                                <div className="flex flex-wrap gap-2">
+                                  <span className="text-xs text-slate-500 font-medium mr-1 self-center">Parameters:</span>
+                                  {paramNames.length > 0 ? paramNames.map((p) => {
+                                    const tb = QP_TYPE_BADGE[p.type] || { bg: 'bg-slate-100', text: 'text-slate-700', label: 'Text' };
+                                    const isMissing = p.type === 'MISSING';
+                                    return (
+                                      <span
+                                        key={p.id}
+                                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${tb.bg} ${tb.text}`}
+                                        title={isMissing ? `Parameter ID: ${p.rawId ?? p.id} — This parameter has been deleted` : p.name}
+                                      >
+                                        {isMissing ? (
+                                          <>
+                                            <i className="ri-error-warning-line text-red-500" />
+                                            <span className="font-mono text-[10px] text-red-400 opacity-90">
+                                              {/* Show short ID (first 8 chars) or full if short */}
+                                              ID: {(p.rawId ?? p.id).length > 8
+                                                ? `${(p.rawId ?? p.id).slice(0, 8)}…`
+                                                : (p.rawId ?? p.id)}
+                                            </span>
+                                            <span className="font-semibold">Deleted Parameter</span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <span className="font-mono text-[10px] opacity-70">{p.code}</span>
+                                            {p.name}
+                                          </>
+                                        )}
+                                      </span>
+                                    );
+                                  }) : (
+                                    <span className="text-xs text-slate-400">No parameters assigned</span>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
                 );
               })}
-              {filtered.length === 0 && (
+              {!isLoading && filtered.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-4 py-12 text-center text-slate-400">
                     <div className="w-12 h-12 flex items-center justify-center mx-auto mb-3 rounded-full bg-slate-50">
@@ -432,7 +607,7 @@ export default function InspectionChecklistsPage() {
           ← Scroll to see more →
         </p>
         <div className="px-4 py-3 border-t border-slate-200 text-xs text-slate-500">
-          Showing {filtered.length} of {items.length} checklists
+          Showing {filtered.length} of {warehouseInspectionChecklists.length} checklists
         </div>
       </div>
 
@@ -488,7 +663,7 @@ export default function InspectionChecklistsPage() {
                   </label>
                   <select
                     value={form.applicableTo ?? 'INCOMING'}
-                    onChange={(e) => setForm((f) => ({ ...f, applicableTo: e.target.value as MockInspectionChecklist['applicableTo'] }))}
+                    onChange={(e) => setForm((f) => ({ ...f, applicableTo: e.target.value as InspectionChecklist['applicableTo'] }))}
                     className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5]/20 focus:border-[#4f46e5] cursor-pointer"
                   >
                     {APPLICABLE_OPTIONS.map((o) => (
@@ -502,7 +677,7 @@ export default function InspectionChecklistsPage() {
                   </label>
                   <select
                     value={form.itemTypeTarget ?? 'RAW_MATERIAL'}
-                    onChange={(e) => setForm((f) => ({ ...f, itemTypeTarget: e.target.value as MockInspectionChecklist['itemTypeTarget'] }))}
+                    onChange={(e) => setForm((f) => ({ ...f, itemTypeTarget: e.target.value as InspectionChecklist['itemTypeTarget'] }))}
                     className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5]/20 focus:border-[#4f46e5] cursor-pointer"
                   >
                     {ITEM_TYPE_OPTIONS.map((o) => (
@@ -516,7 +691,7 @@ export default function InspectionChecklistsPage() {
                   </label>
                   <select
                     value={form.samplingPlan ?? 'ALL'}
-                    onChange={(e) => setForm((f) => ({ ...f, samplingPlan: e.target.value as MockInspectionChecklist['samplingPlan'] }))}
+                    onChange={(e) => setForm((f) => ({ ...f, samplingPlan: e.target.value as InspectionChecklist['samplingPlan'] }))}
                     className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5]/20 focus:border-[#4f46e5] cursor-pointer"
                   >
                     {SAMPLING_OPTIONS.map((o) => (
@@ -537,17 +712,38 @@ export default function InspectionChecklistsPage() {
                     <span className="text-xs text-slate-400 italic py-1">Select at least one parameter below</span>
                   )}
                   {(form.parameters ?? []).map((pid) => {
-                    const p = mockQualityParameters.find((qp) => qp.id === pid);
-                    if (!p) return null;
-                    const tb = QP_TYPE_BADGE[p.type];
+                    const found = qualityParameters.find((qp) => qp.id === pid);
+                    const isMissing = !found;
+                    const p = found || {
+                      id: pid,
+                      name: 'Deleted Parameter',
+                      code: 'UNAVAILABLE',
+                      type: 'MISSING',
+                      isActive: false,
+                    };
+                    const tb = QP_TYPE_BADGE[p.type] || { bg: 'bg-slate-100', text: 'text-slate-700', label: 'Text' };
                     return (
                       <span
                         key={pid}
                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${tb.bg} ${tb.text}`}
+                        title={isMissing ? `Parameter ID: ${pid} — This parameter has been deleted` : p.name}
                       >
-                        <span className="font-mono text-[10px] opacity-70">{p.code}</span>
-                        {p.name}
+                        {isMissing ? (
+                          <>
+                            <i className="ri-error-warning-line text-red-500" />
+                            <span className="font-mono text-[10px] text-red-400 opacity-90">
+                              ID: {pid.length > 8 ? `${pid.slice(0, 8)}…` : pid}
+                            </span>
+                            <span className="font-semibold">Deleted Parameter</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="font-mono text-[10px] opacity-70">{p.code}</span>
+                            {p.name}
+                          </>
+                        )}
                         <button
+                          type="button"
                           onClick={() => removeParam(pid)}
                           className="w-4 h-4 flex items-center justify-center rounded-full hover:bg-black/10 transition-colors cursor-pointer ml-0.5"
                         >
@@ -566,10 +762,11 @@ export default function InspectionChecklistsPage() {
                   <div className="max-h-56 overflow-y-auto">
                     {activeParameters.map((p) => {
                       const selected = (form.parameters ?? []).includes(p.id);
-                      const tb = QP_TYPE_BADGE[p.type];
+                      const tb = QP_TYPE_BADGE[p.type] || { bg: 'bg-slate-100', text: 'text-slate-700', label: 'Text' };
                       return (
                         <button
                           key={p.id}
+                          type="button"
                           onClick={() => toggleParam(p.id)}
                           className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors cursor-pointer ${
                             selected ? 'bg-indigo-50 hover:bg-indigo-100' : 'hover:bg-slate-50'
@@ -600,6 +797,7 @@ export default function InspectionChecklistsPage() {
               <div className="flex items-center justify-between py-1">
                 <span className="text-sm font-medium text-slate-700">Active</span>
                 <button
+                  type="button"
                   onClick={() => setForm((f) => ({ ...f, isActive: !f.isActive }))}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${form.isActive ? 'bg-[#4f46e5]' : 'bg-slate-300'}`}
                 >
@@ -608,8 +806,9 @@ export default function InspectionChecklistsPage() {
               </div>
             </div>
             <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3">
-              <button onClick={closeModal} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer">Cancel</button>
-              <button onClick={save} className="px-4 py-2 rounded-lg text-sm font-medium bg-[#4f46e5] text-white hover:bg-indigo-700 transition-colors cursor-pointer">
+              <button type="button" onClick={closeModal} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer">Cancel</button>
+              <button type="button" onClick={save} disabled={isSaving} className="px-4 py-2 rounded-lg text-sm font-medium bg-[#4f46e5] text-white hover:bg-indigo-700 transition-colors cursor-pointer disabled:opacity-60 flex items-center gap-1.5">
+                {isSaving && <i className="ri-loader-4-line animate-spin" />}
                 {editingId ? 'Update' : 'Save'}
               </button>
             </div>
@@ -622,7 +821,7 @@ export default function InspectionChecklistsPage() {
         title="Delete Checklist?"
         message="This inspection checklist will be permanently removed."
         confirmLabel="Delete"
-        confirmVariant="danger"
+        variant="danger"
         onConfirm={doDelete}
         onCancel={() => setDeleteId(null)}
       />

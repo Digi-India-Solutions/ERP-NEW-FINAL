@@ -3,14 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import AppLayout from '@/components/feature/AppLayout';
 import ConfirmDialog from '@/components/feature/ConfirmDialog';
 import { useToast } from '@/contexts/ToastContext';
-import {
-  mockRoutings,
-  mockItems,
-  mockWorkCenters,
-  mockMachines,
-  type MockRouting,
-  type MockRoutingStage,
-} from '@/mocks/masters';
+import { getAllRoutings, createRouting, updateRouting } from '@/api/routing.api';
+import { getAllItems } from '@/api/item.api';
+import { getAllWorkCenters } from '@/api/workcenter.api';
+import { getAllMachines } from '@/api/machine.api';
+import { useWarehouseStore } from '@/stores/warehouseStore';
 
 /* ─── helpers ─── */
 function formatMinutes(total: number) {
@@ -20,26 +17,6 @@ function formatMinutes(total: number) {
   if (mins === 0) return `${hrs} hrs`;
   return `${hrs} hrs ${mins} min`;
 }
-
-const LS_KEY = 'invenpro_mock_routings';
-
-function getSavedRoutings(): MockRouting[] {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {
-    /* ignore parse errors */
-  }
-  return [...mockRoutings];
-}
-
-function saveRoutingsToStorage(list: MockRouting[]) {
-  localStorage.setItem(LS_KEY, JSON.stringify(list));
-}
-
-const activeItems = mockItems.filter((i) => i.isActive);
-const activeWorkCenters = mockWorkCenters.filter((w) => w.isActive);
-const activeMachines = mockMachines.filter((m) => m.isActive);
 
 /* ─── local form types ─── */
 interface StageFormRow {
@@ -65,21 +42,23 @@ interface RoutingFormState {
 function ItemSearchDropdown({
   value,
   onChange,
+  items,
 }: {
   value: string;
   onChange: (itemId: string, itemName: string | null) => void;
+  items: any[];
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const selected = activeItems.find((i) => i.id === value);
+  const selected = items.find((i) => i.id === value);
 
   useEffect(() => {
     if (selected) setQuery(selected.name);
     else setQuery('');
-  }, [selected?.id]);
+  }, [selected?.id, value]);
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -95,15 +74,15 @@ function ItemSearchDropdown({
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
-    if (!q) return activeItems.slice(0, 8);
-    return activeItems.filter(
+    if (!q) return items.slice(0, 8);
+    return items.filter(
       (i) =>
         i.name.toLowerCase().includes(q) ||
-        i.code.toLowerCase().includes(q),
+        (i.code && i.code.toLowerCase().includes(q)),
     );
-  }, [query]);
+  }, [query, items]);
 
-  const handleSelect = (item: (typeof activeItems)[number]) => {
+  const handleSelect = (item: any) => {
     onChange(item.id, item.name);
     setQuery(item.name);
     setOpen(false);
@@ -173,14 +152,11 @@ export default function RoutingFormPage() {
   const { id } = useParams<{ id?: string }>();
   const isEdit = !!id;
   const toast = useToast();
+  const { selectedWarehouseId } = useWarehouseStore();
 
-  /* load / init routings from storage */
-  const [allRoutings, setAllRoutings] = useState<MockRouting[]>(getSavedRoutings);
-
-  const existingRouting = useMemo(
-    () => allRoutings.find((r) => r.id === id) ?? null,
-    [allRoutings, id],
-  );
+  const [activeItems, setActiveItems] = useState<any[]>([]);
+  const [activeWorkCenters, setActiveWorkCenters] = useState<any[]>([]);
+  const [activeMachines, setActiveMachines] = useState<any[]>([]);
 
   const [form, setForm] = useState<RoutingFormState>({
     name: '',
@@ -198,9 +174,6 @@ export default function RoutingFormPage() {
   const [confirmDeleteStage, setConfirmDeleteStage] = useState<StageFormRow | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
 
-  /* item dropdown display value */
-  const [showItemDropdown] = useState(false); // managed inside ItemSearchDropdown
-
   /* refs for focus management */
   const nameInputRef = useRef<HTMLInputElement>(null);
   const stageNameRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -208,35 +181,81 @@ export default function RoutingFormPage() {
   const stdTimeRefs = useRef<(HTMLInputElement | null)[]>([]);
   const setupTimeRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  /* init from existing or blank */
-  useEffect(() => {
-    if (isEdit && existingRouting) {
-      setForm({
-        name: existingRouting?.name || '',
-        code: existingRouting?.code || '',
-        itemId: existingRouting?.itemId ?? '',
-        version: existingRouting?.version || '1.0',
-        status: existingRouting?.status || 'DRAFT',
-      });
-      setStages(
-        (existingRouting?.stages || []).map((s) => ({
-          id: s?.id || `rs-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          stageName: s?.stageName || '',
-          workCenterId: s?.workCenterId ?? '',
-          machineId: s?.machineId ?? '',
-          standardTimeMinutes: s?.standardTimeMinutes ?? 0,
-          setupTimeMinutes: s?.setupTimeMinutes ?? 0,
-          qcRequired: s?.qcRequired ?? false,
-          description: s?.description ?? '',
-        })),
-      );
-    } else {
-      setForm({ name: '', code: '', itemId: '', version: '1.0', status: 'DRAFT' });
-      setStages([]);
+  const fetchInitialData = async () => {
+    try {
+      const [itemsRes, wcRes, mcRes, routingsRes] = await Promise.all([
+        getAllItems(),
+        getAllWorkCenters(),
+        getAllMachines(),
+        getAllRoutings(),
+      ]);
+
+      let itemsLocal: any[] = [];
+      if (itemsRes.success && itemsRes.data) {
+        itemsLocal = itemsRes.data.filter((i: any) => i.is_active || i.isActive);
+        if (selectedWarehouseId) {
+          // item API returns warehouse field as `warehouseid` (lowercase, no underscore)
+          itemsLocal = itemsLocal.filter((i: any) =>
+            i.warehouseid === selectedWarehouseId ||
+            i.warehouse_id === selectedWarehouseId ||
+            i.warehouseId === selectedWarehouseId
+          );
+        }
+        setActiveItems(itemsLocal);
+      }
+      if (wcRes.success && wcRes.data) {
+        let wcLocal = wcRes.data.filter((w: any) => w.is_active || w.isActive);
+        if (selectedWarehouseId) {
+          wcLocal = wcLocal.filter((w: any) => w.warehouse_id === selectedWarehouseId || w.warehouseId === selectedWarehouseId);
+        }
+        setActiveWorkCenters(wcLocal);
+      }
+      if (mcRes.success && mcRes.data) {
+        let mcLocal = mcRes.data.filter((m: any) => m.is_active || m.isActive);
+        if (selectedWarehouseId) {
+          mcLocal = mcLocal.filter((m: any) => m.warehouse_id === selectedWarehouseId || m.warehouseId === selectedWarehouseId);
+        }
+        setActiveMachines(mcLocal);
+      }
+
+      if (isEdit && id && routingsRes.success && routingsRes.data) {
+        const found = routingsRes.data.find((r: any) => r.id === id);
+        if (found) {
+          setForm({
+            name: found.name || '',
+            code: found.code || '',
+            itemId: found.item_id || '',
+            version: found.version || '1.0',
+            status: found.status || 'DRAFT',
+          });
+
+          const parsedStages = typeof found.stages === 'string' ? JSON.parse(found.stages) : found.stages;
+          setStages(
+            (parsedStages || []).map((s: any) => ({
+              id: s.id || `rs-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+              stageName: s.stageName || s.operationName || '',
+              workCenterId: s.workCenterId || '',
+              machineId: s.machineId || '',
+              standardTimeMinutes: s.standardTimeMinutes || s.runTimeMinutes || 0,
+              setupTimeMinutes: s.setupTimeMinutes || 0,
+              qcRequired: s.qcRequired || false,
+              description: s.description || '',
+            }))
+          );
+        } else {
+          toast.error('Routing not found');
+          navigate('/masters/routing');
+        }
+      }
+    } catch (err) {
+      toast.error('Failed to load routing data');
     }
-    setErrors({});
+  };
+
+  useEffect(() => {
+    fetchInitialData();
     setTimeout(() => nameInputRef.current?.focus(), 80);
-  }, [isEdit, existingRouting]);
+  }, [id, isEdit]);
 
   /* update helper */
   const updateForm = (field: keyof RoutingFormState, value: string) => {
@@ -251,10 +270,15 @@ export default function RoutingFormPage() {
   };
 
   /* auto-suggest code on name blur */
-  const handleNameBlur = () => {
+  const handleNameBlur = async () => {
     if (!isEdit && !form.code.trim() && form.name.trim()) {
-      const count = allRoutings.length + 1;
-      updateForm('code', `RT-${String(count).padStart(3, '0')}`);
+      try {
+        const rRes = await getAllRoutings();
+        const count = (rRes.data || []).length + 1;
+        updateForm('code', `RT-${String(count).padStart(3, '0')}`);
+      } catch {
+        updateForm('code', `RT-${String(Date.now()).slice(-3)}`);
+      }
     }
   };
 
@@ -271,9 +295,8 @@ export default function RoutingFormPage() {
       description: '',
     };
     setStages((prev) => [...prev, newRow]);
-    // focus new row stage name after render
     setTimeout(() => {
-      const idx = stages.length; // index of new row
+      const idx = stages.length;
       stageNameRefs.current[idx]?.focus();
     }, 60);
   }, [stages.length]);
@@ -332,14 +355,14 @@ export default function RoutingFormPage() {
   };
 
   /* save */
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) {
       toast.error('Please fix the errors before saving');
       return;
     }
     setIsSaving(true);
-    setTimeout(() => {
-      const savedStages: MockRoutingStage[] = stages.map((s, idx) => {
+    try {
+      const savedStages = stages.map((s, idx) => {
         const wc = activeWorkCenters.find((w) => w.id === s.workCenterId);
         const mc = activeMachines.find((m) => m.id === s.machineId);
         return {
@@ -364,30 +387,47 @@ export default function RoutingFormPage() {
 
       const item = activeItems.find((i) => i.id === form.itemId);
 
-      const routing: MockRouting = {
-        id: isEdit ? id! : `rt-${Date.now()}`,
+      const payload = {
         name: form.name.trim(),
         code: form.code.trim(),
         itemId: form.itemId || null,
         itemName: item?.name ?? null,
         version: form.version.trim() || '1.0',
         status: form.status,
-        isActive: form.status !== 'OBSOLETE',
+        stages: savedStages.map((s) => ({
+          sequence: s.stageNumber,
+          workCenterId: s.workCenterId || '',
+          workCenterName: s.workCenterName || '',
+          machineId: s.machineId || '',
+          machineName: s.machineName || '',
+          operationName: s.stageName,
+          setupTimeMinutes: s.setupTimeMinutes,
+          runTimeMinutes: s.standardTimeMinutes,
+          description: s.description || '',
+        })),
         totalTimeMinutes: totalTime,
-        createdAt: isEdit ? existingRouting!.createdAt : new Date().toISOString(),
-        stages: savedStages,
+        isActive: form.status !== 'OBSOLETE',
+        warehouseId: selectedWarehouseId || null,
       };
 
-      setAllRoutings((prev) => {
-        const next = isEdit ? prev.map((r) => (r.id === id ? routing : r)) : [...prev, routing];
-        saveRoutingsToStorage(next);
-        return next;
-      });
+      let res;
+      if (isEdit && id) {
+        res = await updateRouting(id, payload);
+      } else {
+        res = await createRouting(payload);
+      }
 
-      toast.success(isEdit ? 'Routing updated' : 'Routing created');
+      if (res.success) {
+        toast.success(isEdit ? 'Routing updated' : 'Routing created');
+        navigate('/masters/routing');
+      } else {
+        toast.error(res.message || 'Failed to save routing');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save routing');
+    } finally {
       setIsSaving(false);
-      navigate('/masters/routing');
-    }, 400);
+    }
   };
 
   /* keyboard nav inside table */
@@ -421,20 +461,21 @@ export default function RoutingFormPage() {
     }
   };
 
-  /* get machines for a work center */
+  /* get machines for a work center
+     NOTE: Machine API returns snake_case (work_center_id) from the DB */
   const getMachinesForWC = (wcId: string) => {
     if (!wcId) return activeMachines;
-    return activeMachines.filter((m) => m.workCenterId === wcId);
+    return activeMachines.filter(
+      (m) => (m.work_center_id ?? m.workCenterId) === wcId,
+    );
   };
 
   const machinesForRow = (wcId: string) => getMachinesForWC(wcId);
 
-  /* dirty check for cancel confirmation */
   const isDirty =
     form.name.trim() ||
     form.code.trim() ||
-    stages.length > 0 ||
-    (isEdit && existingRouting);
+    stages.length > 0;
 
   const handleCancel = () => {
     if (isDirty && !isEdit) {
@@ -444,7 +485,6 @@ export default function RoutingFormPage() {
     navigate('/masters/routing');
   };
 
-  /* ─── render ─── */
   return (
     <AppLayout>
       <div className="p-6 space-y-6 max-w-6xl">
@@ -551,8 +591,8 @@ export default function RoutingFormPage() {
                 value={form.itemId}
                 onChange={(itemId, itemName) => {
                   updateForm('itemId', itemId);
-                  // itemName not needed in form state, resolved at save
                 }}
+                items={activeItems}
               />
             </div>
 
@@ -704,7 +744,7 @@ export default function RoutingFormPage() {
                               const wcId = e.target.value;
                               updateStage(idx, {
                                 workCenterId: wcId,
-                                machineId: '', // reset machine when WC changes
+                                machineId: '',
                               });
                             }}
                             onKeyDown={(e) => onWorkCenterKeyDown(e, idx)}

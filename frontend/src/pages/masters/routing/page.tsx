@@ -1,10 +1,27 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/feature/AppLayout';
 import ConfirmDialog from '@/components/feature/ConfirmDialog';
-import { mockRoutings, mockItems, type MockRouting, type MockRoutingStage } from '@/mocks/masters';
 import { useToast } from '@/contexts/ToastContext';
-import { MasterFilters, MasterSummaryCards, MasterStatsRow } from '@/pages/masters/common/CommonComponets';
+import { MasterFilters, MasterStatsRow } from '@/pages/masters/common/CommonComponets';
+import { getAllRoutings, deleteRouting, createRouting } from '@/api/routing.api';
+import { getAllItems } from '@/api/item.api';
+import { useWarehouseStore } from '@/stores/warehouseStore';
+
+interface Routing {
+  id: string;
+  name: string;
+  code: string;
+  itemId: string | null;
+  itemName: string | null;
+  version: string;
+  status: 'ACTIVE' | 'DRAFT' | 'OBSOLETE';
+  stages: any[];
+  totalTimeMinutes: number;
+  createdAt: string;
+  isActive: boolean;
+  warehouseId?: string | null;
+}
 
 function formatMinutes(total: number) {
   const hrs = Math.floor(total / 60);
@@ -20,20 +37,70 @@ const STATUS_BADGE: Record<string, { cls: string; dot: string }> = {
   OBSOLETE: { cls: 'bg-slate-100 text-slate-600 border-slate-200', dot: 'bg-slate-400' },
 };
 
-const activeItems = mockItems.filter((i) => i.isActive);
-
 export default function RoutingPage() {
   const navigate = useNavigate();
   const toast = useToast();
-  const [routings, setRoutings] = useState<MockRouting[]>([...mockRoutings]);
+  const [routings, setRoutings] = useState<Routing[]>([]);
+  const [itemsList, setItemsList] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'DRAFT' | 'OBSOLETE'>('ALL');
   const [itemFilter, setItemFilter] = useState<string>('ALL');
-  const [deleteConfirm, setDeleteConfirm] = useState<MockRouting | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<Routing | null>(null);
+
+  const { selectedWarehouseId } = useWarehouseStore();
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const [rRes, iRes] = await Promise.all([getAllRoutings(), getAllItems()]);
+      if (rRes.success && rRes.data) {
+        const mapped = rRes.data.map((r: any) => ({
+          id: r.id,
+          name: r.name,
+          code: r.code,
+          itemId: r.item_id,
+          itemName: r.item_name,
+          version: r.version,
+          status: r.status,
+          stages: typeof r.stages === 'string' ? JSON.parse(r.stages) : r.stages,
+          totalTimeMinutes: r.total_time_minutes,
+          createdAt: r.created_at,
+          isActive: r.is_active,
+          warehouseId: r.warehouse_id || null,
+        }));
+        setRoutings(mapped);
+      }
+      if (iRes.success && iRes.data) {
+        setItemsList(iRes.data);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to fetch routings');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const warehouseRoutings = useMemo(() => {
+    if (!selectedWarehouseId) return routings;
+    return routings.filter((r) => r.warehouseId === selectedWarehouseId);
+  }, [routings, selectedWarehouseId]);
+
+  const filteredItemsList = useMemo(() => {
+    let list = itemsList.filter((i) => i.is_active || i.isActive);
+    if (selectedWarehouseId) {
+      list = list.filter((i) => i.warehouse_id === selectedWarehouseId || i.warehouseId === selectedWarehouseId || i.warehouseid === selectedWarehouseId);
+    }
+    return list;
+  }, [itemsList, selectedWarehouseId]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
-    return routings.filter((r) => {
+    return warehouseRoutings.filter((r) => {
       const matchSearch =
         !q ||
         r.name.toLowerCase().includes(q) ||
@@ -43,44 +110,71 @@ export default function RoutingPage() {
       const matchItem = itemFilter === 'ALL' || r.itemId === itemFilter || (itemFilter === 'NONE' && !r.itemId);
       return matchSearch && matchStatus && matchItem;
     });
-  }, [routings, search, statusFilter, itemFilter]);
+  }, [warehouseRoutings, search, statusFilter, itemFilter]);
 
   const stats = useMemo(() => {
-    const total = routings.length;
-    const active = routings.filter((r) => r.status === 'ACTIVE').length;
-    const draft = routings.filter((r) => r.status === 'DRAFT').length;
-    const obsolete = routings.filter((r) => r.status === 'OBSOLETE').length;
-    const totalTime = routings.reduce((sum, r) => sum + r.totalTimeMinutes, 0);
+    const total = warehouseRoutings.length;
+    const active = warehouseRoutings.filter((r) => r.status === 'ACTIVE').length;
+    const draft = warehouseRoutings.filter((r) => r.status === 'DRAFT').length;
+    const obsolete = warehouseRoutings.filter((r) => r.status === 'OBSOLETE').length;
+    const totalTime = warehouseRoutings.reduce((sum, r) => sum + r.totalTimeMinutes, 0);
     return { total, active, draft, obsolete, totalTime };
-  }, [routings]);
+  }, [warehouseRoutings]);
 
-  const handleDuplicate = (routing: MockRouting) => {
-    const newStages: MockRoutingStage[] = routing.stages.map((s, idx) => ({
-      ...s,
-      id: `rs-${Date.now()}-${idx}`,
-      stageNumber: idx + 1,
-    }));
-    const newRouting: MockRouting = {
-      ...routing,
-      id: `rt-${Date.now()}`,
-      code: `${routing.code}-COPY`,
-      name: `${routing.name} (Copy)`,
-      status: 'DRAFT',
-      version: routing.version,
-      stages: newStages,
-      totalTimeMinutes: routing.totalTimeMinutes,
-      createdAt: new Date().toISOString(),
-      isActive: true,
-    };
-    setRoutings((prev) => [newRouting, ...prev]);
-    toast.success(`"${routing.name}" duplicated successfully`);
+  const handleDuplicate = async (routing: Routing) => {
+    try {
+      const newStages = routing.stages.map((s, idx) => ({
+        sequence: idx + 1,
+        workCenterId: s.workCenterId || '',
+        workCenterName: s.workCenterName || '',
+        operationName: s.stageName || s.operationName || '',
+        setupTimeMinutes: s.setupTimeMinutes || 0,
+        runTimeMinutes: s.standardTimeMinutes || s.runTimeMinutes || 0,
+        description: s.description || '',
+      }));
+
+      const newCode = `${routing.code}-COPY`.slice(0, 100);
+
+      const payload = {
+        name: `${routing.name} (Copy)`.slice(0, 255),
+        code: newCode,
+        itemId: routing.itemId || null,
+        itemName: routing.itemName || null,
+        version: routing.version || '1.0',
+        status: 'DRAFT' as const,
+        stages: newStages,
+        totalTimeMinutes: routing.totalTimeMinutes || 0,
+        isActive: true,
+        warehouseId: selectedWarehouseId || null,
+      };
+
+      const res = await createRouting(payload);
+      if (res.success && res.data) {
+        toast.success(`"${routing.name}" duplicated successfully as DRAFT`);
+        fetchData();
+      } else {
+        toast.error(res.message || 'Failed to duplicate routing');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to duplicate routing');
+    }
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteConfirm) return;
-    setRoutings((prev) => prev.filter((r) => r.id !== deleteConfirm.id));
-    toast.success(`"${deleteConfirm.name}" deleted`);
-    setDeleteConfirm(null);
+    try {
+      const res = await deleteRouting(deleteConfirm.id);
+      if (res.success) {
+        toast.success(`"${deleteConfirm.name}" deleted successfully`);
+        fetchData();
+      } else {
+        toast.error(res.message || 'Failed to delete routing');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete routing');
+    } finally {
+      setDeleteConfirm(null);
+    }
   };
 
   const hasFilters = search || statusFilter !== 'ALL' || itemFilter !== 'ALL';
@@ -145,7 +239,7 @@ export default function RoutingPage() {
               options: [
                 { value: 'ALL', label: 'All Items' },
                 { value: 'NONE', label: '— Generic —' },
-                ...activeItems.map((i) => ({ value: i.id, label: i.name })),
+                ...filteredItemsList.map((i) => ({ value: i.id, label: i.name })),
               ],
             },
           ]}
@@ -170,7 +264,14 @@ export default function RoutingPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r, idx) => {
+              {isLoading ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-12 text-center">
+                    <i className="ri-loader-4-line text-4xl text-indigo-500 animate-spin block mb-2" />
+                    <p className="text-[#94a3b8] text-sm">Loading routings...</p>
+                  </td>
+                </tr>
+              ) : filtered.map((r, idx) => {
                 const badge = STATUS_BADGE[r.status] || STATUS_BADGE.DRAFT;
                 return (
                   <tr
@@ -239,7 +340,7 @@ export default function RoutingPage() {
                   </tr>
                 );
               })}
-              {filtered.length === 0 && (
+              {!isLoading && filtered.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-4 py-12 text-center">
                     <i className="ri-git-branch-line text-4xl text-[#e2e8f0] block mb-2" />
@@ -251,7 +352,7 @@ export default function RoutingPage() {
             </tbody>
           </table>
           <div className="px-4 py-3 border-t border-[#e2e8f0]">
-            <p className="text-xs text-[#94a3b8]">Showing {filtered.length} of {routings.length} routings</p>
+            <p className="text-xs text-[#94a3b8]">Showing {filtered.length} of {warehouseRoutings.length} routings</p>
           </div>
         </div>
       </div>

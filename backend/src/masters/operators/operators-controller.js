@@ -12,7 +12,8 @@ export const createOperator = async (req, res) => {
       wage_rate_per_hour,
       shift_id,
       phone,
-      is_active
+      is_active,
+      warehouse_id
     } = req.body;
 
     // ✅ Validation
@@ -49,8 +50,8 @@ export const createOperator = async (req, res) => {
     // ✅ Insert
     const result = await connectDB.query(
       `INSERT INTO public."Operators"
-      (name, employee_code, skill, wage_rate_per_hour, shift_id, phone, is_active)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      (name, employee_code, skill, wage_rate_per_hour, shift_id, phone, is_active, warehouse_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *`,
       [
         name.trim(),
@@ -59,7 +60,8 @@ export const createOperator = async (req, res) => {
         Number(wage_rate_per_hour),
         shift_id || null,
         phone || null,
-        is_active ?? true
+        is_active ?? true,
+        warehouse_id || null
       ]
     );
 
@@ -101,7 +103,8 @@ export const updateOperator = async (req, res) => {
       wage_rate_per_hour,
       shift_id,
       phone,
-      is_active
+      is_active,
+      warehouse_id
     } = req.body;
 
     // 🔍 Check if operator exists
@@ -155,7 +158,8 @@ export const updateOperator = async (req, res) => {
         shift_id = CASE WHEN $5 = 'null' THEN NULL WHEN $5 IS NULL THEN shift_id ELSE $5::UUID END,
         phone = COALESCE($6, phone),
         is_active = COALESCE($7, is_active),
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = CURRENT_TIMESTAMP,
+        warehouse_id = COALESCE($9, warehouse_id)
       WHERE id = $8
       RETURNING *`,
       [
@@ -166,7 +170,8 @@ export const updateOperator = async (req, res) => {
         shift_id === null ? 'null' : (shift_id || null),
         phone || null,
         is_active !== undefined ? is_active : null,
-        id
+        id,
+        warehouse_id || null
       ]
     );
 

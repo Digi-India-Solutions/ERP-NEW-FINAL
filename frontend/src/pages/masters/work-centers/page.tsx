@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/feature/AppLayout';
 import ConfirmDialog from '@/components/feature/ConfirmDialog';
@@ -12,6 +12,7 @@ import {
   type WorkCenterResponse
 } from '@/api/workcenter.api';
 import { getAllWarehouses } from '@/api/warehouse.api';
+import { useWarehouseStore } from '@/stores/warehouseStore';
 
 type WCType = 'MACHINE' | 'LABOR' | 'BOTH';
 
@@ -271,6 +272,8 @@ export default function WorkCentersPage() {
   const [slideOver, setSlideOver] = useState<{ open: boolean; editing: WorkCenter | null }>({ open: false, editing: null });
   const [deleteConfirm, setDeleteConfirm] = useState<WorkCenter | null>(null);
 
+  const { selectedWarehouseId } = useWarehouseStore();
+
   const mapApiToWorkCenter = (wc: WorkCenterResponse): WorkCenter => ({
     id: wc.id,
     name: wc.name,
@@ -305,13 +308,20 @@ export default function WorkCentersPage() {
     fetchData();
   }, []);
 
-  const filtered = workCenters.filter((wc) => {
-    const q = search.toLowerCase();
-    const matchSearch = !q || wc.name.toLowerCase().includes(q) || (wc.description && wc.description.toLowerCase().includes(q));
-    const matchType = typeFilter === 'ALL' || wc.type === typeFilter;
-    const matchStatus = statusFilter === 'ALL' || (statusFilter === 'ACTIVE' ? wc.isActive : !wc.isActive);
-    return matchSearch && matchType && matchStatus;
-  });
+  const warehouseWorkCenters = useMemo(() => {
+    if (!selectedWarehouseId) return workCenters;
+    return workCenters.filter((wc) => wc.warehouseId === selectedWarehouseId);
+  }, [workCenters, selectedWarehouseId]);
+
+  const filtered = useMemo(() => {
+    return warehouseWorkCenters.filter((wc) => {
+      const q = search.toLowerCase();
+      const matchSearch = !q || wc.name.toLowerCase().includes(q) || (wc.description && wc.description.toLowerCase().includes(q));
+      const matchType = typeFilter === 'ALL' || wc.type === typeFilter;
+      const matchStatus = statusFilter === 'ALL' || (statusFilter === 'ACTIVE' ? wc.isActive : !wc.isActive);
+      return matchSearch && matchType && matchStatus;
+    });
+  }, [warehouseWorkCenters, search, typeFilter, statusFilter]);
 
   const openAdd = () => setSlideOver({ open: true, editing: null });
   const openEdit = (wc: WorkCenter) => setSlideOver({ open: true, editing: wc });
@@ -391,11 +401,13 @@ export default function WorkCentersPage() {
   };
 
   // Type counts
-  const typeCounts = TYPE_OPTIONS.map((t) => ({
-    ...t,
-    count: workCenters.filter((w) => w.type === t.value).length,
-    badge: TYPE_BADGE[t.value],
-  }));
+  const typeCounts = useMemo(() => {
+    return TYPE_OPTIONS.map((t) => ({
+      ...t,
+      count: warehouseWorkCenters.filter((w) => w.type === t.value).length,
+      badge: TYPE_BADGE[t.value],
+    }));
+  }, [warehouseWorkCenters]);
 
   return (
     <AppLayout>
@@ -467,9 +479,9 @@ export default function WorkCentersPage() {
         {/* Stats row */}
         <MasterStatsRow
           stats={[
-            { label: 'Total Work Centers', value: workCenters.length, icon: 'ri-building-2-line', bg: 'bg-indigo-50', color: 'text-[#4f46e5]' },
-            { label: 'Active', value: workCenters.filter((w) => w.isActive).length, icon: 'ri-checkbox-circle-line', bg: 'bg-green-50', color: 'text-green-600' },
-            { label: 'Avg Capacity', value: Math.round(workCenters.reduce((a, w) => a + w.capacityPerHour, 0) / (workCenters.length || 1)), icon: 'ri-speed-line', bg: 'bg-blue-50', color: 'text-blue-600' },
+            { label: 'Total Work Centers', value: warehouseWorkCenters.length, icon: 'ri-building-2-line', bg: 'bg-indigo-50', color: 'text-[#4f46e5]' },
+            { label: 'Active', value: warehouseWorkCenters.filter((w) => w.isActive).length, icon: 'ri-checkbox-circle-line', bg: 'bg-green-50', color: 'text-green-600' },
+            { label: 'Avg Capacity', value: Math.round(warehouseWorkCenters.reduce((a, w) => a + w.capacityPerHour, 0) / (warehouseWorkCenters.length || 1)), icon: 'ri-speed-line', bg: 'bg-blue-50', color: 'text-blue-600' },
           ]}
         />
 

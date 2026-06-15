@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/feature/AppLayout';
 import ConfirmDialog from '@/components/feature/ConfirmDialog';
@@ -13,6 +13,7 @@ import {
   type RejectionCodeResponse,
   type RejectionCategory
 } from '@/api/rejectioncode.api';
+import { useWarehouseStore } from '@/stores/warehouseStore';
 
 type RCCategory = RejectionCategory;
 type RCApplicable = 'INCOMING' | 'IN_PROCESS' | 'FINAL' | 'ALL';
@@ -24,6 +25,7 @@ interface RejectionCode {
   category: RCCategory;
   applicableTo: RCApplicable;
   isActive: boolean;
+  warehouseId?: string | null;
 }
 
 interface RCForm {
@@ -294,6 +296,8 @@ export default function RejectionCodesPage() {
   const [modal, setModal] = useState<{ open: boolean; editing: RejectionCode | null }>({ open: false, editing: null });
   const [deleteConfirm, setDeleteConfirm] = useState<RejectionCode | null>(null);
 
+  const { selectedWarehouseId } = useWarehouseStore();
+
   const mapApiToRejectionCode = (r: RejectionCodeResponse): RejectionCode => ({
     id: r.id,
     code: r.code,
@@ -301,6 +305,7 @@ export default function RejectionCodesPage() {
     category: r.category,
     applicableTo: r.applicable_to as RCApplicable,
     isActive: r.is_active,
+    warehouseId: r.warehouse_id || null,
   });
 
   const fetchRejectionCodes = async () => {
@@ -321,13 +326,20 @@ export default function RejectionCodesPage() {
     fetchRejectionCodes();
   }, []);
 
-  const filtered = items.filter((rc) => {
-    const q = search.toLowerCase();
-    const matchSearch = !q || rc.code.toLowerCase().includes(q) || rc.description.toLowerCase().includes(q);
-    const matchCategory = categoryFilter === 'ALL' || rc.category === categoryFilter;
-    const matchStatus = statusFilter === 'ALL' || (statusFilter === 'ACTIVE' ? rc.isActive : !rc.isActive);
-    return matchSearch && matchCategory && matchStatus;
-  });
+  const warehouseRejectionCodes = useMemo(() => {
+    if (!selectedWarehouseId) return items;
+    return items.filter((rc) => rc.warehouseId === selectedWarehouseId);
+  }, [items, selectedWarehouseId]);
+
+  const filtered = useMemo(() => {
+    return warehouseRejectionCodes.filter((rc) => {
+      const q = search.toLowerCase();
+      const matchSearch = !q || rc.code.toLowerCase().includes(q) || rc.description.toLowerCase().includes(q);
+      const matchCategory = categoryFilter === 'ALL' || rc.category === categoryFilter;
+      const matchStatus = statusFilter === 'ALL' || (statusFilter === 'ACTIVE' ? rc.isActive : !rc.isActive);
+      return matchSearch && matchCategory && matchStatus;
+    });
+  }, [warehouseRejectionCodes, search, categoryFilter, statusFilter]);
 
   const openAdd = () => setModal({ open: true, editing: null });
   const openEdit = (rc: RejectionCode) => setModal({ open: true, editing: rc });
@@ -360,6 +372,7 @@ export default function RejectionCodesPage() {
           category: form.category,
           applicableTo: form.applicableTo,
           isActive: form.isActive,
+          warehouseId: selectedWarehouseId || null,
         });
         if (res.success && res.data) {
           setItems((prev) => [mapApiToRejectionCode(res.data!), ...prev]);
@@ -399,15 +412,20 @@ export default function RejectionCodesPage() {
   };
 
   // Summary
-  const categoryCounts = CATEGORY_OPTIONS.map((c) => ({
-    ...c,
-    count: items.filter((rc) => rc.category === c.value).length,
-    badge: CATEGORY_BADGE[c.value],
-  }));
+  const categoryCounts = useMemo(() => {
+    return CATEGORY_OPTIONS.map((c) => ({
+      ...c,
+      count: warehouseRejectionCodes.filter((rc) => rc.category === c.value).length,
+      badge: CATEGORY_BADGE[c.value],
+    }));
+  }, [warehouseRejectionCodes]);
 
-  const mostCommonCategory = CATEGORY_OPTIONS.reduce((a, b) =>
-    items.filter((rc) => rc.category === a.value).length >= items.filter((rc) => rc.category === b.value).length ? a : b
-  );
+  const mostCommonCategory = useMemo(() => {
+    if (warehouseRejectionCodes.length === 0) return CATEGORY_OPTIONS[0];
+    return CATEGORY_OPTIONS.reduce((a, b) =>
+      warehouseRejectionCodes.filter((rc) => rc.category === a.value).length >= warehouseRejectionCodes.filter((rc) => rc.category === b.value).length ? a : b
+    );
+  }, [warehouseRejectionCodes]);
 
   return (
     <AppLayout>
@@ -455,8 +473,8 @@ export default function RejectionCodesPage() {
         {/* Stats row */}
         <MasterStatsRow
           stats={[
-            { label: 'Total Codes', value: items.length, icon: 'ri-close-circle-line', bg: 'bg-indigo-50', color: 'text-[#4f46e5]' },
-            { label: 'Active', value: items.filter((i) => i.isActive).length, icon: 'ri-checkbox-circle-line', bg: 'bg-green-50', color: 'text-green-600' },
+            { label: 'Total Codes', value: warehouseRejectionCodes.length, icon: 'ri-close-circle-line', bg: 'bg-indigo-50', color: 'text-[#4f46e5]' },
+            { label: 'Active', value: warehouseRejectionCodes.filter((i) => i.isActive).length, icon: 'ri-checkbox-circle-line', bg: 'bg-green-50', color: 'text-green-600' },
             { label: 'Most Common Category', value: CATEGORY_BADGE[mostCommonCategory.value].label, icon: 'ri-bar-chart-line', bg: 'bg-amber-50', color: 'text-amber-600' },
           ]}
         />

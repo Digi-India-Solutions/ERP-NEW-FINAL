@@ -331,6 +331,14 @@ const routes: RouteObject[] = [
       </Perm>
     ),
   },
+  {
+    path: 'masters/routing/:id/edit',
+    element: (
+      <Perm module={MODULES.ROUTING} action="edit">
+        <RoutingFormPage />
+      </Perm>
+    ),
+  },
 
   // ── Sales ─────────────────────────────────────────────────────────────────
   { path: '/sales', element: <Navigate to="/sales/invoices" replace /> },

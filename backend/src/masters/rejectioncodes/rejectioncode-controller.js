@@ -10,7 +10,8 @@ export const createRejectionCode = async (req, res) => {
       description,
       category,
       applicable_to,
-      is_active
+      is_active,
+      warehouse_id
     } = req.body;
 
     // ✅ Validation
@@ -47,15 +48,16 @@ export const createRejectionCode = async (req, res) => {
     // ✅ Insert
     const result = await connectDB.query(
       `INSERT INTO public."Rejection-Codes"
-      (code, description, category, applicable_to, is_active)
-      VALUES ($1, $2, $3, $4, $5)
+      (code, description, category, applicable_to, is_active, warehouse_id)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *`,
       [
         code.trim().toUpperCase(),
         description.trim(),
         category.toUpperCase(),
         applicable_to.trim(),
-        is_active ?? true
+        is_active ?? true,
+        warehouse_id || null
       ]
     );
 
@@ -80,7 +82,8 @@ export const updateRejectionCode = async (req, res) => {
       description,
       category,
       applicable_to,
-      is_active
+      is_active,
+      warehouse_id
     } = req.body;
 
     // 🔍 Check if rejection code exists
@@ -127,7 +130,8 @@ export const updateRejectionCode = async (req, res) => {
         category = COALESCE($3, category),
         applicable_to = COALESCE($4, applicable_to),
         is_active = COALESCE($5, is_active),
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = CURRENT_TIMESTAMP,
+        warehouse_id = COALESCE($7, warehouse_id)
       WHERE id = $6
       RETURNING *`,
       [
@@ -136,7 +140,8 @@ export const updateRejectionCode = async (req, res) => {
         category ? category.toUpperCase() : null,
         applicable_to ? applicable_to.trim() : null,
         is_active !== undefined ? is_active : null,
-        id
+        id,
+        warehouse_id || null
       ]
     );
 

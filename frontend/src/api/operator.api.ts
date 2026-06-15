@@ -10,6 +10,7 @@ export interface OperatorPayload {
   shiftId?: string | null;
   phone?: string | null;
   isActive?: boolean;
+  warehouseId?: string | null;
 }
 
 export interface OperatorResponse {
@@ -24,6 +25,7 @@ export interface OperatorResponse {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  warehouse_id?: string | null;
 }
 
 const BASE = '/api/v1/operators';
@@ -39,6 +41,7 @@ export async function createOperator(
     shift_id: payload.shiftId || null,
     phone: payload.phone || null,
     is_active: payload.isActive,
+    warehouse_id: payload.warehouseId || null,
   };
   const { data } = await apiClient.post<ApiResponse<OperatorResponse>>(
     `${BASE}/create`,
@@ -68,6 +71,7 @@ export async function updateOperator(
     shift_id: payload.shiftId !== undefined ? (payload.shiftId || null) : undefined,
     phone: payload.phone !== undefined ? (payload.phone || null) : undefined,
     is_active: payload.isActive,
+    warehouse_id: payload.warehouseId !== undefined ? (payload.warehouseId || null) : undefined,
   };
   const { data } = await apiClient.put<ApiResponse<OperatorResponse>>(
     `${BASE}/${id}`,
