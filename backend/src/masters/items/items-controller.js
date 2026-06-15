@@ -820,6 +820,8 @@ export const getItemById = async (req, res) => {
 // ============================================
 // FILTER ITEMS (Advanced Search)
 // ============================================
+
+
 export const filterItems = async (req, res) => {
   try {
     const company_id = req.user?.company_id;
