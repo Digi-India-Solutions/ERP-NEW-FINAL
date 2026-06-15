@@ -118,6 +118,9 @@ const mapDbToFrontend = (dbRow) => {
     requiresIncomingQC: dbRow.requires_incoming_qc ?? false,
     requiresFinalQC: dbRow.requires_final_qc ?? false,
     hasExpiryDate: dbRow.has_expiry_date ?? false,
+    bomId: dbRow.bom_id, // ✅ ADD THIS
+    bomVersion: dbRow.bom_version, // ✅ ADD THIS
+    isBomLinked: !!dbRow.bom_id,
   };
 };
 
@@ -621,6 +624,14 @@ export const updateItem = async (req, res) => {
       updates.push(`has_expiry_date = $${paramIndex++}`);
       values.push(hasExpiryDate);
     }
+    if (req.body.bomId !== undefined) {
+      updates.push(`bom_id = $${paramIndex++}`);
+      values.push(req.body.bomId || null);
+    }
+    if (req.body.bomVersion !== undefined) {
+      updates.push(`bom_version = $${paramIndex++}`);
+      values.push(req.body.bomVersion || null);
+    }
 
     updates.push(`updated_at = NOW()`);
 
@@ -728,6 +739,8 @@ export const getAllItems = async (req, res) => {
     const query = `
             SELECT 
                 i.*,
+                   i.bom_id,
+                    i.bom_version,
                 COALESCE(ws.stock, 0) as stock
             FROM items i
             LEFT JOIN (
@@ -768,6 +781,8 @@ export const getItemById = async (req, res) => {
     const query = `
             SELECT 
                 i.*,
+                i.bom_id,
+                i.bom_version,
                 COALESCE(ws.stock, 0) as stock
             FROM items i
             LEFT JOIN (
@@ -867,6 +882,8 @@ export const filterItems = async (req, res) => {
     let query = `
             SELECT 
                 i.*,
+                 i.bom_id,
+                 i.bom_version,
                 COALESCE(ws.stock, 0) as stock
             FROM items i
             ${stockJoin}
@@ -1004,6 +1021,9 @@ export const filterItems = async (req, res) => {
 // ============================================
 // GET ALL ITEMS WITH VARIANTS FOR BOM DROPDOWN (GROUPED)
 // ============================================
+// ============================================
+// GET ALL ITEMS WITH VARIANTS FOR BOM DROPDOWN (GROUPED)
+// ============================================
 export const getItemsWithVariantsForBOM = async (req, res) => {
   try {
     const company_id = req.user.company_id;
@@ -1023,7 +1043,9 @@ export const getItemsWithVariantsForBOM = async (req, res) => {
         sale_rate,
         unit_name,
         category,
-        enable_variants
+        enable_variants,
+        bom_id,
+        bom_version
       FROM items
       WHERE company_id = $1 AND is_active = true
       ORDER BY name ASC
@@ -1044,6 +1066,8 @@ export const getItemsWithVariantsForBOM = async (req, res) => {
         unit_name: item.unit_name,
         purchase_rate: parseFloat(item.purchase_rate || 0),
         sale_rate: parseFloat(item.sale_rate || 0),
+        bom_id: item.bom_id,
+        bom_version: item.bom_version,
         variants: []
       };
       
@@ -1058,7 +1082,9 @@ export const getItemsWithVariantsForBOM = async (req, res) => {
             variant_sku,
             sale_rate,
             purchase_rate,
-            mrp
+            mrp,
+            bom_id,
+            bom_version
           FROM item_variants
           WHERE parent_item_id = $1 AND is_active = true
           ORDER BY variant_name ASC
@@ -1079,6 +1105,8 @@ export const getItemsWithVariantsForBOM = async (req, res) => {
             purchase_rate: parseFloat(variant.purchase_rate || 0),
             sale_rate: parseFloat(variant.sale_rate || 0),
             unit_name: item.unit_name,
+            bom_id: variant.bom_id,
+            bom_version: variant.bom_version,
           });
         }
       }

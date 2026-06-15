@@ -355,6 +355,7 @@ const manufacturingGroup: NavGroup = {
         },
       ],
     },
+    // ✅ ADD THIS - COSTING
     {
       label: 'Costing',
       path: '/manufacturing/costing',
@@ -362,17 +363,17 @@ const manufacturingGroup: NavGroup = {
       items: [
         {
           label: 'Standard Cost',
-          path: '/manufacturing/costing/standard-cost',
+          path: '/manufacturing/costing/standard',
           icon: 'ri-money-rupee-circle-line',
         },
         {
           label: 'Actual Cost',
-          path: '/manufacturing/costing/actual-cost',
+          path: '/manufacturing/costing/actual',
           icon: 'ri-money-rupee-circle-line',
         },
         {
           label: 'Variance Report',
-          path: '/manufacturing/costing/variance-report',
+          path: '/manufacturing/costing/variance',
           icon: 'ri-bar-chart-2-line',
         },
       ],

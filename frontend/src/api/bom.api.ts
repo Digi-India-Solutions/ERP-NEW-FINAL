@@ -5,7 +5,6 @@ import axios from 'axios';
 // ============================================
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:7000';
 const BOM_API_BASE = `${API_BASE}/api/v1/manufacturing/bom`;
-// Result: http://localhost:7000/api/v1/manufacturing/bom ✅
 
 const getAuthHeaders = () => ({
   headers: {
@@ -121,10 +120,6 @@ export interface BOMUpdateData {
 // API FUNCTIONS
 // ============================================
 
-/**
- * 📌 CREATE BOM
- * POST /api/v1/manufacturing/bom
- */
 export const createBOM = async (data: BOMCreateData): Promise<BOM> => {
   const response = await axios.post(BOM_API_BASE, data, getAuthHeaders());
   if (!response.data.success) {
@@ -133,10 +128,6 @@ export const createBOM = async (data: BOMCreateData): Promise<BOM> => {
   return response.data.data;
 };
 
-/**
- * 📌 GET ALL BOMS (with filters & pagination)
- * GET /api/v1/manufacturing/bom
- */
 export const getAllBOMs = async (params?: {
   status?: string;
   type?: 'REGULAR' | 'VARIANT';
@@ -171,10 +162,6 @@ export const getAllBOMs = async (params?: {
   return response.data;
 };
 
-/**
- * 📌 GET SINGLE BOM BY ID
- * GET /api/v1/manufacturing/bom/:id
- */
 export const getBOMById = async (id: string): Promise<BOM> => {
   const response = await axios.get(`${BOM_API_BASE}/${id}`, getAuthHeaders());
   if (!response.data.success) {
@@ -183,10 +170,6 @@ export const getBOMById = async (id: string): Promise<BOM> => {
   return response.data.data;
 };
 
-/**
- * 📌 UPDATE BOM
- * PUT /api/v1/manufacturing/bom/:id
- */
 export const updateBOM = async (
   id: string,
   data: BOMUpdateData,
@@ -202,10 +185,6 @@ export const updateBOM = async (
   return response.data.data;
 };
 
-/**
- * 📌 DELETE BOM
- * DELETE /api/v1/manufacturing/bom/:id
- */
 export const deleteBOM = async (id: string): Promise<void> => {
   const response = await axios.delete(
     `${BOM_API_BASE}/${id}`,
@@ -216,10 +195,6 @@ export const deleteBOM = async (id: string): Promise<void> => {
   }
 };
 
-/**
- * 📌 DUPLICATE BOM
- * POST /api/v1/manufacturing/bom/:id/duplicate
- */
 export const duplicateBOM = async (id: string): Promise<BOM> => {
   const response = await axios.post(
     `${BOM_API_BASE}/${id}/duplicate`,
@@ -232,10 +207,6 @@ export const duplicateBOM = async (id: string): Promise<BOM> => {
   return response.data.data;
 };
 
-/**
- * 📌 LINK TO ITEM MASTER
- * POST /api/v1/manufacturing/bom/:id/link
- */
 export const linkBOMToItemMaster = async (
   id: string,
 ): Promise<{ linkToItemMaster: boolean; standardCost: number }> => {
@@ -252,6 +223,23 @@ export const linkBOMToItemMaster = async (
   return response.data.data;
 };
 
+// ✅ ADD THIS
+export const unlinkBOMFromItemMaster = async (
+  id: string,
+): Promise<{ success: boolean; message: string }> => {
+  const response = await axios.post(
+    `${BOM_API_BASE}/${id}/unlink`,
+    {},
+    getAuthHeaders(),
+  );
+  if (!response.data.success) {
+    throw new Error(
+      response.data.message || 'Failed to unlink BOM from item master',
+    );
+  }
+  return response.data;
+};
+
 // ============================================
 // DEFAULT EXPORT
 // ============================================
@@ -264,6 +252,7 @@ const bomAPI = {
   delete: deleteBOM,
   duplicate: duplicateBOM,
   linkToItemMaster: linkBOMToItemMaster,
+  unlinkFromItemMaster: unlinkBOMFromItemMaster, // ✅ ADD THIS
 };
 
 export default bomAPI;
