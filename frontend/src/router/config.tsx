@@ -78,6 +78,7 @@ import EditPOPage from '@/pages/purchase/orders/new/EditPOPage';
 import PaymentDuesTable from '@/pages/purchase/payments/components/paymantDuesTable';
 import BOMListTable from '@/pages/manifacturing/bom/page';
 import BOMForm from '@/pages/manifacturing/bom/BOMForm';
+import ProductionOrder from '@/pages/manifacturing/orders/page';
 import ProductionOrderForm from '@/pages/manifacturing/orders/ProductionOrderForm';
 import WorkOrdersPage from '@/pages/manifacturing/work-orders/page';
 import ProductionSchedulePage from '@/pages/manifacturing/schedule/page';
@@ -602,7 +603,23 @@ const routes: RouteObject[] = [
     path: '/manufacturing/production-orders',
     element: (
       <Perm module={MODULES.PURCHASE_PAYMENT} action="view">
-        <ProductionOrderForm />
+        <ProductionOrder/>
+      </Perm>
+    ),
+  },
+  {
+    path: '/manufacturing/production-orders/new',
+    element: (
+      <Perm module={MODULES.PURCHASE_PAYMENT} action="view">
+        <ProductionOrderForm/>
+      </Perm>
+    ),
+  },
+  {
+    path: '/manufacturing/production-orders/${po.id}/edit',
+    element: (
+      <Perm module={MODULES.PURCHASE_PAYMENT} action="view">
+        <ProductionOrderForm/>
       </Perm>
     ),
   },

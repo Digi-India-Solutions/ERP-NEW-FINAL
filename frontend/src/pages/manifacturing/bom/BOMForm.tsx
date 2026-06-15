@@ -46,7 +46,7 @@ interface FormBOMItem {
 // ============================================
 // API SERVICE
 // ============================================
-const API_BASE =  'http://localhost:7000/api';
+const API_BASE = 'http://localhost:7000/api';
 const BOM_API_BASE = `${API_BASE}/v1/manufacturing/bom`;
 
 const getAuthHeaders = () => ({

@@ -106,6 +106,7 @@ import itemVariantRoutes from './src/masters/items/itemVariant/itemVariantRoutes
 import qualityparameterRouter from "./src/masters/qualityparameter/qualityparameter-routes.js"
 import inspectionchecklistRouter from "./src/masters/inspectionchecklist/inspectionchecklist-routes.js"
 import routingRouter from "./src/masters/routing/routing-routes.js"
+import productionOrderRoutes from './src/menufacturing/production/productionOrders/poductionOrder-routes.js';
 
 app.use('/backups', express.static(path.join(process.cwd(), 'backups')));
 app.use("/api/v1/reports", reportsRouter);
@@ -148,6 +149,7 @@ app.use("/api/v1/invoice-settings", invoiceSettingsRouter);
 app.use("/api/label-settings", barcodeRouter)
 app.use('/api/v1/manufacturing/bom', bomRoutes);
 app.use('/api/v1', itemVariantRoutes);
+app.use('/api/v1/manufacturing/production-orders', productionOrderRoutes);
 app.get("/", (req, res) => {
   res.send("Server is running");
 });
