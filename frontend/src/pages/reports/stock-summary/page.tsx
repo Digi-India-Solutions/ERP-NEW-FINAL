@@ -16,7 +16,7 @@ export const getStockSummaryApi = async (
     const token = localStorage.getItem('token');
 
     const res = await axios.get(
-      'https://asvapi.digiindiasolutions.com/api/v1/reports/stock-summary',
+      'http://localhost:7000/api/v1/reports/stock-summary',
       {
         params: { warehouseId, categoryId },
         headers: {
@@ -36,7 +36,7 @@ export const getCategories = async () => {
   const token = localStorage.getItem('token');
 
   const res = await axios.get(
-    'https://asvapi.digiindiasolutions.com/api/v1/categories/all',
+    'http://localhost:7000/api/v1/categories/all',
     {
       headers: {
         Authorization: `Bearer ${token}`,

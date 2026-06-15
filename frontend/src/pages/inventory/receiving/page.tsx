@@ -60,7 +60,7 @@ interface FromPOState {
 const today = () => new Date().toISOString().split('T')[0];
 const INVENTORY_STOCK_UPDATED_EVENT = 'inventory:stock-updated';
 
-const BASE_URL = `${import.meta.env.VITE_API_URL ?? 'https://asvapi.digiindiasolutions.com'}`;
+const BASE_URL = `${import.meta.env.VITE_API_URL ?? 'http://localhost:7000'}`;
 
 function getAuthHeader(): HeadersInit {
   const token = localStorage.getItem('token');

@@ -12,7 +12,7 @@ function formatINR(n: number) {
 
 import axios from 'axios';
 
-const BASE = 'https://asvapi.digiindiasolutions.com/api/v1/reports';
+const BASE = 'http://localhost:7000/api/v1/reports';
 
 const authHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem('token')}`,

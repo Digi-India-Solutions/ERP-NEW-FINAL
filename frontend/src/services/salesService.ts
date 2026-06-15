@@ -200,7 +200,7 @@ export const salesService = {
     if (params?.warehouseId) qs.set('warehouseId', params.warehouseId);
 
     const BASE_URL =
-      import.meta.env.VITE_API_URL ?? 'https://asvapi.digiindiasolutions.com';
+      import.meta.env.VITE_API_URL ?? 'http://localhost:7000';
     const token = localStorage.getItem('token'); // adjust to wherever you store it
 
     const res = await fetch(
@@ -307,7 +307,7 @@ export const salesService = {
     }
 
     const BASE_URL =
-      import.meta.env.VITE_API_URL ?? 'https://asvapi.digiindiasolutions.com';
+      import.meta.env.VITE_API_URL ?? 'http://localhost:7000';
 
     const token = localStorage.getItem('token');
 
@@ -377,7 +377,7 @@ export const salesService = {
     if (params?.warehouseId) qs.set('warehouseId', params.warehouseId);
 
     const BASE_URL =
-      import.meta.env.VITE_API_URL ?? 'https://asvapi.digiindiasolutions.com';
+      import.meta.env.VITE_API_URL ?? 'http://localhost:7000';
     const token = localStorage.getItem('token');
 
     const res = await fetch(

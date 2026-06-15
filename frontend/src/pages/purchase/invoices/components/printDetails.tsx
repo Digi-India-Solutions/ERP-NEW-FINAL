@@ -105,7 +105,7 @@ export default function PrintPurchaseInvoiceView({
       try {
         const token = localStorage.getItem('token'); // adjust key to match your auth storage
         const res = await fetch(
-          'https://asvapi.digiindiasolutions.com/api/v1/company/get',
+          'http://localhost:7000/api/v1/company/get',
           {
             headers: {
               'Content-Type': 'application/json',

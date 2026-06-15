@@ -157,7 +157,7 @@ import { useWarehouseStore } from '@/stores/warehouseStore';
 const getDayBookApi = async (date: string, warehouseId: string) => {
   const token = localStorage.getItem('token');
   const res = await axios.get(
-    'https://asvapi.digiindiasolutions.com/api/v1/reports/day-book',
+    'http://localhost:7000/api/v1/reports/day-book',
     {
       params: { date, warehouseId: warehouseId || undefined },
       headers: { Authorization: `Bearer ${token}` },

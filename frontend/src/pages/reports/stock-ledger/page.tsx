@@ -10,7 +10,7 @@ export const getStockLedgerApi = async (params) => {
   const token = localStorage.getItem('token');
 
   const res = await axios.get(
-    'https://asvapi.digiindiasolutions.com/api/v1/reports/stock-ledger',
+    'http://localhost:7000/api/v1/reports/stock-ledger',
     {
       params,
       headers: {

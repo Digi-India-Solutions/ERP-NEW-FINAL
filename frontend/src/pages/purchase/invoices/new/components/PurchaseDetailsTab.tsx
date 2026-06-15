@@ -70,7 +70,7 @@ export default function PurchaseDetailsTab({ rows, onChange, onRowComplete, onBa
   const [groupHighlight, setGroupHighlight] = useState(0);
   const groupInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
-  const BASE_URL = (import.meta.env.VITE_API_URL as string) || 'https://asvapi.digiindiasolutions.com';
+  const BASE_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:7000';
   const getToken = () => localStorage.getItem('token') ?? '';
 
   useEffect(() => {

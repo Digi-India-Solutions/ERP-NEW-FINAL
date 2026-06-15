@@ -169,7 +169,7 @@ import { useWarehouseStore } from '@/stores/warehouseStore';
 const getOutstandingApi = async (asOfDate: string, warehouseId: string) => {
   const token = localStorage.getItem('token');
   const res = await axios.get(
-    'https://asvapi.digiindiasolutions.com/api/v1/reports/outstanding',
+    'http://localhost:7000/api/v1/reports/outstanding',
     {
       params: { asOfDate, warehouseId: warehouseId || undefined },
       headers: { Authorization: `Bearer ${token}` },

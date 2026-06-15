@@ -458,7 +458,7 @@ export default function GuardDashboard() {
     const token = localStorage.getItem('token');
 
     const res = await fetch(
-      'https://asvapi.digiindiasolutions.com/api/v1/gatepass',
+      'http://localhost:7000/api/v1/gatepass',
       {
         headers: { Authorization: `Bearer ${token}` },
       },
@@ -474,7 +474,7 @@ export default function GuardDashboard() {
       list.map(async (gp: any) => {
         try {
           const res = await fetch(
-            `https://asvapi.digiindiasolutions.com/api/v1/gatepass/${gp.id}`,
+            `http://localhost:7000/api/v1/gatepass/${gp.id}`,
             {
               headers: { Authorization: `Bearer ${token}` },
             },
@@ -560,7 +560,7 @@ export default function GuardDashboard() {
       const token = localStorage.getItem('token');
 
       const res = await fetch(
-        `https://asvapi.digiindiasolutions.com/api/v1/gatepass/${gpId}/verify`,
+        `http://localhost:7000/api/v1/gatepass/${gpId}/verify`,
         {
           method: 'POST',
           headers: {
@@ -616,7 +616,7 @@ export default function GuardDashboard() {
       const token = localStorage.getItem('token');
 
       const res = await fetch(
-        `https://asvapi.digiindiasolutions.com/api/v1/gatepass/${gpId}/reject`,
+        `http://localhost:7000/api/v1/gatepass/${gpId}/reject`,
         {
           method: 'POST',
           headers: {

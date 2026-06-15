@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 // ─── Config ───────────────────────────────────────────────────────────────────
 const BASE_URL =
   (import.meta.env.VITE_API_URL as string) ||
-  'https://asvapi.digiindiasolutions.com';
+  'http://localhost:7000';
 
 function getToken(): string {
   return localStorage.getItem('token') ?? '';

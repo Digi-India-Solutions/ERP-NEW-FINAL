@@ -110,7 +110,7 @@ export const triggerBackup = async (req, res, next) => {
 
     const fileSize = fs.statSync(filepath).size;
     const baseUrl =
-      process.env.BASE_URL || 'https://asvapi.digiindiasolutions.com';
+      process.env.BASE_URL || 'http://localhost:7000';
     const downloadUrl = `${baseUrl}/backups/${filename}`;
 
     // 7. Audit log
