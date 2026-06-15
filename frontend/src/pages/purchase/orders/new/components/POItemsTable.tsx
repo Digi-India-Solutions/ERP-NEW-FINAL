@@ -4,7 +4,7 @@
 // import type { POItem } from '../page';
 // import React from 'react';
 
-// const api = import.meta.env.VITE_API_URL |http://localhost:7001com';
+// const api = import.meta.env.VITE_API_URL |https://asvapi.digiindiasolutions.comcom';
 
 // function debounce<T extends (...args: any[]) => void>(func: T, delay: number) {
 //   let timeoutId: ReturnType<typeof setTimeout>;
@@ -586,7 +586,7 @@ import { createPortal } from 'react-dom';
 import { useWarehouseStore } from '@/stores/warehouseStore';
 
 const api =
-  import.meta.env.VITE_API_URL || 'http://localhost:7001';
+  import.meta.env.VITE_API_URL || 'https://asvapi.digiindiasolutions.com';
 
 function debounce<T extends (...args: any[]) => void>(func: T, delay: number) {
   let timeoutId: ReturnType<typeof setTimeout>;

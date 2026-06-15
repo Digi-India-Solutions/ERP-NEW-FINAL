@@ -12,7 +12,7 @@ export const useGSTSales = (from: string, to: string, warehouseId: string, enabl
  
     queryFn: async () => {
       const res = await axios.get(
-        'http://localhost:7001/api/v1/reports/gst-sales',
+        'https://asvapi.digiindiasolutions.com/api/v1/reports/gst-sales',
         { params: { from, to, warehouseId: warehouseId || undefined } },
       );
  

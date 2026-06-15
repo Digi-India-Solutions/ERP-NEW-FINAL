@@ -26,7 +26,7 @@ interface Unit {
 type Tab = 'categories' | 'units';
 
 // ─── API base ─────────────────────────────────────────────────
-const API = 'http://localhost:7001/api/v1';
+const API = 'https://asvapi.digiindiasolutions.com/api/v1';
 
 async function apiFetch(path: string, options: RequestInit = {}) {
   const token = localStorage.getItem('token');

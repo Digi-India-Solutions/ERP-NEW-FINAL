@@ -285,7 +285,7 @@ function PrintPOView({ po, onClose, gstType = 'CGST_SGST' }: PrintPOProps) {
       try {
         const token = localStorage.getItem('token');
         const res = await fetch(
-          'http://localhost:7001/api/v1/company/get',
+          'https://asvapi.digiindiasolutions.com/api/v1/company/get',
           {
             headers: {
               'Content-Type': 'application/json',
