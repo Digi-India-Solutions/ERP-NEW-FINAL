@@ -15,6 +15,11 @@ export interface WarehousePayload {
   inchargeUserId?: string;
   color?: string;
   isActive?: boolean;
+  storageType?: string;
+  floorZone?: string;
+  maxCapacity?: number;
+  currentUtilization?: number;
+  workCenterId?: string;
 }
 
 export interface WarehouseResponse {
@@ -31,6 +36,11 @@ export interface WarehouseResponse {
   created_by: string;
   created_at: string;
   updated_at: string;
+  storage_type: string | null;
+  floor_zone: string | null;
+  max_capacity: number | null;
+  current_utilization: number | null;
+  work_center_id: string | null;
 }
 
 export interface ApiResponse<T> {

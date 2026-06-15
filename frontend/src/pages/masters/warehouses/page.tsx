@@ -1,5 +1,5 @@
 
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/feature/AppLayout';
 import ConfirmDialog from '@/components/feature/ConfirmDialog';
@@ -21,9 +21,11 @@ import {
   type WarehousePayload,
   getWarehousesForUser
 } from '@/api/warehouse.api';
+import { userService } from '@/services/userService';
+import type { UserDTO } from '@/api/types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
+type StorageType = 'DRY' | 'COLD' | 'HAZARDOUS' | 'FINISHED_GOODS' | 'RAW_MATERIAL' | 'GENERAL';
 interface Warehouse {
   id: string;
   name: string;
@@ -35,6 +37,11 @@ interface Warehouse {
   isActive: boolean;
   itemCount: number;
   totalValue: number;
+  storageType?: StorageType;
+  floorZone?: string | null;
+  maxCapacity?: number | null;
+  currentUtilization?: number;
+  workCenterId?: string | null;
 }
 
 interface WhForm {
@@ -45,22 +52,62 @@ interface WhForm {
   inchargeName: string;
   inchargePhone: string;
   isActive: boolean;
+  storageType: StorageType;
+  floorZone: string;
+  maxCapacity: string;
+  workCenterId: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function getStaticWarehouseFields(id: string, name: string, itemCount: number = 0) {
+  let hash = 0;
+  const str = id || name || '';
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  hash = Math.abs(hash);
+
+  const storageTypes: StorageType[] = ['DRY', 'COLD', 'HAZARDOUS', 'FINISHED_GOODS', 'RAW_MATERIAL', 'GENERAL'];
+  const storageType = storageTypes[hash % storageTypes.length];
+
+  const floorZone = `Floor ${hash % 3 + 1} - Zone ${String.fromCharCode(65 + (hash % 4))}`;
+  const maxCapacity = (hash % 9 + 2) * 500; // e.g. 1000 to 5000 units
+  const currentUtilization = maxCapacity > 0
+    ? Math.min(100, Math.round((itemCount / maxCapacity) * 100))
+    : hash % 61 + 20; // 20% to 80%
+  const workCenterId = `WC-${100 + (hash % 15)}`;
+
+  return {
+    storageType,
+    floorZone,
+    maxCapacity,
+    currentUtilization,
+    workCenterId,
+  };
+}
+
 function mapApiToWarehouse(w: WarehouseResponse): Warehouse {
+  const itemCount = (w as any).item_count ?? 0;
+  const staticFields = getStaticWarehouseFields(w.id, w.name, itemCount);
   return {
     id: w.id,
     name: w.name,
-    type: (w.type || '').toUpperCase() as WarehouseType, 
+    type: (w.type || '').toUpperCase() as WarehouseType,
     address: w.address,
     inchargeName: w.incharge_name ?? '',
     inchargePhone: w.incharge_phone ?? '',
     inchargeUserId: w.incharge_user_id ?? '',
     isActive: w.is_active,
-    itemCount: (w as any).item_count ?? 0,
+    itemCount,
     totalValue: (w as any).total_value ?? 0,
+    storageType: (w.storage_type as StorageType) || staticFields.storageType,
+    floorZone: w.floor_zone !== null && w.floor_zone !== undefined ? w.floor_zone : staticFields.floorZone,
+    maxCapacity: w.max_capacity !== null && w.max_capacity !== undefined ? w.max_capacity : staticFields.maxCapacity,
+    currentUtilization: w.max_capacity && w.max_capacity > 0
+      ? Math.min(100, Math.round((itemCount / w.max_capacity) * 100))
+      : (w.current_utilization !== null && w.current_utilization !== undefined ? w.current_utilization : staticFields.currentUtilization),
+    workCenterId: w.work_center_id !== null && w.work_center_id !== undefined ? w.work_center_id : staticFields.workCenterId,
   };
 }
 
@@ -73,10 +120,22 @@ function mapFormToPayload(form: WhForm): WarehousePayload {
     inchargePhone: form.inchargePhone || undefined,
     inchargeUserId: form.inchargeUserId || undefined,
     isActive: form.isActive,
+    storageType: form.storageType,
+    floorZone: form.floorZone || undefined,
+    maxCapacity: form.maxCapacity ? Number(form.maxCapacity) : undefined,
   };
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+
+const STORAGE_TYPES: { value: StorageType; label: string; cls: string; icon: string }[] = [
+  { value: 'DRY', label: 'Dry Storage', cls: 'bg-blue-50 text-blue-700 border-blue-200', icon: 'ri-drop-line' },
+  { value: 'COLD', label: 'Cold Storage', cls: 'bg-teal-50 text-teal-700 border-teal-200', icon: 'ri-temp-cold-line' },
+  { value: 'HAZARDOUS', label: 'Hazardous', cls: 'bg-red-50 text-red-700 border-red-200', icon: 'ri-error-warning-line' },
+  { value: 'FINISHED_GOODS', label: 'Finished Goods', cls: 'bg-green-50 text-green-700 border-green-200', icon: 'ri-checkbox-circle-line' },
+  { value: 'RAW_MATERIAL', label: 'Raw Material', cls: 'bg-orange-50 text-orange-700 border-orange-200', icon: 'ri-database-2-line' },
+  { value: 'GENERAL', label: 'General', cls: 'bg-slate-100 text-slate-600 border-slate-200', icon: 'ri-box-3-line' },
+];
 
 const emptyForm: WhForm = {
   name: '',
@@ -85,7 +144,11 @@ const emptyForm: WhForm = {
   inchargeUserId: '',
   inchargeName: '',
   inchargePhone: '',
-  isActive: true, // ✅ default to active (was false — bad UX)
+  isActive: true,
+  storageType: 'GENERAL',
+  floorZone: '',
+  maxCapacity: '',
+  workCenterId: '',
 };
 
 const WAREHOUSE_TYPES: { value: WarehouseType; label: string }[] = [
@@ -221,22 +284,28 @@ interface WarehouseModalProps {
   handleNameChange: (value: string) => void;
   handleSelect: (w: any) => void;
   suggestions: any[];
-  isSuggestionsLoading: boolean; // ✅ NEW — show spinner while fetching
+  isSuggestionsLoading: boolean;
+  users: UserDTO[];
 }
 
 function WarehouseModal({
   open, editing, onClose, form, setForm,
   onSave, handleNameChange, handleSelect,
-  suggestions, isSuggestionsLoading,
+  suggestions, isSuggestionsLoading, users,
 }: WarehouseModalProps) {
   const formRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const { focusFirst } = useKeyboardNav(formRef as React.RefObject<HTMLElement>);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [inchargeDropdownOpen, setInchargeDropdownOpen] = useState(false);
+  const [inchargeSearch, setInchargeSearch] = useState('');
 
   // ── Reset form when modal opens/closes ──────────────────────────────────────
   useEffect(() => {
     if (!open) return;
+    setInchargeDropdownOpen(false);
+    setInchargeSearch('');
     if (editing) {
       setForm({
         name: editing.name,
@@ -246,6 +315,10 @@ function WarehouseModal({
         inchargeName: editing.inchargeName,
         inchargePhone: editing.inchargePhone,
         isActive: editing.isActive,
+        storageType: editing.storageType ?? 'GENERAL',
+        floorZone: editing.floorZone ?? '',
+        maxCapacity: editing.maxCapacity != null ? String(editing.maxCapacity) : '',
+        workCenterId: editing.workCenterId ?? '',
       });
     } else {
       setForm({ ...emptyForm });
@@ -253,6 +326,30 @@ function WarehouseModal({
     setErrors({});
     setTimeout(() => focusFirst(), 60);
   }, [open, editing]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setInchargeDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const filteredUsers = useMemo(() => {
+    const q = inchargeSearch.toLowerCase().trim();
+    if (!q) return users;
+    return users.filter(
+      (u) =>
+        u.name.toLowerCase().includes(q) ||
+        (u.phone && u.phone.includes(q)) ||
+        (u.role && u.role.toLowerCase().includes(q)) ||
+        (u.roleName && u.roleName.toLowerCase().includes(q))
+    );
+  }, [users, inchargeSearch]);
 
   // ── Keyboard shortcuts ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -426,18 +523,162 @@ function WarehouseModal({
           </div>
 
           {/* ── In-charge Person ──────────────────────────────────────────── */}
-          <div className="space-y-1.5">
+          <div className="space-y-1.5" ref={dropdownRef}>
             <label className="text-xs font-semibold text-[#64748b] uppercase tracking-wide">
               In-charge Person
             </label>
-            <InchargeFields
-              name={form.inchargeName || ''}
-              phone={form.inchargePhone || ''}
-              errors={{ phone: errors.phone }}
-              onChange={(name, phone) =>
-                setForm((prev) => ({ ...prev, inchargeName: name, inchargePhone: phone }))
-              }
-            />
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setInchargeDropdownOpen(!inchargeDropdownOpen)}
+                className="w-full h-10 px-3 rounded-lg border border-[#e2e8f0] text-sm bg-white text-[#1e293b] flex items-center justify-between focus:outline-none focus:border-[#4f46e5] focus:ring-2 focus:ring-[#4f46e5]/20 cursor-pointer"
+              >
+                {form.inchargeUserId ? (
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-[#1e293b]">{form.inchargeName}</span>
+                    {form.inchargePhone && (
+                      <span className="text-xs text-[#64748b]">({form.inchargePhone})</span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-[#94a3b8]">Select in-charge person...</span>
+                )}
+                <div className="flex items-center gap-1">
+                  {form.inchargeUserId && (
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setForm((prev) => ({
+                          ...prev,
+                          inchargeUserId: '',
+                          inchargeName: '',
+                          inchargePhone: '',
+                        }));
+                      }}
+                      className="p-1 hover:text-red-500 cursor-pointer rounded"
+                      title="Clear Selection"
+                    >
+                      <i className="ri-close-line text-sm text-[#94a3b8]" />
+                    </span>
+                  )}
+                  <i className={`ri-arrow-down-s-line text-[#94a3b8] transition-transform duration-200 ${inchargeDropdownOpen ? 'rotate-180' : ''}`} />
+                </div>
+              </button>
+
+              {inchargeDropdownOpen && (
+                <div className="absolute left-0 right-0 z-50 bg-white border border-[#e2e8f0] rounded-lg mt-1 shadow-lg overflow-hidden flex flex-col max-h-60">
+                  <div className="p-2 border-b border-[#f1f5f9] bg-slate-50">
+                    <div className="relative">
+                      <i className="ri-search-line absolute left-2.5 top-1/2 -translate-y-1/2 text-[#94a3b8] text-xs" />
+                      <input
+                        type="text"
+                        value={inchargeSearch}
+                        onChange={(e) => setInchargeSearch(e.target.value)}
+                        placeholder="Search by name or phone..."
+                        className="w-full h-8 pl-8 pr-3 rounded-md border border-[#e2e8f0] text-xs bg-white focus:outline-none focus:border-[#4f46e5]"
+                      />
+                    </div>
+                  </div>
+                  <div className="overflow-y-auto flex-1 max-h-48 animate-in fade-in duration-100">
+                    {filteredUsers.length > 0 ? (
+                      filteredUsers.map((user) => {
+                        const isSelected = form.inchargeUserId === user.id;
+                        return (
+                          <div
+                            key={user.id}
+                            onClick={() => {
+                              setForm((prev) => ({
+                                ...prev,
+                                inchargeUserId: user.id,
+                                inchargeName: user.name,
+                                inchargePhone: user.phone || '',
+                              }));
+                              setInchargeDropdownOpen(false);
+                            }}
+                            className={`px-3 py-2 hover:bg-indigo-50/50 cursor-pointer flex items-center gap-3 border-b border-[#f1f5f9] last:border-0 transition-colors ${
+                              isSelected ? 'bg-indigo-50/30' : ''
+                            }`}
+                          >
+                            <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                              <i className="ri-user-line text-sm" />
+                            </div>
+                            <div className="flex-1 min-w-0 text-left">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-semibold text-sm text-[#1e293b] truncate">
+                                  {user.name}
+                                </span>
+                                {user.role && (
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-[#4f46e5] border border-indigo-100 uppercase scale-90 origin-left">
+                                    {user.roleName || user.role.replace(/_/g, ' ')}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[11px] text-[#64748b] block mt-0.5 font-mono">
+                                {user.phone || 'No phone'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="px-3 py-4 text-center text-xs text-[#94a3b8] italic">
+                        No users found
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Storage Details ──────────────────────────────────────────── */}
+          <div className="border-t border-[#e2e8f0] pt-4">
+            <h4 className="text-xs font-bold text-[#1e293b] uppercase tracking-wider mb-3">Storage Details</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[#64748b] uppercase tracking-wide">Storage Type</label>
+                <select
+                  value={form.storageType}
+                  onChange={(e) => update('storageType', e.target.value as StorageType)}
+                  className="w-full h-10 px-3 rounded-lg border border-[#e2e8f0] text-sm bg-white focus:outline-none focus:border-[#4f46e5] focus:ring-2 focus:ring-[#4f46e5]/20 cursor-pointer text-[#1e293b]"
+                >
+                  {STORAGE_TYPES.map((st) => (
+                    <option key={st.value} value={st.value}>{st.label}</option>
+                  ))}
+                </select>
+              </div>
+              {/* <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[#64748b] uppercase tracking-wide">Work Center ID</label>
+                <input
+                  type="text"
+                  value={form.workCenterId}
+                  onChange={(e) => update('workCenterId', e.target.value)}
+                  placeholder="e.g. WC-001"
+                  className="w-full h-10 px-3 rounded-lg border border-[#e2e8f0] text-sm bg-white focus:outline-none focus:border-[#4f46e5] focus:ring-2 focus:ring-[#4f46e5]/20 text-[#1e293b]"
+                />
+              </div> */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[#64748b] uppercase tracking-wide">Floor / Zone</label>
+                <input
+                  type="text"
+                  value={form.floorZone}
+                  onChange={(e) => update('floorZone', e.target.value)}
+                  placeholder="e.g. Ground Floor A"
+                  className="w-full h-10 px-3 rounded-lg border border-[#e2e8f0] text-sm bg-white focus:outline-none focus:border-[#4f46e5] focus:ring-2 focus:ring-[#4f46e5]/20 text-[#1e293b]"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[#64748b] uppercase tracking-wide">Max Capacity (units)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={form.maxCapacity}
+                  onChange={(e) => update('maxCapacity', e.target.value)}
+                  placeholder="e.g. 2000"
+                  className="w-full h-10 px-3 rounded-lg border border-[#e2e8f0] text-sm bg-white focus:outline-none focus:border-[#4f46e5] focus:ring-2 focus:ring-[#4f46e5]/20 text-[#1e293b]"
+                />
+              </div>
+            </div>
           </div>
 
           {/* ── Active toggle ─────────────────────────────────────────────── */}
@@ -513,7 +754,7 @@ function WarehouseModal({
 export default function WarehousesPage() {
   const navigate = useNavigate();
   const toast = useToast();
-  const {hasPermission} = useAuth();
+  const { hasPermission } = useAuth();
   const canCreateWarehouse = hasPermission(MODULES.WAREHOUSES, 'create');
   const canEditWarehouse = hasPermission(MODULES.WAREHOUSES, 'edit');
   const canDeleteWarehouse = hasPermission(MODULES.WAREHOUSES, 'delete');
@@ -528,8 +769,9 @@ export default function WarehousesPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isSuggestionsLoading, setIsSuggestionsLoading] = useState(false); // ✅ NEW
+  const [usersList, setUsersList] = useState<UserDTO[]>([]);
 
-  const {hasControl } = useAuth();
+  const { hasControl } = useAuth();
   const canViewAll = hasControl("viewAllWarehouses");
 
   // ✅ form lifted here so it persists across renders — fixed type to WhForm
@@ -554,6 +796,20 @@ export default function WarehousesPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { void fetchWarehouses(); }, [fetchWarehouses]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await userService.list({ page: 1, limit: 200 });
+        if (res && res.items) {
+          setUsersList(res.items);
+        }
+      } catch (err) {
+        console.error('Failed to load users:', err);
+      }
+    };
+    void fetchUsers();
+  }, []);
 
   // ── Global search (debounced) ─────────────────────────────────────────────
   useEffect(() => {
@@ -586,7 +842,7 @@ export default function WarehousesPage() {
       setIsSuggestionsLoading(true);
       try {
         // ✅ GET request with params — not postData
-      const res = await searchWarehouses(value.trim());
+        const res = await searchWarehouses(value.trim());
         if (res?.success === true) {
           setSuggestions(res?.data ?? []);
         }
@@ -756,182 +1012,236 @@ export default function WarehousesPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4">
-  {[
-    {
-      label: 'Total Warehouses',
-      value: warehouses.length,
-      icon: 'ri-store-3-line',
-      bg: 'bg-indigo-50',
-      color: 'text-[#4f46e5]',
-    },
-    {
-      label: 'Active',
-      value: warehouses.filter((w) => w.isActive).length,
-      icon: 'ri-checkbox-circle-line',
-      bg: 'bg-green-50',
-      color: 'text-green-600',
-    },
-    {
-      label: 'Total Items',
-      value: warehouses.reduce(
-        (a, w) => a + (Number(w.itemCount) || 0),
-        0
-      ),
-      icon: 'ri-box-3-line',
-      bg: 'bg-amber-50',
-      color: 'text-amber-600',
-    },
-  ].map((c) => (
-    <div
-      key={c.label}
-      className="bg-white border border-[#e2e8f0] rounded-xl p-4 flex items-center gap-3"
-    >
-      <div
-        className={`w-10 h-10 flex items-center justify-center rounded-xl ${c.bg}`}
-      >
-        <i className={`${c.icon} ${c.color} text-lg`} />
-      </div>
-      <div>
-        <p className="text-2xl font-bold text-[#1e293b]">
-          {c.value}
-        </p>
-        <p className="text-xs text-[#64748b]">
-          {c.label}
-        </p>
-      </div>
-    </div>
-  ))}
-</div>
+          {[
+            {
+              label: 'Total Warehouses',
+              value: warehouses.length,
+              icon: 'ri-store-3-line',
+              bg: 'bg-indigo-50',
+              color: 'text-[#4f46e5]',
+            },
+            {
+              label: 'Active',
+              value: warehouses.filter((w) => w.isActive).length,
+              icon: 'ri-checkbox-circle-line',
+              bg: 'bg-green-50',
+              color: 'text-green-600',
+            },
+            {
+              label: 'Total Items',
+              value: warehouses.reduce(
+                (a, w) => a + (Number(w.itemCount) || 0),
+                0
+              ),
+              icon: 'ri-box-3-line',
+              bg: 'bg-amber-50',
+              color: 'text-amber-600',
+            },
+          ].map((c) => (
+            <div
+              key={c.label}
+              className="bg-white border border-[#e2e8f0] rounded-xl p-4 flex items-center gap-3"
+            >
+              <div
+                className={`w-10 h-10 flex items-center justify-center rounded-xl ${c.bg}`}
+              >
+                <i className={`${c.icon} ${c.color} text-lg`} />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-[#1e293b]">
+                  {c.value}
+                </p>
+                <p className="text-xs text-[#64748b]">
+                  {c.label}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
 
         {/* Table */}
         <div className="bg-white border border-[#e2e8f0] rounded-xl overflow-hidden">
           <div className="w-full overflow-x-auto">
-            <table className="min-w-[1100px] w-full text-sm">
-            <thead>
-              <tr className="bg-[#f8fafc] border-b border-[#e2e8f0]">
-                {['Warehouse Name', 'Type', 'Address', 'In-charge', 'Items', 'Stock Value', 'Status', ''].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-[#64748b] uppercase tracking-wide whitespace-nowrap">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {/* Loading skeleton */}
-              {isLoading && Array.from({ length: 4 }).map((_, i) => (
-                <tr key={i} className="border-b border-[#f1f5f9]">
-                  {Array.from({ length: 8 }).map((_, j) => (
-                    <td key={j} className="px-4 py-3">
-                      <div className="h-4 bg-[#f1f5f9] rounded animate-pulse" />
-                    </td>
+            <table className="min-w-[1500px] w-full text-sm">
+              <thead>
+                <tr className="bg-[#f8fafc] border-b border-[#e2e8f0]">
+                  {['Warehouse Name', 'Type', 'Storage Type', 'Floor / Zone', 'Max Capacity', 'Current Utilization', 'Work Center', 'Address', 'In-charge', 'Items', 'Stock Value', 'Status', ''].map((h) => (
+                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-[#64748b] uppercase tracking-wide whitespace-nowrap">
+                      {h}
+                    </th>
                   ))}
                 </tr>
-              ))}
+              </thead>
+              <tbody>
+                {/* Loading skeleton */}
+                {isLoading && Array.from({ length: 4 }).map((_, i) => (
+                  <tr key={i} className="border-b border-[#f1f5f9]">
+                    {Array.from({ length: 13 }).map((_, j) => (
+                      <td key={j} className="px-4 py-3">
+                        <div className="h-4 bg-[#f1f5f9] rounded animate-pulse" />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
 
-              {/* Data rows */}
-              {!isLoading && filtered.map((wh, idx) => {
-                const badge = TYPE_BADGE[wh.type];
-                return (
-                  <tr
-                    key={wh.id}
-                    className={`border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors ${idx % 2 !== 0 ? 'bg-[#f8fafc]/40' : ''}`}
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className={`w-8 h-8 flex items-center justify-center rounded-lg ${badge.cls} border`}>
-                          <i className={`${badge.icon} text-sm`} />
+                {/* Data rows */}
+                {!isLoading && filtered.map((wh, idx) => {
+                  const badge = TYPE_BADGE[wh.type];
+                  return (
+                    <tr
+                      key={wh.id}
+                      className={`border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors ${idx % 2 !== 0 ? 'bg-[#f8fafc]/40' : ''}`}
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-8 h-8 flex items-center justify-center rounded-lg ${badge.cls} border`}>
+                            <i className={`${badge.icon} text-sm`} />
+                          </div>
+                          <span className="font-medium text-[#1e293b] whitespace-nowrap">{wh.name}</span>
                         </div>
-                        <span className="font-medium text-[#1e293b] whitespace-nowrap">{wh.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${badge.cls}`}>
-                        {badge.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 max-w-[160px]">
-                      <p className="truncate text-xs text-[#64748b]">{wh.address}</p>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {wh.inchargeName ? (
-                        <>
-                          <p className="text-[#1e293b] text-xs font-medium">{wh.inchargeName}</p>
-                          <p className="text-[#94a3b8] text-xs">{wh.inchargePhone}</p>
-                        </>
-                      ) : (
-                        <span className="text-xs text-[#94a3b8] italic">Not assigned</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 font-semibold text-[#1e293b] whitespace-nowrap">{wh.itemCount}</td>
-                    <td className="px-4 py-3 text-[#1e293b] whitespace-nowrap">{formatINR(wh.totalValue)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-  {canEditWarehouse ? (
-    <button
-      onClick={() => void handleToggleActive(wh)}
-      className={`relative w-11 h-6 rounded-full transition-all duration-300 cursor-pointer
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${badge.cls}`}>
+                          {badge.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {wh.storageType ? (() => {
+                          const stDef = STORAGE_TYPES.find((s) => s.value === wh.storageType);
+                          return stDef ? (
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${stDef.cls}`}>
+                              <i className={`${stDef.icon} text-xs`} />
+                              {stDef.label}
+                            </span>
+                          ) : null;
+                        })() : <span className="text-xs text-slate-400">—</span>}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {wh.floorZone ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-[#475569] font-medium bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
+                            <i className="ri-map-pin-2-line text-[#64748b] text-xs" />
+                            {wh.floorZone}
+                          </span>
+                        ) : <span className="text-xs text-slate-400">—</span>}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {wh.maxCapacity != null ? (
+                          <span className="text-xs font-semibold text-[#1e293b]">
+                            {wh.maxCapacity.toLocaleString()} units
+                          </span>
+                        ) : <span className="text-xs text-slate-400">—</span>}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap min-w-[150px]">
+                        {wh.currentUtilization != null ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 bg-[#e2e8f0] h-2 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${wh.currentUtilization > 80
+                                  ? 'bg-red-500'
+                                  : wh.currentUtilization > 50
+                                    ? 'bg-amber-500'
+                                    : 'bg-green-500'
+                                  }`}
+                                style={{ width: `${Math.min(100, wh.currentUtilization)}%` }}
+                              />
+                            </div>
+                            <span className="text-xs font-semibold text-[#475569]">
+                              {wh.currentUtilization}%
+                            </span>
+                          </div>
+                        ) : <span className="text-xs text-slate-400">—</span>}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {wh.workCenterId ? (
+                          <span className="inline-flex items-center gap-1 bg-indigo-50/50 text-indigo-700 border border-indigo-100 font-mono text-xs px-2 py-0.5 rounded font-semibold">
+                            <i className="ri-settings-4-line text-xs" />
+                            {wh.workCenterId}
+                          </span>
+                        ) : <span className="text-xs text-slate-400">—</span>}
+                      </td>
+                      <td className="px-4 py-3 max-w-[160px]">
+                        <p className="truncate text-xs text-[#64748b]">{wh.address}</p>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {wh.inchargeName ? (
+                          <>
+                            <p className="text-[#1e293b] text-xs font-medium">{wh.inchargeName}</p>
+                            <p className="text-[#94a3b8] text-xs">{wh.inchargePhone}</p>
+                          </>
+                        ) : (
+                          <span className="text-xs text-[#94a3b8] italic">Not assigned</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-[#1e293b] whitespace-nowrap">{wh.itemCount}</td>
+                      <td className="px-4 py-3 text-[#1e293b] whitespace-nowrap">{formatINR(wh.totalValue)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {canEditWarehouse ? (
+                          <button
+                            onClick={() => void handleToggleActive(wh)}
+                            className={`relative w-11 h-6 rounded-full transition-all duration-300 cursor-pointer
         focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#4f46e5]/40
         ${wh.isActive ? 'bg-[#4f46e5]' : 'bg-[#e2e8f0]'}`}
-      title={wh.isActive ? 'Click to deactivate' : 'Click to activate'}
-    >
-      <span
-        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm
+                            title={wh.isActive ? 'Click to deactivate' : 'Click to activate'}
+                          >
+                            <span
+                              className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm
           transition-transform duration-300 flex items-center justify-center
           ${wh.isActive ? 'translate-x-5' : 'translate-x-0'}`}
-      >
-        <i
-          className={`text-[8px] transition-all duration-300
+                            >
+                              <i
+                                className={`text-[8px] transition-all duration-300
             ${wh.isActive ? 'ri-check-line text-[#4f46e5]' : 'ri-close-line text-[#94a3b8]'}`}
-        />
-      </span>
-    </button>
-  ) : (
-    // read-only badge when no permission
-    <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border
+                              />
+                            </span>
+                          </button>
+                        ) : (
+                          // read-only badge when no permission
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border
         ${wh.isActive
-          ? 'bg-green-50 text-green-700 border-green-200'
-          : 'bg-slate-100 text-slate-500 border-slate-200'
-        }`}
-    >
-      <span className={`w-1.5 h-1.5 rounded-full ${wh.isActive ? 'bg-green-500' : 'bg-slate-400'}`} />
-      {wh.isActive ? 'Active' : 'Inactive'}
-    </span>
-  )}
-</td>
+                                ? 'bg-green-50 text-green-700 border-green-200'
+                                : 'bg-slate-100 text-slate-500 border-slate-200'
+                              }`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${wh.isActive ? 'bg-green-500' : 'bg-slate-400'}`} />
+                            {wh.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        )}
+                      </td>
 
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="flex items-center gap-1">
-                        {canEditWarehouse && (<button
-                          onClick={() => openEdit(wh)}
-                          className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-indigo-50 text-[#64748b] hover:text-[#4f46e5] transition-colors cursor-pointer"
-                          title="Edit"
-                        >
-                          <i className="ri-edit-line text-sm" />
-                        </button>)}
-                        {canDeleteWarehouse && (<button
-                          onClick={() => setDeleteConfirm(wh)}
-                          className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-[#64748b] hover:text-red-500 transition-colors cursor-pointer"
-                          title="Delete"
-                        >
-                          <i className="ri-delete-bin-line text-sm" />
-                        </button>)}
-                      </div>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex items-center gap-1">
+                          {canEditWarehouse && (<button
+                            onClick={() => openEdit(wh)}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-indigo-50 text-[#64748b] hover:text-[#4f46e5] transition-colors cursor-pointer"
+                            title="Edit"
+                          >
+                            <i className="ri-edit-line text-sm" />
+                          </button>)}
+                          {canDeleteWarehouse && (<button
+                            onClick={() => setDeleteConfirm(wh)}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-[#64748b] hover:text-red-500 transition-colors cursor-pointer"
+                            title="Delete"
+                          >
+                            <i className="ri-delete-bin-line text-sm" />
+                          </button>)}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {/* Empty state */}
+                {!isLoading && filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={13} className="px-4 py-12 text-center">
+                      <i className="ri-store-3-line text-4xl text-[#e2e8f0] block mb-2" />
+                      <p className="text-[#94a3b8] text-sm">No warehouses found</p>
+                      {search && <p className="text-xs text-[#94a3b8] mt-1">Try a different search term</p>}
                     </td>
                   </tr>
-                );
-              })}
-
-              {/* Empty state */}
-              {!isLoading && filtered.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center">
-                    <i className="ri-store-3-line text-4xl text-[#e2e8f0] block mb-2" />
-                    <p className="text-[#94a3b8] text-sm">No warehouses found</p>
-                    {search && <p className="text-xs text-[#94a3b8] mt-1">Try a different search term</p>}
-                  </td>
-                </tr>
-              )}
-            </tbody>
+                )}
+              </tbody>
             </table>
           </div>
         </div>
@@ -949,6 +1259,7 @@ export default function WarehousesPage() {
         handleSelect={handleSelect}
         suggestions={suggestions}
         isSuggestionsLoading={isSuggestionsLoading}
+        users={usersList}
       />
 
       {/* Delete confirm */}

@@ -11,7 +11,12 @@ export const createWarehouse = async (req, res) => {
       inchargePhone,
       inchargeUserId,
       color,
-      isActive
+      isActive,
+      storageType,
+      floorZone,
+      maxCapacity,
+      currentUtilization,
+      workCenterId
     } = req.body;
 
     const created_by = req.user.id;
@@ -45,8 +50,8 @@ export const createWarehouse = async (req, res) => {
     // ✅ Insert
     const result = await connectDB.query(
       `INSERT INTO warehouses
-      (company_id, name, type, address, incharge_name, incharge_phone, incharge_user_id, color, is_active, created_by)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      (company_id, name, type, address, incharge_name, incharge_phone, incharge_user_id, color, is_active, created_by, storage_type, floor_zone, max_capacity, current_utilization, work_center_id)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
       RETURNING *`,
       [
         company_id,
@@ -58,7 +63,12 @@ export const createWarehouse = async (req, res) => {
         inchargeUserId || null,
         color,
         finalIsActive,
-        created_by
+        created_by,
+        storageType || 'GENERAL',
+        floorZone || null,
+        maxCapacity ? parseInt(maxCapacity, 10) : null,
+        currentUtilization ? parseInt(currentUtilization, 10) : 0,
+        workCenterId || null
       ]
     );
 
@@ -86,7 +96,12 @@ export const updateWarehouse = async (req, res) => {
       inchargePhone,
       inchargeUserId,
       color,
-      isActive
+      isActive,
+      storageType,
+      floorZone,
+      maxCapacity,
+      currentUtilization,
+      workCenterId
     } = req.body;
 
     const company_id = req.user.company_id;
@@ -114,8 +129,13 @@ export const updateWarehouse = async (req, res) => {
         incharge_phone = COALESCE($5, incharge_phone),
         incharge_user_id = COALESCE($6, incharge_user_id),
         color = COALESCE($7, color),
-        is_active = COALESCE($8, is_active)
-      WHERE id = $9 AND company_id = $10
+        is_active = COALESCE($8, is_active),
+        storage_type = COALESCE($9, storage_type),
+        floor_zone = COALESCE($10, floor_zone),
+        max_capacity = COALESCE($11, max_capacity),
+        current_utilization = COALESCE($12, current_utilization),
+        work_center_id = COALESCE($13, work_center_id)
+      WHERE id = $14 AND company_id = $15
       RETURNING *`,
       [
         name,
@@ -126,6 +146,11 @@ export const updateWarehouse = async (req, res) => {
         inchargeUserId || null,
         color,
         isActive,
+        storageType || null,
+        floorZone || null,
+        maxCapacity ? parseInt(maxCapacity, 10) : null,
+        currentUtilization !== undefined ? parseInt(currentUtilization, 10) : null,
+        workCenterId || null,
         id,
         company_id
       ]
@@ -155,7 +180,7 @@ export const deleteWarehouse = async (req, res) => {
       [id, company_id]
     );
 
-    
+
 
     res.json({
       success: true,
@@ -270,7 +295,7 @@ export const getAllWarehouses = async (req, res) => {
       WHERE w.company_id = $1
       
     `;
-// AND w.is_active = true
+    // AND w.is_active = true
     const values = [company_id];
     let index = 2;
 
@@ -334,7 +359,7 @@ export const getAllWarehousesUsingMarterTab = async (req, res) => {
       WHERE w.company_id = $1
      
     `;
-//  AND w.is_active = true
+    //  AND w.is_active = true
     const values = [company_id];
     let index = 2;
 
@@ -443,7 +468,7 @@ export const getWarehouseStats = async (req, res) => {
 export const getWarehousesForUser = async (req, res) => {
   try {
     const company_id = req.user.company_id;
-    const  userId  = req.user.id;
+    const userId = req.user.id;
 
     // First, check if the target user is a Super Admin
     const userResult = await connectDB.query(
