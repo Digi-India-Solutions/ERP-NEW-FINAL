@@ -107,6 +107,8 @@ import qualityparameterRouter from "./src/masters/qualityparameter/qualityparame
 import inspectionchecklistRouter from "./src/masters/inspectionchecklist/inspectionchecklist-routes.js"
 import routingRouter from "./src/masters/routing/routing-routes.js"
 import productionOrderRoutes from './src/menufacturing/production/productionOrders/poductionOrder-routes.js';
+import productionEntryRoutes from './src/menufacturing/Shop-floor/Production-entry-routes.js';
+import machineDowntimeRoutes from './src/menufacturing/Shop-floor/machineDowntime/machine-downtimeRoutes.js';
 
 app.use('/backups', express.static(path.join(process.cwd(), 'backups')));
 app.use("/api/v1/reports", reportsRouter);
@@ -150,6 +152,8 @@ app.use("/api/label-settings", barcodeRouter)
 app.use('/api/v1/manufacturing/bom', bomRoutes);
 app.use('/api/v1', itemVariantRoutes);
 app.use('/api/v1/manufacturing/production-orders', productionOrderRoutes);
+app.use('/api/v1/production-entries', productionEntryRoutes);
+app.use('/api/v1/downtime-entries', machineDowntimeRoutes);
 app.get("/", (req, res) => {
   res.send("Server is running");
 });

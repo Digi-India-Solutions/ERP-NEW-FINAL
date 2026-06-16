@@ -2797,7 +2797,7 @@ export default function ProductionOrderForm() {
                     )}
                     {selectedRouting && (
                       <p className="text-[11px] text-[#94a3b8] mt-1">
-                        {selectedRouting.stages.length} stages, total {selectedRouting.totalTimeMinutes} min
+                        {selectedRouting?.stages?.length} stages, total {selectedRouting.totalTimeMinutes} min
                       </p>
                     )}
                   </div>

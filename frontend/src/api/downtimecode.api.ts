@@ -1,6 +1,13 @@
 import { apiClient, type ApiResponse } from './client';
 
-export type DowntimeCategory = 'BREAKDOWN' | 'PLANNED' | 'MATERIAL' | 'POWER' | 'OPERATOR' | 'SETUP' | 'OTHER';
+export type DowntimeCategory =
+  | 'BREAKDOWN'
+  | 'PLANNED'
+  | 'MATERIAL'
+  | 'POWER'
+  | 'OPERATOR'
+  | 'SETUP'
+  | 'OTHER';
 
 export interface DowntimeCodePayload {
   code: string;
@@ -23,8 +30,16 @@ export interface DowntimeCodeResponse {
   warehouse_id?: string | null;
 }
 
+// ✅ Dropdown ke liye interface
+export interface DowntimeCodeDropdownResponse {
+  id: string;
+  code: string;
+  description: string;
+}
+
 const BASE = '/api/v1/downtime-codes';
 
+// ✅ CREATE DOWNTIME CODE
 export async function createDowntimeCode(
   payload: DowntimeCodePayload,
 ): Promise<ApiResponse<DowntimeCodeResponse>> {
@@ -43,6 +58,7 @@ export async function createDowntimeCode(
   return data;
 }
 
+// ✅ GET ALL DOWNTIME CODES
 export async function getAllDowntimeCodes(): Promise<
   ApiResponse<DowntimeCodeResponse[]>
 > {
@@ -52,6 +68,17 @@ export async function getAllDowntimeCodes(): Promise<
   return data;
 }
 
+// ✅ GET DOWNTIME CODES FOR DROPDOWN (Only id, code and description - Active codes)
+export async function getDowntimeCodesForDropdown(): Promise<
+  ApiResponse<DowntimeCodeDropdownResponse[]>
+> {
+  const { data } = await apiClient.get<
+    ApiResponse<DowntimeCodeDropdownResponse[]>
+  >(`${BASE}/dropdown`);
+  return data;
+}
+
+// ✅ UPDATE DOWNTIME CODE
 export async function updateDowntimeCode(
   id: string,
   payload: Partial<DowntimeCodePayload>,
@@ -62,7 +89,10 @@ export async function updateDowntimeCode(
     category: payload.category,
     affects_machine: payload.affectsMachine,
     is_active: payload.isActive,
-    warehouse_id: payload.warehouseId !== undefined ? (payload.warehouseId || null) : undefined,
+    warehouse_id:
+      payload.warehouseId !== undefined
+        ? payload.warehouseId || null
+        : undefined,
   };
   const { data } = await apiClient.put<ApiResponse<DowntimeCodeResponse>>(
     `${BASE}/${id}`,
@@ -71,7 +101,10 @@ export async function updateDowntimeCode(
   return data;
 }
 
-export async function deleteDowntimeCode(id: string): Promise<ApiResponse<null>> {
+// ✅ DELETE DOWNTIME CODE
+export async function deleteDowntimeCode(
+  id: string,
+): Promise<ApiResponse<null>> {
   const { data } = await apiClient.delete<ApiResponse<null>>(`${BASE}/${id}`);
   return data;
 }

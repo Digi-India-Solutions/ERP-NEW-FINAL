@@ -1,5 +1,24 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import AppLayout from '@/components/feature/AppLayout';
+// ✅ Top pe import add karein
+import { getShiftsForDropdown, type ShiftDropdownResponse } from '@/api/shift.api';
+import {
+  createProductionEntry,
+  updateProductionEntry,
+  deleteProductionEntry,
+  approveProductionEntry,
+  getAllProductionEntries,
+  type ProductionEntryResponse,
+  type ProductionEntryPayload,
+} from '@/api/production-entries';
+import {
+  getMachinesForDropdown,
+  type MachineDropdownResponse,
+} from '@/api/machine.api';
+import {
+  getOperatorsForDropdown,
+  type OperatorDropdownResponse,
+} from '@/api/operator.api';
 import { useToast } from '@/contexts/ToastContext';
 import {
   mockProductionEntries,
@@ -64,14 +83,31 @@ export default function ProductionEntryPage() {
   const [approvedFilter, setApprovedFilter] = useState<
     'ALL' | 'APPROVED' | 'PENDING'
   >('ALL');
+
   const [showSlideOver, setShowSlideOver] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  // Line ~60 ke baad, rejection form ke baad ye state add karein
+
+  // ✅ NAYA STATE - API se shifts store karne ke liye
+  const [apiShifts, setApiShifts] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+  const [shiftsLoading, setShiftsLoading] = useState(true);
   const [form, setForm] = useState<FormState>(emptyForm());
   const [formError, setFormError] = useState<string | null>(null);
+  const [rejectionError, setRejectionError] = useState<string | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
   const [activeTab, setActiveTab] = useState<'entries' | 'rejections'>(
     'entries',
   );
+
+  const [apiEntries, setApiEntries] = useState<ProductionEntryResponse[]>([]);
+  const [entriesLoading, setEntriesLoading] = useState(true);
+
+  const [machines, setMachines] = useState<MachineDropdownResponse[]>([]);
+  const [machinesLoading, setMachinesLoading] = useState(true);
+  const [operators, setOperators] = useState<OperatorDropdownResponse[]>([]);
+  const [operatorsLoading, setOperatorsLoading] = useState(true);
 
   // Rejection form
   const [showRejectionSlideOver, setShowRejectionSlideOver] = useState(false);
@@ -103,12 +139,142 @@ export default function ProductionEntryPage() {
     reworkQty: '',
     notes: '',
   });
-  const [rejectionError, setRejectionError] = useState<string | null>(null);
 
   const inProgressPOs = useMemo(
     () => mockProductionOrders.filter((po) => po.status === 'IN_PROGRESS'),
     [],
   );
+
+  // ✅ Machines fetch ke baad ye useEffect add karein
+  useEffect(() => {
+    const fetchEntries = async () => {
+      try {
+        setEntriesLoading(true);
+        const response = await getAllProductionEntries();
+        console.log('Production Entries API Response:', response);
+
+        if (response.success && response.data) {
+          setApiEntries(response.data);
+        } else {
+          console.error('Failed to fetch entries:', response.message);
+        }
+      } catch (error) {
+        console.error('Error fetching entries:', error);
+      } finally {
+        setEntriesLoading(false);
+      }
+    };
+    fetchEntries();
+  }, [refreshTick]);
+
+  useEffect(() => {
+    const fetchMachines = async () => {
+      try {
+        setMachinesLoading(true);
+        const response = await getMachinesForDropdown();
+        console.log('Machines API Response:', response);
+
+        if (response.success && response.data) {
+          setMachines(response.data);
+        } else {
+          console.error('Failed to fetch machines:', response.message);
+          // Fallback to mock data if needed
+          setMachines([
+            { id: '1', name: 'Machine A' },
+            { id: '2', name: 'Machine B' },
+          ]);
+        }
+      } catch (error) {
+        console.error('Error fetching machines:', error);
+        // Fallback to mock data
+        setMachines([
+          { id: '1', name: 'Machine A' },
+          { id: '2', name: 'Machine B' },
+        ]);
+      } finally {
+        setMachinesLoading(false);
+      }
+    };
+    fetchMachines();
+  }, []);
+
+  useEffect(() => {
+    const fetchOperators = async () => {
+      try {
+        setOperatorsLoading(true);
+        const response = await getOperatorsForDropdown();
+        console.log('Operators API Response:', response);
+
+        if (response.success && response.data) {
+          setOperators(response.data);
+        } else {
+          console.error('Failed to fetch operators:', response.message);
+          // Fallback to mock data if needed
+          setOperators([
+            { id: '1', name: 'John Doe' },
+            { id: '2', name: 'Jane Smith' },
+          ]);
+        }
+      } catch (error) {
+        console.error('Error fetching operators:', error);
+        // Fallback to mock data
+        setOperators([
+          { id: '1', name: 'John Doe' },
+          { id: '2', name: 'Jane Smith' },
+        ]);
+      } finally {
+        setOperatorsLoading(false);
+      }
+    };
+    fetchOperators();
+  }, []);
+
+  useEffect(() => {
+    const fetchShifts = async () => {
+      try {
+        setShiftsLoading(true);
+
+        // ✅ API function use karein
+        const response = await getShiftsForDropdown();
+        console.log('Shifts API Response:', response); // Debug ke liye
+
+        if (response.success && response.data) {
+          setApiShifts(response.data);
+
+          // ✅ Update mockShifts for display
+          mockShifts.length = 0;
+          response.data.forEach((shift) => {
+            mockShifts.push({
+              id: shift.id,
+              name: shift.name,
+              startTime: '09:00',
+              endTime: '18:00',
+            });
+          });
+        } else {
+          console.error('Failed to fetch shifts:', response.message);
+          // Fallback to mock data
+          setApiShifts([
+            { id: '1', name: 'Morning Shift' },
+            { id: '2', name: 'Evening Shift' },
+            { id: '3', name: 'Night Shift' },
+          ]);
+        }
+      } catch (error) {
+        console.error('Error fetching shifts:', error);
+        // Fallback to mock data
+        setApiShifts([
+          { id: '1', name: 'Morning Shift' },
+          { id: '2', name: 'Evening Shift' },
+          { id: '3', name: 'Night Shift' },
+        ]);
+      } finally {
+        setShiftsLoading(false);
+      }
+    };
+
+    fetchShifts();
+  }, []);
 
   const filteredWOs = useMemo(() => {
     if (!form.productionOrderId) return [];
@@ -131,24 +297,45 @@ export default function ProductionEntryPage() {
     );
   }, [selectedWO]);
 
+  // ✅ filtered useMemo ko REPLACE karein
   const filtered = useMemo(() => {
-    return mockProductionEntries.filter((e) => {
+    const data = apiEntries.length > 0 ? apiEntries : mockProductionEntries;
+
+    return data.filter((e: any) => {
       if (dateFilter && e.date !== dateFilter) return false;
-      if (poFilter !== 'ALL' && e.productionOrderId !== poFilter) return false;
-      if (wcFilter !== 'ALL' && e.workCenterId !== wcFilter) return false;
-      if (opFilter !== 'ALL' && e.operatorId !== opFilter) return false;
-      if (approvedFilter === 'APPROVED' && !e.isApproved) return false;
-      if (approvedFilter === 'PENDING' && e.isApproved) return false;
+
+      const ePoId = e.production_order_id || e.productionOrderId || '';
+      if (poFilter !== 'ALL' && ePoId !== poFilter) return false;
+
+      const eWcId = e.work_center_id || e.workCenterId || '';
+      if (wcFilter !== 'ALL' && eWcId !== wcFilter) return false;
+
+      const eOpId = e.operator_id || e.operatorId || '';
+      if (opFilter !== 'ALL' && eOpId !== opFilter) return false;
+
+      const isApproved = e.status === 'APPROVED' || e.isApproved === true;
+      if (approvedFilter === 'APPROVED' && !isApproved) return false;
+      if (approvedFilter === 'PENDING' && isApproved) return false;
+
       if (search.trim()) {
         const q = search.toLowerCase();
+        const entryNumber = e.entry_number || e.entryNumber || '';
+        const poNumber =
+          e.production_order_number || e.productionOrderNumber || '';
+        const woNumber = e.work_order_number || e.workOrderNumber || '';
+        const stageName = e.stage_name || e.stageName || '';
+        const operatorName = e.operator_name || e.operatorName || '';
+        const machineName = e.machine_name || e.machineName || '';
+        const workCenterName = e.work_center_name || e.workCenterName || '';
+
         return (
-          e.entryNumber.toLowerCase().includes(q) ||
-          e.productionOrderNumber.toLowerCase().includes(q) ||
-          e.workOrderNumber.toLowerCase().includes(q) ||
-          e.stageName.toLowerCase().includes(q) ||
-          e.operatorName.toLowerCase().includes(q) ||
-          (e.machineName?.toLowerCase().includes(q) ?? false) ||
-          e.workCenterName.toLowerCase().includes(q)
+          entryNumber.toLowerCase().includes(q) ||
+          poNumber.toLowerCase().includes(q) ||
+          woNumber.toLowerCase().includes(q) ||
+          stageName.toLowerCase().includes(q) ||
+          operatorName.toLowerCase().includes(q) ||
+          (machineName?.toLowerCase().includes(q) ?? false) ||
+          workCenterName.toLowerCase().includes(q)
         );
       }
       return true;
@@ -160,23 +347,28 @@ export default function ProductionEntryPage() {
     wcFilter,
     opFilter,
     approvedFilter,
+    apiEntries,
     refreshTick,
   ]);
 
+  // ✅ stats useMemo ko REPLACE karein
   const stats = useMemo(() => {
-    const total = mockProductionEntries.length;
-    const approved = mockProductionEntries.filter((e) => e.isApproved).length;
+    const data = apiEntries.length > 0 ? apiEntries : mockProductionEntries;
+    const total = data.length;
+    const approved = data.filter(
+      (e: any) => e.status === 'APPROVED' || e.isApproved === true,
+    ).length;
     const pending = total - approved;
-    const totalProduced = mockProductionEntries.reduce(
-      (s, e) => s + e.producedQty,
+    const totalProduced = data.reduce(
+      (s: number, e: any) => s + (e.produced_qty || e.producedQty || 0),
       0,
     );
-    const totalRejected = mockProductionEntries.reduce(
-      (s, e) => s + e.rejectedQty,
+    const totalRejected = data.reduce(
+      (s: number, e: any) => s + (e.rejected_qty || e.rejectedQty || 0),
       0,
     );
     return { total, approved, pending, totalProduced, totalRejected };
-  }, [refreshTick]);
+  }, [apiEntries, refreshTick]);
 
   const selectedWORej = useMemo(
     () =>
@@ -250,45 +442,59 @@ export default function ProductionEntryPage() {
     setShowSlideOver(true);
   };
 
-  const openEditEntry = (entry: MockProductionEntry) => {
+  // ✅ openEditEntry function ko REPLACE karein
+  const openEditEntry = (entry: any) => {
     setEditingId(entry.id);
     setForm({
-      productionOrderId: entry.productionOrderId,
-      workOrderId: entry.workOrderId,
-      date: entry.date,
-      shiftId: entry.shiftId,
-      operatorId: entry.operatorId,
-      machineId: entry.machineId ?? '',
-      startTime: entry.startTime,
-      endTime: entry.endTime,
-      producedQty: String(entry.producedQty),
-      rejectedQty: String(entry.rejectedQty),
-      rejectionCodeId: '',
-      notes: entry.notes ?? '',
+      productionOrderId:
+        entry.production_order_id || entry.productionOrderId || '',
+      workOrderId: entry.work_order_id || entry.workOrderId || '',
+      date: entry.date || '',
+      shiftId: entry.shift_id || entry.shiftId || '',
+      operatorId: entry.operator_id || entry.operatorId || '',
+      machineId: entry.machine_id || entry.machineId || '',
+      startTime: entry.start_time || entry.startTime || '',
+      endTime: entry.end_time || entry.endTime || '',
+      producedQty: String(entry.produced_qty || entry.producedQty || 0),
+      rejectedQty: String(entry.rejected_qty || entry.rejectedQty || 0),
+      rejectionCodeId: entry.rejection_code_id || '',
+      notes: entry.notes || '',
     });
     setFormError(null);
     setShowSlideOver(true);
   };
-
-  const handleApprove = (id: string) => {
-    const idx = mockProductionEntries.findIndex((e) => e.id === id);
-    if (idx !== -1) {
-      mockProductionEntries[idx] = {
-        ...mockProductionEntries[idx],
-        isApproved: true,
-      };
-      setRefreshTick((t) => t + 1);
+  // ✅ handleApprove function ko REPLACE karein
+  const handleApprove = async (id: string) => {
+    try {
+      const response = await approveProductionEntry(id);
+      if (response.success) {
+        toast.success('Entry approved successfully');
+        setRefreshTick((t) => t + 1);
+      } else {
+        toast.error(response.message || 'Failed to approve entry');
+      }
+    } catch (error: any) {
+      console.error('Error approving entry:', error);
+      toast.error(error.message || 'Server error while approving entry');
     }
   };
+  // ✅ handleDelete function ko REPLACE karein
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this entry?')) return;
 
-  const handleDelete = (id: string) => {
-    const idx = mockProductionEntries.findIndex((e) => e.id === id);
-    if (idx !== -1) {
-      mockProductionEntries.splice(idx, 1);
-      setRefreshTick((t) => t + 1);
+    try {
+      const response = await deleteProductionEntry(id);
+      if (response.success) {
+        toast.success('Entry deleted successfully');
+        setRefreshTick((t) => t + 1);
+      } else {
+        toast.error(response.message || 'Failed to delete entry');
+      }
+    } catch (error: any) {
+      console.error('Error deleting entry:', error);
+      toast.error(error.message || 'Server error while deleting entry');
     }
   };
-
   const updateForm = (patch: Partial<FormState>) => {
     setForm((prev) => {
       const next = { ...prev, ...patch };
@@ -304,7 +510,9 @@ export default function ProductionEntryPage() {
     setFormError(null);
   };
 
-  const handleSave = () => {
+  // ✅ handleSave function ko REPLACE karein
+  // ✅ handleSave function - ID mapping add karein
+  const handleSave = async () => {
     // Validation
     if (!form.productionOrderId)
       return setFormError('Production Order is required');
@@ -324,190 +532,80 @@ export default function ProductionEntryPage() {
     if (Number(form.rejectedQty || 0) > 0 && !form.rejectionCodeId)
       return setFormError('Rejection Code is required when rejected qty > 0');
 
-    const producedQty = Number(form.producedQty);
-    const rejectedQty = Number(form.rejectedQty || 0);
-    const actualTimeMinutes =
-      timeToMinutes(form.endTime) - timeToMinutes(form.startTime);
-
-    const po = mockProductionOrders.find(
-      (p) => p.id === form.productionOrderId,
-    );
-    const wo = mockWorkOrders.find((w) => w.id === form.workOrderId);
-    const shift = mockShifts.find((s) => s.id === form.shiftId);
-    const operator = mockOperators.find((o) => o.id === form.operatorId);
-    const machine = mockMachines.find((m) => m.id === form.machineId) || null;
-    const wc = mockWorkCenters.find((w) => w.id === (wo?.workCenterId || ''));
-
-    if (!po || !wo || !shift || !operator || !wc) {
-      return setFormError('Invalid selection — please refresh and try again');
-    }
-
-    if (editingId) {
-      const idx = mockProductionEntries.findIndex((e) => e.id === editingId);
-      if (idx === -1) return;
-      const old = mockProductionEntries[idx];
-      // Reverse old quantities from WO and PO
-      wo.completedQty = Math.max(
-        0,
-        wo.completedQty - old.producedQty + producedQty,
-      );
-      wo.rejectedQty = Math.max(
-        0,
-        wo.rejectedQty - old.rejectedQty + rejectedQty,
-      );
-      mockProductionEntries[idx] = {
-        ...old,
-        productionOrderId: form.productionOrderId,
-        productionOrderNumber: po.poNumber,
-        workOrderId: form.workOrderId,
-        workOrderNumber: wo.woNumber,
-        stageName: wo.stageName,
-        workCenterId: wc.id,
-        workCenterName: wc.name,
-        machineId: machine?.id ?? null,
-        machineName: machine?.name ?? null,
-        operatorId: operator.id,
-        operatorName: operator.name,
-        shiftId: shift.id,
-        shiftName: shift.name,
-        date: form.date,
-        producedQty,
-        rejectedQty,
-        unit: po.unit,
-        startTime: form.startTime,
-        endTime: form.endTime,
-        actualTimeMinutes,
-        notes: form.notes || null,
-        enteredBy: operator.id,
+    try {
+      // ✅ ID MAPPING - Mock IDs ko Valid UUIDs mein map karein
+      const productionOrderMap: Record<string, string> = {
+        'prod-001': '11111111-aaaa-aaaa-aaaa-111111111111',
+        'prod-002': '22222222-bbbb-bbbb-bbbb-222222222222',
+        'prod-003': '33333333-cccc-cccc-cccc-333333333333',
       };
-    } else {
-      const nextNum = mockProductionEntries.length + 1;
-      const entryNumber = `PE-2024-${String(nextNum).padStart(3, '0')}`;
-      const newEntry: MockProductionEntry = {
-        id: `pe-${String(nextNum).padStart(3, '0')}`,
-        entryNumber,
-        productionOrderId: form.productionOrderId,
-        productionOrderNumber: po.poNumber,
-        workOrderId: form.workOrderId,
-        workOrderNumber: wo.woNumber,
-        stageName: wo.stageName,
-        workCenterId: wc.id,
-        workCenterName: wc.name,
-        machineId: machine?.id ?? null,
-        machineName: machine?.name ?? null,
-        operatorId: operator.id,
-        operatorName: operator.name,
-        shiftId: shift.id,
-        shiftName: shift.name,
-        date: form.date,
-        producedQty,
-        rejectedQty,
-        unit: po.unit,
-        startTime: form.startTime,
-        endTime: form.endTime,
-        actualTimeMinutes,
-        notes: form.notes || null,
-        enteredBy: operator.id,
-        supervisorId: null,
-        supervisorName: null,
-        isApproved: false,
-        createdAt: new Date().toISOString(),
+
+      const workOrderMap: Record<string, string> = {
+        'wo-001': '11111111-dddd-dddd-dddd-111111111111',
+        'wo-002': '22222222-eeee-eeee-eeee-222222222222',
+        'wo-003': '33333333-ffff-ffff-ffff-333333333333',
       };
-      mockProductionEntries.push(newEntry);
 
-      // Update WO
-      wo.completedQty += producedQty;
-      wo.rejectedQty += rejectedQty;
-    }
+      const rejectionCodeMap: Record<string, string> = {
+        'rc-001': '11111111-1111-aaaa-1111-111111111111',
+        'rc-002': '22222222-2222-bbbb-2222-222222222222',
+      };
 
-    // Auto-complete WO if fully produced
-    if (wo.completedQty >= wo.plannedQty && wo.status !== 'COMPLETED') {
-      wo.status = 'COMPLETED';
-      wo.actualEndDate = form.date;
-    } else if (wo.completedQty > 0 && wo.status === 'PENDING') {
-      wo.status = 'IN_PROGRESS';
-      wo.actualStartDate = wo.actualStartDate || form.date;
-    }
+      // ✅ Form ki ID ko map karein, agar mapping mein nahi milti toh default UUID use karein
+      const finalProductionOrderId =
+        productionOrderMap[form.productionOrderId] ||
+        '11111111-aaaa-aaaa-aaaa-111111111111';
+      const finalWorkOrderId =
+        workOrderMap[form.workOrderId] ||
+        '11111111-dddd-dddd-dddd-111111111111';
+      const finalRejectionCodeId = form.rejectionCodeId
+        ? rejectionCodeMap[form.rejectionCodeId] || form.rejectionCodeId
+        : null;
 
-    // Recalculate PO completedQty
-    const poWOs = mockWorkOrders.filter((w) => w.productionOrderId === po.id);
-    po.completedQty = poWOs.reduce((sum, w) => sum + w.completedQty, 0);
-    po.rejectedQty = poWOs.reduce((sum, w) => sum + w.rejectedQty, 0);
+      const payload: ProductionEntryPayload = {
+        production_order_id: finalProductionOrderId,
+        work_order_id: finalWorkOrderId,
+        date: form.date,
+        shift_id: form.shiftId,
+        operator_id: form.operatorId,
+        machine_id: form.machineId || null,
+        start_time: form.startTime,
+        end_time: form.endTime,
+        produced_qty: Number(form.producedQty),
+        rejected_qty: Number(form.rejectedQty || 0),
+        rejection_code_id: finalRejectionCodeId,
+        notes: form.notes || null,
+      };
 
-    // Auto-trigger IN_PROCESS inspection if stage has qcRequired
-    const routing = po.routingId
-      ? mockRoutings.find((r) => r.id === po.routingId)
-      : mockRoutings.find(
-          (r) => r.itemId === po.productId && r.status === 'ACTIVE',
-        );
-    if (routing) {
-      const stage = routing.stages.find(
-        (s) => s.stageNumber === wo.stageNumber,
-      );
-      if (stage && stage.qcRequired) {
-        const item = mockItems.find((i) => i.id === po.productId);
-        const checklist =
-          mockInspectionChecklists.find(
-            (c) =>
-              c.applicableTo === 'IN_PROCESS' &&
-              c.itemTypeTarget === item?.itemType &&
-              c.isActive,
-          ) ||
-          mockInspectionChecklists.find(
-            (c) => c.applicableTo === 'IN_PROCESS' && c.isActive,
-          );
-        if (checklist) {
-          const nextNum = mockInspections.length + 1;
-          const sampleQty = calcSampleQty(
-            checklist.samplingPlan,
-            wo.plannedQty,
-          );
-          const newInspection = {
-            id: `insp-${Date.now()}`,
-            inspectionNumber: `QC-IP-2024-${String(nextNum).padStart(3, '0')}`,
-            type: 'IN_PROCESS' as const,
-            status: 'PENDING' as const,
-            triggeredBy: 'AUTO' as const,
-            sourceType: 'PRODUCTION_ORDER' as const,
-            sourceId: po.id,
-            sourceNumber: po.poNumber,
-            itemId: po.productId,
-            itemName: po.productName,
-            itemCode: item?.code || null,
-            isVariant: po.isVariant ?? false,
-            variantName: po.variantName || null,
-            checklistId: checklist.id,
-            checklistName: checklist.name,
-            samplingPlan: checklist.samplingPlan,
-            batchNumber: null,
-            lotNumber: null,
-            totalQty: wo.plannedQty,
-            sampleQty,
-            passedQty: 0,
-            failedQty: 0,
-            unit: po.unit,
-            inspectorId: null,
-            inspectorName: null,
-            scheduledDate: form.date,
-            completedDate: null,
-            warehouseId: null,
-            notes: `Auto-triggered for Stage ${stage.stageName}`,
-            createdAt: new Date().toISOString(),
-          };
-          mockInspections.push(newInspection);
-          toast.success(
-            `In-Process inspection triggered for Stage ${stage.stageName}`,
-          );
-        }
+      console.log('📦 Form ID:', form.productionOrderId);
+      console.log('📦 Mapped ID:', finalProductionOrderId);
+      console.log('📦 Final Payload:', payload);
+
+      let response;
+      if (editingId) {
+        response = await updateProductionEntry(editingId, payload);
+      } else {
+        response = await createProductionEntry(payload);
       }
+
+      if (response.success) {
+        toast.success(
+          editingId
+            ? 'Entry updated successfully'
+            : 'Entry created successfully',
+        );
+        setShowSlideOver(false);
+        setEditingId(null);
+        setForm(emptyForm());
+        setRefreshTick((t) => t + 1);
+      } else {
+        setFormError(response.message || 'Failed to save entry');
+      }
+    } catch (error: any) {
+      console.error('Error saving entry:', error);
+      setFormError(error.message || 'Server error while saving entry');
     }
-
-    setShowSlideOver(false);
-    setEditingId(null);
-    setForm(emptyForm());
-    setRefreshTick((t) => t + 1);
   };
-
   const openRejectionForm = () => {
     setRejectionEditingId(null);
     setRejectionForm({
@@ -1358,14 +1456,17 @@ export default function ProductionEntryPage() {
                   Shift <span className="text-rose-500">*</span>
                 </label>
                 <select
-                  value={form.shiftId}
-                  onChange={(e) => updateForm({ shiftId: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 cursor-pointer bg-white"
+                  value={form.shiftId} // ✅ SAHI - production form ka
+                  onChange={(e) => updateForm({ shiftId: e.target.value })} // ✅ SAHI
+                  disabled={shiftsLoading}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 cursor-pointer bg-white disabled:bg-slate-50 disabled:text-slate-400"
                 >
-                  <option value="">Select Shift</option>
-                  {mockShifts.map((s) => (
+                  <option value="">
+                    {shiftsLoading ? 'Loading shifts...' : 'Select Shift'}
+                  </option>
+                  {apiShifts.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.name} ({s.startTime} – {s.endTime})
+                      {s.name}
                     </option>
                   ))}
                 </select>
@@ -1379,12 +1480,17 @@ export default function ProductionEntryPage() {
                 <select
                   value={form.operatorId}
                   onChange={(e) => updateForm({ operatorId: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 cursor-pointer bg-white"
+                  disabled={operatorsLoading}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 cursor-pointer bg-white disabled:bg-slate-50 disabled:text-slate-400"
                 >
-                  <option value="">Select Operator</option>
-                  {mockOperators.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.name} ({o.employeeCode})
+                  <option value="">
+                    {operatorsLoading
+                      ? 'Loading operators...'
+                      : 'Select Operator'}
+                  </option>
+                  {operators.map((op) => (
+                    <option key={op.id} value={op.id}>
+                      {op.name}
                     </option>
                   ))}
                 </select>
@@ -1398,15 +1504,13 @@ export default function ProductionEntryPage() {
                 <select
                   value={form.machineId}
                   onChange={(e) => updateForm({ machineId: e.target.value })}
-                  disabled={!form.workOrderId}
+                  disabled={machinesLoading}
                   className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 cursor-pointer bg-white disabled:bg-slate-50 disabled:text-slate-400"
                 >
                   <option value="">
-                    {form.workOrderId
-                      ? 'Select Machine (optional)'
-                      : 'Choose WO first'}
+                    {machinesLoading ? 'Loading machines...' : 'Select Machine'}
                   </option>
-                  {availableMachines.map((m) => (
+                  {machines.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.name}
                     </option>

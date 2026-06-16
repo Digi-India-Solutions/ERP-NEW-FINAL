@@ -1,6 +1,11 @@
 import { apiClient, type ApiResponse } from './client';
 
-export type OperatorSkill = 'WELDER' | 'MACHINIST' | 'ASSEMBLER' | 'QC_INSPECTOR' | 'SUPERVISOR';
+export type OperatorSkill =
+  | 'WELDER'
+  | 'MACHINIST'
+  | 'ASSEMBLER'
+  | 'QC_INSPECTOR'
+  | 'SUPERVISOR';
 
 export interface OperatorPayload {
   name: string;
@@ -28,8 +33,15 @@ export interface OperatorResponse {
   warehouse_id?: string | null;
 }
 
+// ✅ Dropdown ke liye interface
+export interface OperatorDropdownResponse {
+  id: string;
+  name: string;
+}
+
 const BASE = '/api/v1/operators';
 
+// ✅ CREATE OPERATOR
 export async function createOperator(
   payload: OperatorPayload,
 ): Promise<ApiResponse<OperatorResponse>> {
@@ -50,6 +62,7 @@ export async function createOperator(
   return data;
 }
 
+// ✅ GET ALL OPERATORS
 export async function getAllOperators(): Promise<
   ApiResponse<OperatorResponse[]>
 > {
@@ -59,6 +72,17 @@ export async function getAllOperators(): Promise<
   return data;
 }
 
+// ✅ GET OPERATORS FOR DROPDOWN (Only id and name - Active operators)
+export async function getOperatorsForDropdown(): Promise<
+  ApiResponse<OperatorDropdownResponse[]>
+> {
+  const { data } = await apiClient.get<ApiResponse<OperatorDropdownResponse[]>>(
+    `${BASE}/dropdown`,
+  );
+  return data;
+}
+
+// ✅ UPDATE OPERATOR
 export async function updateOperator(
   id: string,
   payload: Partial<OperatorPayload>,
@@ -68,10 +92,14 @@ export async function updateOperator(
     employee_code: payload.employeeCode,
     skill: payload.skill,
     wage_rate_per_hour: payload.wageRatePerHour,
-    shift_id: payload.shiftId !== undefined ? (payload.shiftId || null) : undefined,
-    phone: payload.phone !== undefined ? (payload.phone || null) : undefined,
+    shift_id:
+      payload.shiftId !== undefined ? payload.shiftId || null : undefined,
+    phone: payload.phone !== undefined ? payload.phone || null : undefined,
     is_active: payload.isActive,
-    warehouse_id: payload.warehouseId !== undefined ? (payload.warehouseId || null) : undefined,
+    warehouse_id:
+      payload.warehouseId !== undefined
+        ? payload.warehouseId || null
+        : undefined,
   };
   const { data } = await apiClient.put<ApiResponse<OperatorResponse>>(
     `${BASE}/${id}`,
@@ -80,6 +108,7 @@ export async function updateOperator(
   return data;
 }
 
+// ✅ DELETE OPERATOR
 export async function deleteOperator(id: string): Promise<ApiResponse<null>> {
   const { data } = await apiClient.delete<ApiResponse<null>>(`${BASE}/${id}`);
   return data;

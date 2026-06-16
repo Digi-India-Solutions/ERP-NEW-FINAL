@@ -28,8 +28,15 @@ export interface MachineResponse {
   warehouse_id?: string | null;
 }
 
+// ✅ Dropdown ke liye interface
+export interface MachineDropdownResponse {
+  id: string;
+  name: string;
+}
+
 const BASE = '/api/v1/machines';
 
+// ✅ CREATE MACHINE
 export async function createMachine(
   payload: MachinePayload,
 ): Promise<ApiResponse<MachineResponse>> {
@@ -37,10 +44,14 @@ export async function createMachine(
     name: payload.name,
     model: payload.model || null,
     work_center_id: payload.workCenterId || null,
-    capacity_per_hour: payload.capacityPerHour !== undefined ? payload.capacityPerHour : null,
+    capacity_per_hour:
+      payload.capacityPerHour !== undefined ? payload.capacityPerHour : null,
     status: payload.status,
     last_maintenance_date: payload.lastMaintenanceDate || null,
-    maintenance_frequency_days: payload.maintenanceFrequencyDays !== undefined ? payload.maintenanceFrequencyDays : null,
+    maintenance_frequency_days:
+      payload.maintenanceFrequencyDays !== undefined
+        ? payload.maintenanceFrequencyDays
+        : null,
     is_active: payload.isActive,
     warehouse_id: payload.warehouseId || null,
   };
@@ -51,6 +62,7 @@ export async function createMachine(
   return data;
 }
 
+// ✅ GET ALL MACHINES
 export async function getAllMachines(): Promise<
   ApiResponse<MachineResponse[]>
 > {
@@ -60,20 +72,46 @@ export async function getAllMachines(): Promise<
   return data;
 }
 
+// ✅ GET MACHINES FOR DROPDOWN (Only id and name - Active machines)
+export async function getMachinesForDropdown(): Promise<
+  ApiResponse<MachineDropdownResponse[]>
+> {
+  const { data } = await apiClient.get<ApiResponse<MachineDropdownResponse[]>>(
+    `${BASE}/dropdown`,
+  );
+  return data;
+}
+
+// ✅ UPDATE MACHINE
 export async function updateMachine(
   id: string,
   payload: Partial<MachinePayload>,
 ): Promise<ApiResponse<MachineResponse>> {
   const formattedPayload = {
     name: payload.name,
-    model: payload.model !== undefined ? (payload.model || null) : undefined,
-    work_center_id: payload.workCenterId !== undefined ? (payload.workCenterId || null) : undefined,
-    capacity_per_hour: payload.capacityPerHour !== undefined ? payload.capacityPerHour : undefined,
+    model: payload.model !== undefined ? payload.model || null : undefined,
+    work_center_id:
+      payload.workCenterId !== undefined
+        ? payload.workCenterId || null
+        : undefined,
+    capacity_per_hour:
+      payload.capacityPerHour !== undefined
+        ? payload.capacityPerHour
+        : undefined,
     status: payload.status,
-    last_maintenance_date: payload.lastMaintenanceDate !== undefined ? (payload.lastMaintenanceDate || null) : undefined,
-    maintenance_frequency_days: payload.maintenanceFrequencyDays !== undefined ? payload.maintenanceFrequencyDays : undefined,
+    last_maintenance_date:
+      payload.lastMaintenanceDate !== undefined
+        ? payload.lastMaintenanceDate || null
+        : undefined,
+    maintenance_frequency_days:
+      payload.maintenanceFrequencyDays !== undefined
+        ? payload.maintenanceFrequencyDays
+        : undefined,
     is_active: payload.isActive,
-    warehouse_id: payload.warehouseId !== undefined ? (payload.warehouseId || null) : undefined,
+    warehouse_id:
+      payload.warehouseId !== undefined
+        ? payload.warehouseId || null
+        : undefined,
   };
   const { data } = await apiClient.put<ApiResponse<MachineResponse>>(
     `${BASE}/${id}`,
@@ -82,6 +120,7 @@ export async function updateMachine(
   return data;
 }
 
+// ✅ DELETE MACHINE
 export async function deleteMachine(id: string): Promise<ApiResponse<null>> {
   const { data } = await apiClient.delete<ApiResponse<null>>(`${BASE}/${id}`);
   return data;

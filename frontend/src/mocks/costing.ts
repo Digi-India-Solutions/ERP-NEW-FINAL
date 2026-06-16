@@ -55,7 +55,7 @@ export interface MockCostElement {
 export let mockProductionCosts: MockProductionCost[] = [
   {
     id: 'pc-001',
-    productionOrderId: 'prod-001',
+    productionOrderId: '552758d5-fd6d-499e-96de-086353c34d6b',
     productionOrderNumber: 'PRD-2024-001',
     productId: 'itm-v001',
     productName: 'Industrial Pump X',

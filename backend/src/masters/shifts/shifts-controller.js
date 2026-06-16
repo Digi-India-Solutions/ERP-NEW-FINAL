@@ -202,3 +202,24 @@ export const getAllShifts = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
+// ✅ GET SHIFTS FOR DROPDOWN (only id and name)
+export const getShiftsForDropdown = async (req, res) => {
+  try {
+    const result = await connectDB.query(
+      `SELECT id, name 
+       FROM public."Shifts" 
+       WHERE is_active = true
+       ORDER BY name ASC`
+    );
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};

@@ -1,6 +1,12 @@
-import { connectDB } from "../../pool.js";
+import { connectDB } from '../../pool.js';
 
-const VALID_SKILLS = ['WELDER', 'MACHINIST', 'ASSEMBLER', 'QC_INSPECTOR', 'SUPERVISOR'];
+const VALID_SKILLS = [
+  'WELDER',
+  'MACHINIST',
+  'ASSEMBLER',
+  'QC_INSPECTOR',
+  'SUPERVISOR',
+];
 
 // ✅ CREATE OPERATOR
 export const createOperator = async (req, res) => {
@@ -13,37 +19,50 @@ export const createOperator = async (req, res) => {
       shift_id,
       phone,
       is_active,
-      warehouse_id
+      warehouse_id,
     } = req.body;
 
     // ✅ Validation
     if (!name || !name.trim()) {
-      return res.status(400).json({ success: false, message: "Operator Name is required" });
+      return res
+        .status(400)
+        .json({ success: false, message: 'Operator Name is required' });
     }
     if (!employee_code || !employee_code.trim()) {
-      return res.status(400).json({ success: false, message: "Employee Code is required" });
+      return res
+        .status(400)
+        .json({ success: false, message: 'Employee Code is required' });
     }
     if (!skill || !VALID_SKILLS.includes(skill.toUpperCase())) {
-      return res.status(400).json({ 
-        success: false, 
-        message: `Skill must be one of: ${VALID_SKILLS.join(', ')}` 
+      return res.status(400).json({
+        success: false,
+        message: `Skill must be one of: ${VALID_SKILLS.join(', ')}`,
       });
     }
-    if (wage_rate_per_hour === undefined || isNaN(Number(wage_rate_per_hour)) || Number(wage_rate_per_hour) < 0) {
-      return res.status(400).json({ success: false, message: "Valid Wage Rate per Hour is required" });
+    if (
+      wage_rate_per_hour === undefined ||
+      isNaN(Number(wage_rate_per_hour)) ||
+      Number(wage_rate_per_hour) < 0
+    ) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: 'Valid Wage Rate per Hour is required',
+        });
     }
 
     // ✅ Duplicate check on Employee Code (case-insensitive)
     const codeCheck = await connectDB.query(
       `SELECT 1 FROM public."Operators" 
        WHERE LOWER(employee_code) = LOWER($1)`,
-      [employee_code.trim()]
+      [employee_code.trim()],
     );
 
     if (codeCheck.rows.length > 0) {
       return res.status(400).json({
         success: false,
-        message: "Operator with this Employee Code already exists",
+        message: 'Operator with this Employee Code already exists',
       });
     }
 
@@ -61,8 +80,8 @@ export const createOperator = async (req, res) => {
         shift_id || null,
         phone || null,
         is_active ?? true,
-        warehouse_id || null
-      ]
+        warehouse_id || null,
+      ],
     );
 
     // Get shift name if joined
@@ -70,7 +89,7 @@ export const createOperator = async (req, res) => {
     if (shift_id) {
       const shiftRes = await connectDB.query(
         `SELECT name FROM public."Shifts" WHERE id = $1`,
-        [shift_id]
+        [shift_id],
       );
       if (shiftRes.rows.length > 0) {
         shift_name = shiftRes.rows[0].name;
@@ -79,16 +98,15 @@ export const createOperator = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Operator created successfully",
+      message: 'Operator created successfully',
       data: {
         ...result.rows[0],
-        shift_name
-      }
+        shift_name,
+      },
     });
-
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
@@ -104,48 +122,60 @@ export const updateOperator = async (req, res) => {
       shift_id,
       phone,
       is_active,
-      warehouse_id
+      warehouse_id,
     } = req.body;
 
     // 🔍 Check if operator exists
     const existing = await connectDB.query(
       `SELECT * FROM public."Operators" WHERE id = $1`,
-      [id]
+      [id],
     );
 
     if (existing.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "Operator not found",
+        message: 'Operator not found',
       });
     }
 
     // 🔍 Employee Code duplicate check if code is being changed
-    if (employee_code && employee_code.trim().toLowerCase() !== existing.rows[0].employee_code.toLowerCase()) {
+    if (
+      employee_code &&
+      employee_code.trim().toLowerCase() !==
+        existing.rows[0].employee_code.toLowerCase()
+    ) {
       const dupCheck = await connectDB.query(
         `SELECT 1 FROM public."Operators" 
          WHERE LOWER(employee_code) = LOWER($1) AND id <> $2`,
-        [employee_code.trim(), id]
+        [employee_code.trim(), id],
       );
       if (dupCheck.rows.length > 0) {
         return res.status(400).json({
           success: false,
-          message: "Another Operator with this Employee Code already exists",
+          message: 'Another Operator with this Employee Code already exists',
         });
       }
     }
 
     // 🔍 Skill validation if changing
     if (skill && !VALID_SKILLS.includes(skill.toUpperCase())) {
-      return res.status(400).json({ 
-        success: false, 
-        message: `Skill must be one of: ${VALID_SKILLS.join(', ')}` 
+      return res.status(400).json({
+        success: false,
+        message: `Skill must be one of: ${VALID_SKILLS.join(', ')}`,
       });
     }
 
     // 🔍 Wage check if changing
-    if (wage_rate_per_hour !== undefined && (isNaN(Number(wage_rate_per_hour)) || Number(wage_rate_per_hour) < 0)) {
-      return res.status(400).json({ success: false, message: "Valid Wage Rate per Hour is required" });
+    if (
+      wage_rate_per_hour !== undefined &&
+      (isNaN(Number(wage_rate_per_hour)) || Number(wage_rate_per_hour) < 0)
+    ) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: 'Valid Wage Rate per Hour is required',
+        });
     }
 
     // 🔁 Update
@@ -167,12 +197,12 @@ export const updateOperator = async (req, res) => {
         employee_code ? employee_code.trim() : null,
         skill ? skill.toUpperCase() : null,
         wage_rate_per_hour !== undefined ? Number(wage_rate_per_hour) : null,
-        shift_id === null ? 'null' : (shift_id || null),
+        shift_id === null ? 'null' : shift_id || null,
         phone || null,
         is_active !== undefined ? is_active : null,
         id,
-        warehouse_id || null
-      ]
+        warehouse_id || null,
+      ],
     );
 
     // Get shift name if joined
@@ -181,7 +211,7 @@ export const updateOperator = async (req, res) => {
     if (finalShiftId) {
       const shiftRes = await connectDB.query(
         `SELECT name FROM public."Shifts" WHERE id = $1`,
-        [finalShiftId]
+        [finalShiftId],
       );
       if (shiftRes.rows.length > 0) {
         shift_name = shiftRes.rows[0].name;
@@ -190,16 +220,15 @@ export const updateOperator = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Operator updated successfully",
+      message: 'Operator updated successfully',
       data: {
         ...result.rows[0],
-        shift_name
-      }
+        shift_name,
+      },
     });
-
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
@@ -212,24 +241,23 @@ export const deleteOperator = async (req, res) => {
       `DELETE FROM public."Operators"  
        WHERE id = $1
        RETURNING *`,
-      [id]
+      [id],
     );
 
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "Operator not found",
+        message: 'Operator not found',
       });
     }
 
     res.json({
       success: true,
-      message: "Operator deleted successfully",
+      message: 'Operator deleted successfully',
     });
-
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
@@ -240,17 +268,37 @@ export const getAllOperators = async (req, res) => {
       `SELECT o.*, s.name as shift_name 
        FROM public."Operators" o
        LEFT JOIN public."Shifts" s ON o.shift_id = s.id
-       ORDER BY o.created_at DESC`
+       ORDER BY o.created_at DESC`,
     );
 
     res.json({
       success: true,
       count: result.rows.length,
-      data: result.rows
+      data: result.rows,
     });
-
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// ✅ GET OPERATORS FOR DROPDOWN (Only id and name - Active operators)
+export const getOperatorsForDropdown = async (req, res) => {
+  try {
+    const result = await connectDB.query(
+      `SELECT id, name 
+       FROM public."Operators" 
+       WHERE is_active = true
+       ORDER BY name ASC`,
+    );
+
+    res.json({
+      success: true,
+      count: result.rows.length,
+      data: result.rows,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };

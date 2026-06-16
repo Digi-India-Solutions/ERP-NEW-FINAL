@@ -25,8 +25,15 @@ export interface ShiftResponse {
   warehouse_name: string;
 }
 
+// ✅ Dropdown ke liye interface
+export interface ShiftDropdownResponse {
+  id: string;
+  name: string;
+}
+
 const BASE = '/api/v1/shifts';
 
+// ✅ CREATE SHIFT
 export async function createShift(
   payload: ShiftPayload,
 ): Promise<ApiResponse<ShiftResponse>> {
@@ -47,15 +54,25 @@ export async function createShift(
   return data;
 }
 
-export async function getAllShifts(): Promise<
-  ApiResponse<ShiftResponse[]>
-> {
+// ✅ GET ALL SHIFTS (Complete data)
+export async function getAllShifts(): Promise<ApiResponse<ShiftResponse[]>> {
   const { data } = await apiClient.get<ApiResponse<ShiftResponse[]>>(
     `${BASE}/`,
   );
   return data;
 }
 
+// ✅ GET SHIFTS FOR DROPDOWN (Only id and name - Active shifts)
+export async function getShiftsForDropdown(): Promise<
+  ApiResponse<ShiftDropdownResponse[]>
+> {
+  const { data } = await apiClient.get<ApiResponse<ShiftDropdownResponse[]>>(
+    `${BASE}/dropdown`,
+  );
+  return data;
+}
+
+// ✅ UPDATE SHIFT
 export async function updateShift(
   id: string,
   payload: Partial<ShiftPayload>,
@@ -77,6 +94,7 @@ export async function updateShift(
   return data;
 }
 
+// ✅ DELETE SHIFT
 export async function deleteShift(id: string): Promise<ApiResponse<null>> {
   const { data } = await apiClient.delete<ApiResponse<null>>(`${BASE}/${id}`);
   return data;
