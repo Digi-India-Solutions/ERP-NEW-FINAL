@@ -799,6 +799,7 @@ useEffect(() => {
       saleRate: data.saleRate,
       minStockLevel: data.minStockLevel,
       isActive: data.isActive,
+      warehouseId: data.warehouseId
     });
 
     if (!created.data) {

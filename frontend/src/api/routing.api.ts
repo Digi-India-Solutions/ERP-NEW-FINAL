@@ -49,7 +49,10 @@ export interface RoutingDropdownItem {
   name: string;
   code: string;
   status: string;
+  stages?: any[] | string;
+  total_time_minutes?: number;
 }
+
 
 const BASE = '/api/v1/routings';
 

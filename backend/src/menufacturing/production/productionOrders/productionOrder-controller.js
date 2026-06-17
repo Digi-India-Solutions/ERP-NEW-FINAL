@@ -53,9 +53,7 @@ export const createProductionOrder = async (req, res) => {
     // VERIFY ITEM
     // ============================================
      // ============================================
-// ============================================
-// VERIFY ITEM
-// ============================================
+
 
 const itemResult = await client.query(
   `
@@ -84,8 +82,15 @@ const item = itemResult.rows[0];
 let resolvedBomId = null;
 let resolvedBomVersion = null;
 
-if (bomId) {
-  // Use the BOM explicitly chosen by the user — accept any non-OBSOLETE status
+if (!bomId) {
+  await client.query('ROLLBACK');
+
+  return res.status(400).json({
+    success: false,
+    message: 'BOM selection is required',
+  });
+}
+  
   const bomResult = await client.query(
     `
     SELECT id, version
@@ -101,41 +106,13 @@ if (bomId) {
     await client.query('ROLLBACK');
     return res.status(400).json({
       success: false,
-      message: 'Selected BOM not found or is obsolete',
-    });
-  }
-
-  resolvedBomId = bomResult.rows[0].id;
-  resolvedBomVersion = bomResult.rows[0].version;
-} else {
-  // No BOM selected — find the best available BOM for this item
-  // Prefer ACTIVE, fall back to DRAFT
-  const bomResult = await client.query(
-    `
-    SELECT id, version, status
-    FROM bom_master
-    WHERE product_id = $1
-    AND company_id = $2
-    AND status != 'OBSOLETE'
-    ORDER BY
-      CASE status WHEN 'ACTIVE' THEN 0 ELSE 1 END,
-      created_at DESC
-    LIMIT 1
-    `,
-    [itemId, company_id],
-  );
-
-  if (bomResult.rows.length === 0) {
-    await client.query('ROLLBACK');
-    return res.status(400).json({
-      success: false,
       message: 'No BOM found for selected item. Please create a BOM first.',
     });
   }
 
   resolvedBomId = bomResult.rows[0].id;
   resolvedBomVersion = bomResult.rows[0].version;
-}
+
 
 // Then in the INSERT, use resolvedBomId and resolvedBomVersion instead of item.bom_id / item.bom_version
     // ============================================
@@ -164,7 +141,8 @@ if (bomId) {
     // ============================================
     // VERIFY ROUTING (OPTIONAL)
     // ============================================
-
+console.log('routingId:', routingId);
+console.log('company_id:', company_id);
     if (routingId) {
       const routingResult = await client.query(
         `
@@ -246,10 +224,8 @@ if (bomId) {
         'DRAFT',
         priority || 'NORMAL',
         itemId,
-         '67d30abe-7329-4f6e-adf7-3abd951e6d40',
-  '1.0',
-        // item.bom_id,
-        // item.bom_version,
+        resolvedBomId,
+        resolvedBomVersion,
         plannedQty,
         plannedStartDate,
         plannedEndDate,
@@ -443,7 +419,7 @@ export const getProductionOrderById = async (req, res) => {
         i.name AS item_name,
         i.code AS item_code,
         w.name AS warehouse_name,
-        bm.name AS bom_name,
+        bm.code AS bom_name,
         bm.version AS bom_master_version
       FROM production_orders po
       JOIN items i
@@ -871,4 +847,11 @@ export const updateProductionOrderStatus = async (req, res) => {
   } finally {
     client.release();
   }
+};
+
+export const getProductionOrderReservations = async (req, res) => {
+  return res.status(200).json({
+    success: true,
+    data: [],
+  });
 };
