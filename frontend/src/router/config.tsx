@@ -616,9 +616,9 @@ const routes: RouteObject[] = [
     ),
   },
   {
-    path: '/manufacturing/production-orders/${po.id}/edit',
+    path: '/manufacturing/production-orders/:id/edit',
     element: (
-      <Perm module={MODULES.PURCHASE_PAYMENT} action="view">
+      <Perm module={MODULES.PURCHASE_PAYMENT} action="edit">
         <ProductionOrderForm/>
       </Perm>
     ),

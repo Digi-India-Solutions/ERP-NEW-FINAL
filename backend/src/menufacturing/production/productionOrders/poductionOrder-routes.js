@@ -6,6 +6,7 @@ import {
   updateProductionOrder,
   deleteProductionOrder,
   updateProductionOrderStatus,
+    getProductionOrderReservations,
 } from './productionOrder-controller.js';
 import { verifyToken } from '../../../../middlewares/verifyToken.middleware.js';
 
@@ -22,5 +23,8 @@ router.delete('/:id', deleteProductionOrder);
 
 // Additional Operations
 router.patch('/:id/status', updateProductionOrderStatus);
+
+//Reservations
+router.get('/:id/reservations', getProductionOrderReservations);
 
 export default router;

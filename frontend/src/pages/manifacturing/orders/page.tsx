@@ -78,6 +78,9 @@ const statusConfig: Record<
   },
 };
 
+
+
+
 const priorityConfig: Record<
   Priority,
   { label: string; bg: string; text: string; dot: string; border: string }
@@ -157,6 +160,23 @@ export default function ProductionOrdersPage() {
       setLoading(false);
     }
   }, [toast]);
+
+  // const handleStatusChange = async (
+  //   id: string,
+  //   status: Status,
+  // ) => {
+  //   try {
+  //     await updateProductionOrderStatus(id, status);
+
+  //     toast.success('Status updated');
+
+  //     await fetchOrders(); // refresh grid
+  //   } catch (error) {
+  //     console.error(error);
+
+  //     toast.error('Failed to update status');
+  //   }
+  // };
 
   useEffect(() => {
     fetchOrders();
@@ -650,7 +670,7 @@ export default function ProductionOrdersPage() {
                             <button
                               onClick={() =>
                                 navigate(
-                                  `/manufacturing/production-orders/${po.id}`,
+                                 `/manufacturing/production-orders/${po.id}/edit`,
                                 )
                               }
                               className="text-sm font-semibold text-[#4f46e5] hover:text-indigo-800 cursor-pointer text-left"
@@ -732,13 +752,13 @@ export default function ProductionOrdersPage() {
                             </span>
                           </td>
                           {/* Status */}
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <span
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border ${s.bg} ${s.text} ${s.border}`}
+                           <td className="px-4 py-3 whitespace-nowrap">
+                           <span
+                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border ${s.bg} ${s.text} ${s.border}`}
                             >
-                              <i className={s.icon} />
-                              {s.label}
-                            </span>
+                          <i className={s.icon} />
+                          {s.label}
+                         </span>
                           </td>
                           {/* Actions */}
                           <td className="px-4 py-3 whitespace-nowrap">

@@ -2,6 +2,7 @@ import { connectDB } from '../../pool.js';
 import crypto from 'crypto';
 
 // ✅ CREATE ROUTING
+
 export const createRouting = async (req, res) => {
   try {
     const {
@@ -18,31 +19,43 @@ export const createRouting = async (req, res) => {
       warehouse_id,
     } = req.body;
 
+    const company_id = req.user.company_id;
+
     // ✅ Validation
     if (!name || !name.trim()) {
-      return res
-        .status(400)
-        .json({ success: false, message: 'Name is required' });
+      return res.status(400).json({
+        success: false,
+        message: 'Name is required',
+      });
     }
+
     if (!code || !code.trim()) {
-      return res
-        .status(400)
-        .json({ success: false, message: 'Code is required' });
+      return res.status(400).json({
+        success: false,
+        message: 'Code is required',
+      });
     }
+
     if (
       !status ||
       !['ACTIVE', 'DRAFT', 'OBSOLETE'].includes(status.toUpperCase())
     ) {
       return res.status(400).json({
         success: false,
-        message: "Valid Status is required ('ACTIVE', 'DRAFT', 'OBSOLETE')",
+        message:
+          "Valid Status is required ('ACTIVE', 'DRAFT', 'OBSOLETE')",
       });
     }
 
-    // ✅ Duplicate check on Code (case-insensitive)
+    // ✅ Duplicate check within same company
     const codeCheck = await connectDB.query(
-      `SELECT 1 FROM public.routings WHERE LOWER(code) = LOWER($1)`,
-      [code.trim()],
+      `
+      SELECT 1
+      FROM public.routings
+      WHERE LOWER(code) = LOWER($1)
+      AND company_id = $2
+      `,
+      [code.trim(), company_id],
     );
 
     if (codeCheck.rows.length > 0) {
@@ -53,20 +66,39 @@ export const createRouting = async (req, res) => {
     }
 
     const finalId = id || crypto.randomUUID();
-    const finalStages = stages
-      ? typeof stages === 'string'
-        ? stages
-        : JSON.stringify(stages)
-      : '[]';
-    const finalTotalTime =
-      total_time_minutes !== undefined ? Number(total_time_minutes) : 0;
 
-    // ✅ Insert
+    const finalStages =
+      typeof stages === 'string'
+        ? stages
+        : JSON.stringify(stages || []);
+
+    const finalTotalTime =
+      total_time_minutes !== undefined
+        ? Number(total_time_minutes)
+        : 0;
+
+    // ✅ Insert routing with company_id
     const result = await connectDB.query(
-      `INSERT INTO public.routings
-      (id, name, code, item_id, item_name, version, status, stages, total_time_minutes, is_active, warehouse_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-      RETURNING *`,
+      `
+      INSERT INTO public.routings (
+        id,
+        name,
+        code,
+        item_id,
+        item_name,
+        version,
+        status,
+        stages,
+        total_time_minutes,
+        is_active,
+        warehouse_id,
+        company_id
+      )
+      VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12
+      )
+      RETURNING *
+      `,
       [
         finalId,
         name.trim(),
@@ -79,6 +111,7 @@ export const createRouting = async (req, res) => {
         finalTotalTime,
         is_active ?? true,
         warehouse_id || null,
+        company_id,
       ],
     );
 
@@ -88,8 +121,12 @@ export const createRouting = async (req, res) => {
       data: result.rows[0],
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('createRouting error:', error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
   }
 };
 
@@ -248,17 +285,35 @@ export const getAllRoutings = async (req, res) => {
 // ✅ GET ROUTINGS FOR DROPDOWN (id + name only)
 export const getRoutingsForDropdown = async (req, res) => {
   try {
-    // Temporary fix - remove company_id filter
+    const { status } = req.query;
+
+    const queryParams = [];
+    const whereClauses = [];
+
+    // Default: only active routings
+    if (!status || status.toUpperCase() === 'ACTIVE') {
+      whereClauses.push(`status = 'ACTIVE'`);
+    } else if (status.toUpperCase() !== 'ALL') {
+      whereClauses.push(`status = $${queryParams.length + 1}`);
+      queryParams.push(status.toUpperCase());
+    }
+
     const query = `
-      SELECT id, name, code, status
+      SELECT
+        id,
+        name,
+        code,
+        status,
+        stages,
+        total_time_minutes
       FROM public.routings
-      WHERE status = 'ACTIVE'
+      ${whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : ''}
       ORDER BY name ASC
     `;
 
-    const result = await connectDB.query(query, []);
+    const result = await connectDB.query(query, queryParams);
 
-    console.log('Routings found:', result.rows.length); // ✅ Debug log
+    console.log('Routings found:', result.rows.length);
 
     res.json({
       success: true,
@@ -267,6 +322,9 @@ export const getRoutingsForDropdown = async (req, res) => {
     });
   } catch (error) {
     console.error('getRoutingsForDropdown error:', error);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
