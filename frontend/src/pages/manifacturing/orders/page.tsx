@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/feature/AppLayout';
 import ConfirmDialog from '@/components/feature/ConfirmDialog';
 import { useToast } from '@/contexts/ToastContext';
+import { useWarehouseStore } from '@/stores/warehouseStore';
+
 
 import {
   getAllProductionOrders,
@@ -124,6 +126,7 @@ function formatShortDate(dateStr: string): string {
 export default function ProductionOrdersPage() {
   const navigate = useNavigate();
   const toast = useToast();
+  const { selectedWarehouseId } = useWarehouseStore();
 
   // ── Data state ────────────────────────────────────────────────────────────
   const [orders, setOrders] = useState<ProductionOrder[]>([]);
@@ -147,7 +150,9 @@ export default function ProductionOrdersPage() {
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await getAllProductionOrders();
+      const res = await getAllProductionOrders({
+        warehouseId: selectedWarehouseId || undefined,
+      });
       if (res.success && Array.isArray(res.data)) {
         setOrders(res.data.map(mapApiToProductionOrder));
       } else {
@@ -159,7 +164,7 @@ export default function ProductionOrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, selectedWarehouseId]);
 
   // const handleStatusChange = async (
   //   id: string,

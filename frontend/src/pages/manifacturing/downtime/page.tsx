@@ -1,15 +1,22 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/feature/AppLayout';
+import { useToast } from '@/contexts/ToastContext';
+import { useWarehouseStore } from '@/stores/warehouseStore';
 import {
-  mockDowntimeEntries,
-  mockMachines,
-  mockDowntimeCodes,
-  mockShifts,
-  mockOperators,
-  mockProductionOrders,
-  mockWorkCenters,
+  createDowntimeEntry,
+  getAllDowntimeEntries,
+  updateDowntimeEntry,
+  resolveDowntimeEntry,
+  deleteDowntimeEntry,
+  mapToFrontend,
   type MockDowntimeEntry,
-} from '@/mocks/masters';
+} from '@/api/downtime.api';
+import { getAllMachines } from '@/api/machine.api';
+import { getAllDowntimeCodes } from '@/api/downtimecode.api';
+import { getAllShifts } from '@/api/shift.api';
+import { getAllOperators } from '@/api/operator.api';
+import { getAllProductionOrders } from '@/api/productionOrder.api';
+import { getAllWorkCenters } from '@/api/workcenter.api';
 
 interface LogForm {
   machineId: string;
@@ -29,8 +36,9 @@ interface ResolveForm {
 }
 
 function timeToMinutes(t: string): number {
+  if (!t) return 0;
   const [h, m] = t.split(':').map(Number);
-  return h * 60 + m;
+  return (h || 0) * 60 + (m || 0);
 }
 
 function nowHHMM(): string {
@@ -66,15 +74,15 @@ const categoryStyles: Record<string, string> = {
 };
 
 export default function DowntimeEntryPage() {
+  const toast = useToast();
+  const { selectedWarehouseId } = useWarehouseStore();
+
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [machineFilter, setMachineFilter] = useState('ALL');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
-  const [statusFilter, setStatusFilter] = useState<
-    'ALL' | 'ACTIVE' | 'RESOLVED'
-  >('ALL');
-  const [refreshTick, setRefreshTick] = useState(0);
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'RESOLVED'>('ALL');
 
   const [showLogSlideOver, setShowLogSlideOver] = useState(false);
   const [logForm, setLogForm] = useState<LogForm>(emptyLog());
@@ -87,24 +95,82 @@ export default function DowntimeEntryPage() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  // Dynamic API Data States
+  const [downtimeEntries, setDowntimeEntries] = useState<MockDowntimeEntry[]>([]);
+  const [machines, setMachines] = useState<any[]>([]);
+  const [downtimeCodes, setDowntimeCodes] = useState<any[]>([]);
+  const [shifts, setShifts] = useState<any[]>([]);
+  const [operators, setOperators] = useState<any[]>([]);
+  const [productionOrders, setProductionOrders] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [
+        entriesRes,
+        machinesRes,
+        codesRes,
+        shiftsRes,
+        operatorsRes,
+        poRes,
+      ] = await Promise.all([
+        getAllDowntimeEntries(selectedWarehouseId || undefined),
+        getAllMachines(),
+        getAllDowntimeCodes(),
+        getAllShifts(),
+        getAllOperators(),
+        getAllProductionOrders(),
+      ]);
+
+      if (entriesRes.success && entriesRes.data) {
+        setDowntimeEntries(entriesRes.data.map(mapToFrontend));
+      }
+      if (machinesRes.success && machinesRes.data) {
+        setMachines(machinesRes.data);
+      }
+      if (codesRes.success && codesRes.data) {
+        setDowntimeCodes(codesRes.data);
+      }
+      if (shiftsRes.success && shiftsRes.data) {
+        setShifts(shiftsRes.data);
+      }
+      if (operatorsRes.success && operatorsRes.data) {
+        setOperators(operatorsRes.data);
+      }
+      if (poRes.success && poRes.data) {
+        setProductionOrders(poRes.data);
+      }
+    } catch (err: any) {
+      console.error("Error loading downtime page data:", err);
+      toast.error("Failed to load page data");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedWarehouseId, toast]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
   const activeDowntimes = useMemo(
-    () => mockDowntimeEntries.filter((d) => !d.isResolved),
-    [refreshTick],
+    () => downtimeEntries.filter((d) => !d.isResolved),
+    [downtimeEntries],
   );
 
   const activePOs = useMemo(
-    () => mockProductionOrders.filter((po) => po.status === 'IN_PROGRESS'),
-    [],
+    () => productionOrders.filter((po) => po.status === 'IN_PROGRESS' || po.status === 'DRAFT' || po.status === 'PLANNED'),
+    [productionOrders],
   );
 
   const selectedCode = useMemo(
     () =>
-      mockDowntimeCodes.find((c) => c.id === logForm.downtimeCodeId) || null,
-    [logForm.downtimeCodeId],
+      downtimeCodes.find((c) => c.id === logForm.downtimeCodeId) || null,
+    [logForm.downtimeCodeId, downtimeCodes],
   );
 
   const filtered = useMemo(() => {
-    return mockDowntimeEntries.filter((d) => {
+    return downtimeEntries.filter((d) => {
       if (dateFrom && new Date(d.date) < new Date(dateFrom)) return false;
       if (dateTo && new Date(d.date) > new Date(dateTo)) return false;
       if (machineFilter !== 'ALL' && d.machineId !== machineFilter)
@@ -127,25 +193,25 @@ export default function DowntimeEntryPage() {
       return true;
     });
   }, [
+    downtimeEntries,
     search,
     dateFrom,
     dateTo,
     machineFilter,
     categoryFilter,
     statusFilter,
-    refreshTick,
   ]);
 
   const stats = useMemo(() => {
-    const total = mockDowntimeEntries.length;
-    const active = mockDowntimeEntries.filter((d) => !d.isResolved).length;
+    const total = downtimeEntries.length;
+    const active = downtimeEntries.filter((d) => !d.isResolved).length;
     const resolved = total - active;
-    const totalMinutes = mockDowntimeEntries.reduce(
+    const totalMinutes = downtimeEntries.reduce(
       (s, d) => s + (d.durationMinutes || 0),
       0,
     );
     return { total, active, resolved, totalMinutes };
-  }, [refreshTick]);
+  }, [downtimeEntries]);
 
   const clearFilters = useCallback(() => {
     setSearch('');
@@ -194,23 +260,24 @@ export default function DowntimeEntryPage() {
     setShowLogSlideOver(true);
   };
 
-  const handleDelete = (id: string) => {
-    const idx = mockDowntimeEntries.findIndex((d) => d.id === id);
-    if (idx !== -1) {
-      const entry = mockDowntimeEntries[idx];
-      // Restore machine status if deleting active downtime
-      if (!entry.isResolved) {
-        const mIdx = mockMachines.findIndex((m) => m.id === entry.machineId);
-        if (mIdx !== -1) mockMachines[mIdx].status = 'RUNNING';
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this downtime entry?")) return;
+    try {
+      const res = await deleteDowntimeEntry(id);
+      if (res.success) {
+        toast.success(res.message || 'Downtime deleted successfully');
+        loadData();
+      } else {
+        toast.error(res.message || 'Failed to delete downtime');
       }
-      mockDowntimeEntries.splice(idx, 1);
-      setRefreshTick((t) => t + 1);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete downtime');
     }
   };
 
-  const handleSaveResolve = () => {
+  const handleSaveResolve = async () => {
     if (!resolveForm.endTime) return setResolveError('End Time is required');
-    const entry = mockDowntimeEntries.find((d) => d.id === resolvingId);
+    const entry = downtimeEntries.find((d) => d.id === resolvingId);
     if (!entry) return setResolveError('Entry not found');
 
     const duration =
@@ -218,22 +285,28 @@ export default function DowntimeEntryPage() {
     if (duration <= 0)
       return setResolveError('End Time must be after Start Time');
 
-    entry.isResolved = true;
-    entry.endTime = resolveForm.endTime;
-    entry.durationMinutes = duration;
-    entry.resolvedBy = resolveForm.resolvedBy || 'System';
-    entry.resolvedAt = new Date().toISOString();
+    try {
+      const res = await resolveDowntimeEntry(resolvingId!, {
+        endTime: resolveForm.endTime,
+        resolvedBy: resolveForm.resolvedBy || 'System',
+        notes: resolveForm.notes,
+      });
 
-    const mIdx = mockMachines.findIndex((m) => m.id === entry.machineId);
-    if (mIdx !== -1) mockMachines[mIdx].status = 'RUNNING';
-
-    setShowResolveSlideOver(false);
-    setResolvingId(null);
-    setResolveForm(emptyResolve());
-    setRefreshTick((t) => t + 1);
+      if (res.success) {
+        toast.success(res.message || 'Downtime resolved successfully');
+        setShowResolveSlideOver(false);
+        setResolvingId(null);
+        setResolveForm(emptyResolve());
+        loadData();
+      } else {
+        setResolveError(res.message || 'Failed to resolve downtime');
+      }
+    } catch (err: any) {
+      setResolveError(err.message || 'Failed to resolve downtime');
+    }
   };
 
-  const handleSaveLog = () => {
+  const handleSaveLog = async () => {
     if (!logForm.machineId) return setLogError('Machine is required');
     if (!logForm.downtimeCodeId)
       return setLogError('Downtime Code is required');
@@ -242,97 +315,71 @@ export default function DowntimeEntryPage() {
     if (!logForm.shiftId) return setLogError('Shift is required');
     if (!logForm.operatorId) return setLogError('Operator is required');
 
-    const machine = mockMachines.find((m) => m.id === logForm.machineId);
-    const code = mockDowntimeCodes.find((c) => c.id === logForm.downtimeCodeId);
-    const shift = mockShifts.find((s) => s.id === logForm.shiftId);
-    const operator = mockOperators.find((o) => o.id === logForm.operatorId);
-    const wc = mockWorkCenters.find((w) => w.id === machine?.workCenterId);
-    const po = logForm.productionOrderId
-      ? mockProductionOrders.find((p) => p.id === logForm.productionOrderId)
-      : null;
+    const machine = machines.find((m) => m.id === logForm.machineId);
+    const code = downtimeCodes.find((c) => c.id === logForm.downtimeCodeId);
+    const shift = shifts.find((s) => s.id === logForm.shiftId);
+    const operator = operators.find((o) => o.id === logForm.operatorId);
 
-    if (!machine || !code || !shift || !operator || !wc) {
+    if (!machine || !code || !shift || !operator) {
       return setLogError('Invalid selection');
     }
 
-    if (editingId) {
-      const idx = mockDowntimeEntries.findIndex((d) => d.id === editingId);
-      if (idx === -1) return;
-      const old = mockDowntimeEntries[idx];
-      // If machine changed and old was active, restore old machine
-      if (old.machineId !== machine.id && !old.isResolved) {
-        const oldM = mockMachines.findIndex((m) => m.id === old.machineId);
-        if (oldM !== -1) mockMachines[oldM].status = 'RUNNING';
-      }
-      mockDowntimeEntries[idx] = {
-        ...old,
-        machineId: machine.id,
-        machineName: machine.name,
-        workCenterId: wc.id,
-        workCenterName: wc.name,
-        downtimeCodeId: code.id,
-        downtimeCodeName: code.description,
-        category: code.category,
-        date: logForm.date,
-        startTime: logForm.startTime,
-        shiftId: shift.id,
-        shiftName: shift.name,
-        operatorId: operator.id,
-        operatorName: operator.name,
-        productionOrderId: po?.id ?? null,
-        description: logForm.description || null,
-      };
-      // Update new machine status if still active
-      if (!mockDowntimeEntries[idx].isResolved) {
-        if (code.category === 'BREAKDOWN') machine.status = 'BREAKDOWN';
-        else if (code.category === 'PLANNED') machine.status = 'MAINTENANCE';
-        else machine.status = 'IDLE';
-      }
-    } else {
-      const nextNum = mockDowntimeEntries.length + 1;
-      const entryNumber = `DTE-2024-${String(nextNum).padStart(3, '0')}`;
-      const newEntry: MockDowntimeEntry = {
-        id: `dte-${String(nextNum).padStart(3, '0')}`,
-        entryNumber,
-        machineId: machine.id,
-        machineName: machine.name,
-        workCenterId: wc.id,
-        workCenterName: wc.name,
-        downtimeCodeId: code.id,
-        downtimeCodeName: code.description,
-        category: code.category,
-        startTime: logForm.startTime,
-        endTime: null,
-        durationMinutes: null,
-        productionOrderId: po?.id ?? null,
-        shiftId: shift.id,
-        shiftName: shift.name,
-        operatorId: operator.id,
-        operatorName: operator.name,
-        description: logForm.description || null,
-        isResolved: false,
-        resolvedBy: null,
-        resolvedAt: null,
-        date: logForm.date,
-      };
-      mockDowntimeEntries.push(newEntry);
+    try {
+      if (editingId) {
+        const res = await updateDowntimeEntry(editingId, {
+          machineId: logForm.machineId,
+          downtimeCodeId: logForm.downtimeCodeId,
+          date: logForm.date,
+          startTime: logForm.startTime,
+          productionOrderId: logForm.productionOrderId || null,
+          shiftId: logForm.shiftId,
+          operatorId: logForm.operatorId,
+          description: logForm.description,
+          warehouseId: selectedWarehouseId,
+        });
 
-      if (code.category === 'BREAKDOWN') machine.status = 'BREAKDOWN';
-      else if (code.category === 'PLANNED') machine.status = 'MAINTENANCE';
-      else machine.status = 'IDLE';
+        if (res.success) {
+          toast.success(res.message || 'Downtime updated successfully');
+          setShowLogSlideOver(false);
+          setEditingId(null);
+          setLogForm(emptyLog());
+          loadData();
+        } else {
+          setLogError(res.message || 'Failed to update downtime');
+        }
+      } else {
+        const res = await createDowntimeEntry({
+          machineId: logForm.machineId,
+          downtimeCodeId: logForm.downtimeCodeId,
+          date: logForm.date,
+          startTime: logForm.startTime,
+          productionOrderId: logForm.productionOrderId || null,
+          shiftId: logForm.shiftId,
+          operatorId: logForm.operatorId,
+          description: logForm.description,
+          warehouseId: selectedWarehouseId,
+        });
+
+        if (res.success) {
+          toast.success(res.message || 'Downtime logged successfully');
+          setShowLogSlideOver(false);
+          setEditingId(null);
+          setLogForm(emptyLog());
+          loadData();
+        } else {
+          setLogError(res.message || 'Failed to log downtime');
+        }
+      }
+    } catch (err: any) {
+      setLogError(err.message || 'Failed to save downtime');
     }
-
-    setShowLogSlideOver(false);
-    setEditingId(null);
-    setLogForm(emptyLog());
-    setRefreshTick((t) => t + 1);
   };
 
   const categories = useMemo(() => {
     const set = new Set<string>();
-    mockDowntimeEntries.forEach((d) => set.add(d.category));
+    downtimeEntries.forEach((d) => set.add(d.category));
     return Array.from(set);
-  }, []);
+  }, [downtimeEntries]);
 
   return (
     <AppLayout>
@@ -456,7 +503,7 @@ export default function DowntimeEntryPage() {
                     className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 cursor-pointer bg-white"
                   >
                     <option value="ALL">All Machines</option>
-                    {mockMachines.map((m) => (
+                    {machines.map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.name}
                       </option>
@@ -558,7 +605,16 @@ export default function DowntimeEntryPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.length === 0 ? (
+                  {isLoading ? (
+                    <tr>
+                      <td
+                        colSpan={11}
+                        className="px-4 py-10 text-center text-sm text-[#94a3b8]"
+                      >
+                        Loading downtime entries...
+                      </td>
+                    </tr>
+                  ) : filtered.length === 0 ? (
                     <tr>
                       <td
                         colSpan={11}
@@ -611,7 +667,7 @@ export default function DowntimeEntryPage() {
                             : '—'}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-xs text-[#475569]">
-                          {d.productionOrderId ?? '—'}
+                          {productionOrders.find(p => p.id === d.productionOrderId)?.po_number ?? d.productionOrderId ?? '—'}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           {d.isResolved ? (
@@ -659,8 +715,7 @@ export default function DowntimeEntryPage() {
             </div>
             <div className="px-4 py-3 border-t border-slate-200 flex items-center justify-between bg-slate-50/50">
               <span className="text-xs text-[#64748b]">
-                Showing {filtered.length} of {mockDowntimeEntries.length}{' '}
-                entries
+                Showing {filtered.length} of {downtimeEntries.length} entries
               </span>
             </div>
           </div>
@@ -707,7 +762,7 @@ export default function DowntimeEntryPage() {
                   className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 cursor-pointer bg-white"
                 >
                   <option value="">Select Machine</option>
-                  {mockMachines.map((m) => (
+                  {machines.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.name} [{m.status}]
                     </option>
@@ -731,7 +786,7 @@ export default function DowntimeEntryPage() {
                   className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 cursor-pointer bg-white"
                 >
                   <option value="">Select Reason Code</option>
-                  {mockDowntimeCodes.map((c) => (
+                  {downtimeCodes.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.code} — {c.description}
                     </option>
@@ -799,7 +854,7 @@ export default function DowntimeEntryPage() {
                   <option value="">None (optional)</option>
                   {activePOs.map((po) => (
                     <option key={po.id} value={po.id}>
-                      {po.poNumber} — {po.productName}
+                      {po.po_number || po.poNumber}
                     </option>
                   ))}
                 </select>
@@ -818,9 +873,9 @@ export default function DowntimeEntryPage() {
                   className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 cursor-pointer bg-white"
                 >
                   <option value="">Select Shift</option>
-                  {mockShifts.map((s) => (
+                  {shifts.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.name} ({s.startTime} – {s.endTime})
+                      {s.name} ({s.start_time} – {s.end_time})
                     </option>
                   ))}
                 </select>
@@ -839,9 +894,9 @@ export default function DowntimeEntryPage() {
                   className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 cursor-pointer bg-white"
                 >
                   <option value="">Select Operator</option>
-                  {mockOperators.map((o) => (
+                  {operators.map((o) => (
                     <option key={o.id} value={o.id}>
-                      {o.name} ({o.employeeCode})
+                      {o.name} ({o.employee_code})
                     </option>
                   ))}
                 </select>

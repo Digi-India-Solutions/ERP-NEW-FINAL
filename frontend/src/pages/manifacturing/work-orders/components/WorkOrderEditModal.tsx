@@ -1,19 +1,14 @@
-import { useState, useMemo, useCallback } from 'react';
-import {
-  mockMachines,
-  mockOperators,
-  mockShifts,
-  mockWorkCenters,
-  type MockWorkOrder,
-  type MockMachine,
-  type MockOperator,
-} from '@/mocks/masters';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 
 interface WorkOrderEditModalProps {
   open: boolean;
-  workOrder: MockWorkOrder | null;
+  workOrder: any | null;
   onClose: () => void;
-  onSave: (updated: MockWorkOrder) => void;
+  onSave: (updated: any) => void;
+  machines: any[];
+  operators: any[];
+  shifts: any[];
+  workCenters: any[];
 }
 
 function getRelevantSkill(stageName: string): string | null {
@@ -33,6 +28,10 @@ export default function WorkOrderEditModal({
   workOrder,
   onClose,
   onSave,
+  machines,
+  operators,
+  shifts,
+  workCenters,
 }: WorkOrderEditModalProps) {
   const [machineId, setMachineId] = useState('');
   const [operatorId, setOperatorId] = useState('');
@@ -41,9 +40,9 @@ export default function WorkOrderEditModal({
   const [actualEnd, setActualEnd] = useState('');
   const [notes, setNotes] = useState('');
 
-  // Reset form when workOrder changes
-  useMemo(() => {
-    if (workOrder) {
+  // Reset form when workOrder changes or modal is opened
+  useEffect(() => {
+    if (workOrder && open) {
       setMachineId(workOrder.machineId || '');
       setOperatorId(workOrder.operatorId || '');
       setShiftId(workOrder.shiftId || '');
@@ -51,36 +50,41 @@ export default function WorkOrderEditModal({
       setActualEnd(workOrder.actualEndDate || '');
       setNotes(workOrder.notes || '');
     }
-  }, [workOrder?.id]);
+  }, [workOrder, open]);
 
-  const filteredMachines = useMemo<MockMachine[]>(() => {
+  const filteredMachines = useMemo(() => {
     if (!workOrder) return [];
-    return mockMachines.filter(
-      (m) => m.workCenterId === workOrder.workCenterId && m.isActive,
-    );
-  }, [workOrder?.workCenterId]);
+    return machines.filter((m) => {
+      const wcId = m.workCenterId ?? m.work_center_id ?? m.workcenterid;
+      const act = m.isActive ?? m.is_active ?? m.isactive ?? true;
+      const matchWc = String(wcId) === String(workOrder.workCenterId);
+      return matchWc && act;
+    });
+  }, [workOrder, machines]);
 
   const relevantSkill = useMemo(() => {
     if (!workOrder) return null;
     return getRelevantSkill(workOrder.stageName);
   }, [workOrder?.stageName]);
 
-  const filteredOperators = useMemo<MockOperator[]>(() => {
+  const filteredOperators = useMemo(() => {
     if (!workOrder) return [];
-    if (relevantSkill) {
-      return mockOperators.filter(
-        (o) => o.skill === relevantSkill && o.isActive,
-      );
-    }
-    return mockOperators.filter((o) => o.isActive);
-  }, [workOrder, relevantSkill]);
+    return operators.filter((o) => {
+      const act = o.isActive ?? o.is_active ?? o.isactive ?? true;
+      if (!act) return false;
+      if (relevantSkill) {
+        return o.skill === relevantSkill;
+      }
+      return true;
+    });
+  }, [workOrder, operators, relevantSkill]);
 
   const handleSave = useCallback(() => {
     if (!workOrder) return;
-    const machine = mockMachines.find((m) => m.id === machineId);
-    const operator = mockOperators.find((o) => o.id === operatorId);
-    const shift = mockShifts.find((s) => s.id === shiftId);
-    const updated: MockWorkOrder = {
+    const machine = machines.find((m) => String(m.id) === String(machineId));
+    const operator = operators.find((o) => String(o.id) === String(operatorId));
+    const shift = shifts.find((s) => String(s.id) === String(shiftId));
+    const updated = {
       ...workOrder,
       machineId: machineId || null,
       machineName: machine?.name || null,
@@ -101,6 +105,9 @@ export default function WorkOrderEditModal({
     actualStart,
     actualEnd,
     notes,
+    machines,
+    operators,
+    shifts,
     onSave,
   ]);
 
@@ -143,14 +150,14 @@ export default function WorkOrderEditModal({
               <option value="">— Not assigned —</option>
               {filteredMachines.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.name} ({m.model})
+                  {m.name} {m.model ? `(${m.model})` : ''}
                 </option>
               ))}
             </select>
             {filteredMachines.length === 0 && (
               <p className="text-[11px] text-amber-600 mt-1">
-                No machines found for{' '}
-                {mockWorkCenters.find((wc) => wc.id === workOrder.workCenterId)
+                No active machines found for{' '}
+                {workCenters.find((wc) => String(wc.id) === String(workOrder.workCenterId))
                   ?.name || 'this work center'}
               </p>
             )}
@@ -174,13 +181,13 @@ export default function WorkOrderEditModal({
               <option value="">— Not assigned —</option>
               {filteredOperators.map((o) => (
                 <option key={o.id} value={o.id}>
-                  {o.name} ({o.employeeCode}) — {o.skill.replace('_', ' ')}
+                  {o.name} {o.employeeCode || o.employee_code ? `(${o.employeeCode || o.employee_code})` : ''}
                 </option>
               ))}
             </select>
             {filteredOperators.length === 0 && (
               <p className="text-[11px] text-amber-600 mt-1">
-                No operators with matching skill
+                No active operators with matching skill
               </p>
             )}
           </div>
@@ -196,9 +203,9 @@ export default function WorkOrderEditModal({
               className="w-full h-10 px-3 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-[#4f46e5] focus:ring-2 focus:ring-indigo-100 cursor-pointer"
             >
               <option value="">— Not assigned —</option>
-              {mockShifts.map((s) => (
+              {shifts.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name} ({s.startTime}–{s.endTime})
+                  {s.name} ({s.startTime || s.start_time}–{s.endTime || s.end_time})
                 </option>
               ))}
             </select>
@@ -212,7 +219,7 @@ export default function WorkOrderEditModal({
               </label>
               <input
                 type="date"
-                value={actualStart}
+                value={actualStart ? actualStart.split('T')[0] : ''}
                 onChange={(e) => setActualStart(e.target.value)}
                 className="w-full h-10 px-3 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-[#4f46e5] focus:ring-2 focus:ring-indigo-100"
               />
@@ -223,7 +230,7 @@ export default function WorkOrderEditModal({
               </label>
               <input
                 type="date"
-                value={actualEnd}
+                value={actualEnd ? actualEnd.split('T')[0] : ''}
                 onChange={(e) => setActualEnd(e.target.value)}
                 className="w-full h-10 px-3 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-[#4f46e5] focus:ring-2 focus:ring-indigo-100"
               />
