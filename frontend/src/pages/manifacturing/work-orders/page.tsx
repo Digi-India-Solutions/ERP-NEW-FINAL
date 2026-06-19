@@ -1,15 +1,17 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/feature/AppLayout';
 import { useToast } from '@/contexts/ToastContext';
+import { useWarehouseStore } from '@/stores/warehouseStore';
 import {
-  mockWorkOrders,
-  mockWorkCenters,
-  mockMachines,
-  mockOperators,
-  mockProductionOrders,
-  type MockWorkOrder,
-} from '@/mocks/masters';
+  getAllWorkOrders,
+  updateWorkOrder,
+} from '@/api/workorder.api';
+import { getAllProductionOrders } from '@/api/productionOrder.api';
+import { getAllWorkCenters } from '@/api/workcenter.api';
+import { getAllMachines } from '@/api/machine.api';
+import { getAllOperators } from '@/api/operator.api';
+import { getAllShifts } from '@/api/shift.api';
 import WorkOrderEditModal from './components/WorkOrderEditModal';
 
 type WOStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'ON_HOLD';
@@ -49,21 +51,60 @@ const woStatusConfig: Record<
 };
 
 function formatShortDate(dateStr: string): string {
+  if (!dateStr) return '';
   return new Date(dateStr).toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'short',
   });
 }
 
-function todayISO(): string {
-  return new Date().toISOString().split('T')[0];
-}
+const mapResponseToWorkOrder = (w: any) => ({
+  id: w.id,
+  woNumber: w.wo_number ?? w.woNumber ?? '',
+  productionOrderId: w.production_order_id ?? w.productionOrderId ?? '',
+  productionOrderNumber: w.production_order_number ?? w.productionOrderNumber ?? '',
+  stageNumber: Number(w.stage_number ?? w.stageNumber ?? 0),
+  stageName: w.stage_name ?? w.stageName ?? '',
+  workCenterId: w.work_center_id ?? w.workCenterId ?? '',
+  workCenterName: w.work_center_name ?? w.workCenterName ?? '',
+  machineId: w.machine_id ?? w.machineId ?? null,
+  machineName: w.machine_name ?? w.machineName ?? null,
+  operatorId: w.operator_id ?? w.operatorId ?? null,
+  operatorName: w.operator_name ?? w.operatorName ?? null,
+  shiftId: w.shift_id ?? w.shiftId ?? null,
+  shiftName: w.shift_name ?? w.shiftName ?? null,
+  plannedQty: Number(w.planned_qty ?? w.plannedQty ?? 0),
+  completedQty: Number(w.completed_qty ?? w.completedQty ?? 0),
+  rejectedQty: Number(w.rejected_qty ?? w.rejectedQty ?? 0),
+  status: w.status ?? 'PENDING',
+  plannedStartDate: w.planned_start_date ? new Date(w.planned_start_date).toISOString().split('T')[0] : '',
+  plannedEndDate: w.planned_end_date ? new Date(w.planned_end_date).toISOString().split('T')[0] : '',
+  actualStartDate: w.actual_start_date ? new Date(w.actual_start_date).toISOString().split('T')[0] : null,
+  actualEndDate: w.actual_end_date ? new Date(w.actual_end_date).toISOString().split('T')[0] : null,
+  plannedTimeMinutes: Number(w.planned_time_minutes ?? w.plannedTimeMinutes ?? 0),
+  actualTimeMinutes: w.actual_time_minutes ? Number(w.actual_time_minutes) : null,
+  notes: w.notes ?? '',
+  warehouseId: w.warehouse_id ?? w.warehouseId ?? null,
+  isActive: w.is_active ?? w.isActive ?? true,
+  createdAt: w.created_at ?? w.createdAt ?? '',
+  updatedAt: w.updated_at ?? w.updatedAt ?? '',
+});
 
 export default function WorkOrdersPage() {
   const navigate = useNavigate();
   const toast = useToast();
+  const { selectedWarehouseId } = useWarehouseStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const poIdFromUrl = searchParams.get('poId');
+
+  // ── API State ──
+  const [workOrders, setWorkOrders] = useState<any[]>([]);
+  const [productionOrders, setProductionOrders] = useState<any[]>([]);
+  const [workCenters, setWorkCenters] = useState<any[]>([]);
+  const [machines, setMachines] = useState<any[]>([]);
+  const [operators, setOperators] = useState<any[]>([]);
+  const [shifts, setShifts] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   // ── Filter state ──
   const [search, setSearch] = useState('');
@@ -74,27 +115,120 @@ export default function WorkOrdersPage() {
   const [dateTo, setDateTo] = useState('');
 
   // ── Edit modal state ──
-  const [editWO, setEditWO] = useState<MockWorkOrder | null>(null);
+  const [editWO, setEditWO] = useState<any | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const [
+        woRes,
+        poRes,
+        wcRes,
+        mcRes,
+        opRes,
+        shiftRes,
+      ] = await Promise.all([
+        getAllWorkOrders(selectedWarehouseId),
+        getAllProductionOrders({ warehouseId: selectedWarehouseId || undefined }),
+        getAllWorkCenters(),
+        getAllMachines(),
+        getAllOperators(),
+        getAllShifts(),
+      ]);
+
+      if (woRes.success && woRes.data) {
+        setWorkOrders(woRes.data.map(mapResponseToWorkOrder));
+      }
+      if (poRes.success && poRes.data) {
+        setProductionOrders(poRes.data);
+      }
+      if (wcRes.success && wcRes.data) {
+        setWorkCenters(wcRes.data);
+      }
+      if (mcRes.success && mcRes.data) {
+        setMachines(mcRes.data);
+      }
+      if (opRes.success && opRes.data) {
+        setOperators(opRes.data);
+      }
+      if (shiftRes.success && shiftRes.data) {
+        setShifts(shiftRes.data);
+      }
+    } catch (err: any) {
+      console.error('Failed to load Work Orders data:', err);
+      toast.error('Failed to load work orders data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [selectedWarehouseId]);
+
+  // Synchronize PO Filter if URL param changes
+  useEffect(() => {
+    if (poIdFromUrl) {
+      setPoFilter(poIdFromUrl);
+    }
+  }, [poIdFromUrl]);
+
+  // ── Warehouse Partitioned Masters ──
+  const warehouseWorkCenters = useMemo(() => {
+    if (!selectedWarehouseId) return workCenters;
+    return workCenters.filter(
+      (wc) => wc.warehouse_id === selectedWarehouseId || wc.warehouseId === selectedWarehouseId
+    );
+  }, [workCenters, selectedWarehouseId]);
+
+  const warehouseMachines = useMemo(() => {
+    if (!selectedWarehouseId) return machines;
+    return machines.filter(
+      (m) => m.warehouse_id === selectedWarehouseId || m.warehouseId === selectedWarehouseId
+    );
+  }, [machines, selectedWarehouseId]);
+
+  const warehouseOperators = useMemo(() => {
+    if (!selectedWarehouseId) return operators;
+    return operators.filter(
+      (o) => o.warehouse_id === selectedWarehouseId || o.warehouseId === selectedWarehouseId
+    );
+  }, [operators, selectedWarehouseId]);
+
+  const warehouseShifts = useMemo(() => {
+    if (!selectedWarehouseId) return shifts;
+    return shifts.filter(
+      (s) => s.warehouse_id === selectedWarehouseId || s.warehouseId === selectedWarehouseId
+    );
+  }, [shifts, selectedWarehouseId]);
+
+  const warehouseProductionOrders = useMemo(() => {
+    if (!selectedWarehouseId) return productionOrders;
+    return productionOrders.filter(
+      (po) => po.warehouse_id === selectedWarehouseId || po.warehouseId === selectedWarehouseId
+    );
+  }, [productionOrders, selectedWarehouseId]);
 
   // ── Unique POs for dropdown ──
   const uniquePOs = useMemo(() => {
-    const ids = [...new Set(mockWorkOrders.map((w) => w.productionOrderId))];
+    const ids = [...new Set(workOrders.map((w) => w.productionOrderId))];
     return ids.map((id) => {
-      const po = mockProductionOrders.find((p) => p.id === id);
-      return { id, number: po?.poNumber || id };
+      const po = warehouseProductionOrders.find((p) => p.id === id);
+      return { id, number: po?.po_number || po?.poNumber || id };
     });
-  }, []);
+  }, [workOrders, warehouseProductionOrders]);
 
   // ── Filtered work orders ──
   const filtered = useMemo(() => {
-    let list = [...mockWorkOrders];
+    let list = [...workOrders];
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(
         (w) =>
           w.woNumber.toLowerCase().includes(q) ||
-          w.stageName.toLowerCase().includes(q),
+          w.stageName.toLowerCase().includes(q) ||
+          w.productionOrderNumber.toLowerCase().includes(q)
       );
     }
     if (statusFilter !== 'ALL') {
@@ -113,7 +247,7 @@ export default function WorkOrdersPage() {
       list = list.filter((w) => w.plannedStartDate <= dateTo);
     }
     return list.sort((a, b) => a.stageNumber - b.stageNumber);
-  }, [search, statusFilter, workCenterFilter, poFilter, dateFrom, dateTo]);
+  }, [workOrders, search, statusFilter, workCenterFilter, poFilter, dateFrom, dateTo]);
 
   // ── Summary counts ──
   const counts = useMemo(() => {
@@ -128,50 +262,74 @@ export default function WorkOrdersPage() {
 
   // ── Actions ──
   const handleStart = useCallback(
-    (wo: MockWorkOrder) => {
-      const idx = mockWorkOrders.findIndex((w) => w.id === wo.id);
-      if (idx >= 0) {
-        mockWorkOrders[idx] = {
-          ...mockWorkOrders[idx],
+    async (wo: any) => {
+      try {
+        const res = await updateWorkOrder(wo.id, {
           status: 'IN_PROGRESS',
-          actualStartDate: todayISO(),
-        };
-        toast.success(`Work Order ${wo.woNumber} started`);
+        });
+        if (res.success) {
+          toast.success(`Work Order ${wo.woNumber} started`);
+          loadData();
+        } else {
+          toast.error(res.message || 'Failed to start Work Order');
+        }
+      } catch (err: any) {
+        toast.error(err.message || 'Server error occurred');
       }
     },
     [toast],
   );
 
   const handleComplete = useCallback(
-    (wo: MockWorkOrder) => {
-      const idx = mockWorkOrders.findIndex((w) => w.id === wo.id);
-      if (idx >= 0) {
-        mockWorkOrders[idx] = {
-          ...mockWorkOrders[idx],
+    async (wo: any) => {
+      try {
+        const res = await updateWorkOrder(wo.id, {
           status: 'COMPLETED',
-          completedQty: mockWorkOrders[idx].plannedQty,
-          actualEndDate: todayISO(),
-        };
-        toast.success(`Work Order ${wo.woNumber} completed`);
+          completedQty: wo.plannedQty,
+        });
+        if (res.success) {
+          toast.success(`Work Order ${wo.woNumber} completed`);
+          loadData();
+        } else {
+          toast.error(res.message || 'Failed to complete Work Order');
+        }
+      } catch (err: any) {
+        toast.error(err.message || 'Server error occurred');
       }
     },
     [toast],
   );
 
-  const handleEdit = useCallback((wo: MockWorkOrder) => {
+  const handleEdit = useCallback((wo: any) => {
     setEditWO(wo);
     setEditOpen(true);
   }, []);
 
   const handleSaveEdit = useCallback(
-    (updated: MockWorkOrder) => {
-      const idx = mockWorkOrders.findIndex((w) => w.id === updated.id);
-      if (idx >= 0) {
-        mockWorkOrders[idx] = updated;
-        toast.success(`Work Order ${updated.woNumber} updated`);
+    async (updated: any) => {
+      try {
+        const res = await updateWorkOrder(updated.id, {
+          machineId: updated.machineId,
+          machineName: updated.machineName,
+          operatorId: updated.operatorId,
+          operatorName: updated.operatorName,
+          shiftId: updated.shiftId,
+          shiftName: updated.shiftName,
+          actualStartDate: updated.actualStartDate,
+          actualEndDate: updated.actualEndDate,
+          notes: updated.notes,
+        });
+        if (res.success) {
+          toast.success(`Work Order ${updated.woNumber} updated`);
+          setEditOpen(false);
+          setEditWO(null);
+          loadData();
+        } else {
+          toast.error(res.message || 'Failed to update Work Order');
+        }
+      } catch (err: any) {
+        toast.error(err.message || 'Server error occurred');
       }
-      setEditOpen(false);
-      setEditWO(null);
     },
     [toast],
   );
@@ -238,7 +396,7 @@ export default function WorkOrdersPage() {
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="WO number or stage name..."
+                    placeholder="WO number, PO or stage..."
                     className="w-full h-10 pl-9 pr-3 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-[#4f46e5] focus:ring-2 focus:ring-indigo-100"
                   />
                 </div>
@@ -294,7 +452,7 @@ export default function WorkOrdersPage() {
                   className="w-full h-10 px-3 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-[#4f46e5] focus:ring-2 focus:ring-indigo-100 cursor-pointer"
                 >
                   <option value="ALL">All Centers</option>
-                  {mockWorkCenters.map((wc) => (
+                  {warehouseWorkCenters.map((wc) => (
                     <option key={wc.id} value={wc.id}>
                       {wc.name}
                     </option>
@@ -378,23 +536,21 @@ export default function WorkOrdersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((wo) => {
-                    const statusCfg = woStatusConfig[wo.status];
+                  {isLoading ? (
+                    <tr>
+                      <td
+                        colSpan={10}
+                        className="px-4 py-12 text-center text-sm text-[#94a3b8]"
+                      >
+                        Loading work orders...
+                      </td>
+                    </tr>
+                  ) : filtered.map((wo) => {
+                    const statusCfg = woStatusConfig[wo.status as WOStatus] || woStatusConfig.PENDING;
                     const progressPct =
                       wo.plannedQty > 0
                         ? Math.round((wo.completedQty / wo.plannedQty) * 100)
                         : 0;
-                    const machineName =
-                      wo.machineName ||
-                      (wo.machineId
-                        ? mockMachines.find((m) => m.id === wo.machineId)?.name
-                        : null);
-                    const operatorName =
-                      wo.operatorName ||
-                      (wo.operatorId
-                        ? mockOperators.find((o) => o.id === wo.operatorId)
-                            ?.name
-                        : null);
 
                     return (
                       <tr
@@ -432,9 +588,9 @@ export default function WorkOrdersPage() {
                           {wo.workCenterName}
                         </td>
                         <td className="px-4 py-3">
-                          {machineName ? (
+                          {wo.machineName ? (
                             <span className="text-sm text-[#475569]">
-                              {machineName}
+                              {wo.machineName}
                             </span>
                           ) : (
                             <span className="text-xs text-slate-400 italic">
@@ -443,9 +599,9 @@ export default function WorkOrdersPage() {
                           )}
                         </td>
                         <td className="px-4 py-3">
-                          {operatorName ? (
+                          {wo.operatorName ? (
                             <span className="text-sm text-[#475569]">
-                              {operatorName}
+                              {wo.operatorName}
                             </span>
                           ) : (
                             <span className="text-xs text-slate-400 italic">
@@ -513,7 +669,7 @@ export default function WorkOrdersPage() {
                       </tr>
                     );
                   })}
-                  {filtered.length === 0 && (
+                  {!isLoading && filtered.length === 0 && (
                     <tr>
                       <td
                         colSpan={10}
@@ -548,6 +704,10 @@ export default function WorkOrdersPage() {
           setEditWO(null);
         }}
         onSave={handleSaveEdit}
+        machines={warehouseMachines}
+        operators={warehouseOperators}
+        shifts={warehouseShifts}
+        workCenters={warehouseWorkCenters}
       />
     </AppLayout>
   );

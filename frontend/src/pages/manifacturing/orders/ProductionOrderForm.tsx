@@ -277,7 +277,7 @@ export default function ProductionOrderForm() {
   useEffect(() => {
     const fetchBOMs = async () => {
       try {
-        const res = await bomAPI.getAll({ status: 'ACTIVE' });
+        const res = await bomAPI.getAll({ status: 'ALL', limit: 1000 });
         console.log('BOM API Response:', res);
         console.log('BOM API Response Data:', res.data);
         if (res.data) setBomsList(res.data);

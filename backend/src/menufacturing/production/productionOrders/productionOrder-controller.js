@@ -52,69 +52,69 @@ export const createProductionOrder = async (req, res) => {
     // ============================================
     // VERIFY ITEM
     // ============================================
-     // ============================================
+    // ============================================
 
 
-const itemResult = await client.query(
-  `
+    const itemResult = await client.query(
+      `
   SELECT id, name, code
   FROM items
   WHERE id = $1
   AND company_id = $2
   `,
-  [itemId, company_id],
-);
+      [itemId, company_id],
+    );
 
-if (itemResult.rows.length === 0) {
-  await client.query('ROLLBACK');
-  return res.status(404).json({
-    success: false,
-    message: 'Item not found',
-  });
-}
+    if (itemResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({
+        success: false,
+        message: 'Item not found',
+      });
+    }
 
-const item = itemResult.rows[0];
+    const item = itemResult.rows[0];
 
-// ============================================
-// RESOLVE BOM (from bom_master)
-// ============================================
+    // ============================================
+    // RESOLVE BOM (from bom_master)
+    // ============================================
 
-let resolvedBomId = null;
-let resolvedBomVersion = null;
+    let resolvedBomId = null;
+    let resolvedBomVersion = null;
 
-if (!bomId) {
-  await client.query('ROLLBACK');
+    if (!bomId) {
+      await client.query('ROLLBACK');
 
-  return res.status(400).json({
-    success: false,
-    message: 'BOM selection is required',
-  });
-}
-  
-  const bomResult = await client.query(
-    `
+      return res.status(400).json({
+        success: false,
+        message: 'BOM selection is required',
+      });
+    }
+
+    const bomResult = await client.query(
+      `
     SELECT id, version
     FROM bom_master
     WHERE id = $1
     AND company_id = $2
     AND status != 'OBSOLETE'
     `,
-    [bomId, company_id],
-  );
+      [bomId, company_id],
+    );
 
-  if (bomResult.rows.length === 0) {
-    await client.query('ROLLBACK');
-    return res.status(400).json({
-      success: false,
-      message: 'No BOM found for selected item. Please create a BOM first.',
-    });
-  }
+    if (bomResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        success: false,
+        message: 'No BOM found for selected item. Please create a BOM first.',
+      });
+    }
 
-  resolvedBomId = bomResult.rows[0].id;
-  resolvedBomVersion = bomResult.rows[0].version;
+    resolvedBomId = bomResult.rows[0].id;
+    resolvedBomVersion = bomResult.rows[0].version;
 
 
-// Then in the INSERT, use resolvedBomId and resolvedBomVersion instead of item.bom_id / item.bom_version
+    // Then in the INSERT, use resolvedBomId and resolvedBomVersion instead of item.bom_id / item.bom_version
     // ============================================
     // VERIFY WAREHOUSE
     // ============================================
@@ -141,17 +141,16 @@ if (!bomId) {
     // ============================================
     // VERIFY ROUTING (OPTIONAL)
     // ============================================
-console.log('routingId:', routingId);
-console.log('company_id:', company_id);
+    console.log('routingId:', routingId);
+    console.log('company_id:', company_id);
     if (routingId) {
       const routingResult = await client.query(
         `
         SELECT id
         FROM routings
         WHERE id = $1
-        AND company_id = $2
         `,
-        [routingId, company_id],
+        [routingId],
       );
 
       if (routingResult.rows.length === 0) {

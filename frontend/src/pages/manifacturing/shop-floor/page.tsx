@@ -1,23 +1,22 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/feature/AppLayout';
 import { useToast } from '@/contexts/ToastContext';
+import { useWarehouseStore } from '@/stores/warehouseStore';
 import {
-  mockProductionEntries,
-  mockProductionOrders,
-  mockWorkOrders,
-  mockMachines,
-  mockOperators,
-  mockShifts,
-  mockWorkCenters,
-  mockRejectionCodes,
-  mockRejectionEntries,
-  mockRoutings,
-  mockInspectionChecklists,
-  mockItems,
-  type MockProductionEntry,
-  type MockRejectionEntry,
-} from '@/mocks/masters';
-import { mockInspections, calcSampleQty } from '@/mocks/qms';
+  createProductionEntry,
+  getAllProductionEntries,
+  updateProductionEntry,
+  deleteProductionEntry,
+  approveProductionEntry,
+} from '@/api/productionentry.api';
+import { getAllProductionOrders } from '@/api/productionOrder.api';
+import { getAllRoutings } from '@/api/routing.api';
+import { getAllShifts } from '@/api/shift.api';
+import { getAllOperators } from '@/api/operator.api';
+import { getAllMachines } from '@/api/machine.api';
+import { getAllRejectionCodes } from '@/api/rejectioncode.api';
+import { getAllWorkCenters } from '@/api/workcenter.api';
+import { getAllWorkOrders } from '@/api/workorder.api';
 
 interface FormState {
   productionOrderId: string;
@@ -50,47 +49,62 @@ const emptyForm = (): FormState => ({
 });
 
 function timeToMinutes(t: string): number {
+  if (!t) return 0;
   const [h, m] = t.split(':').map(Number);
-  return h * 60 + m;
+  return (h || 0) * 60 + (m || 0);
 }
+
+const mapResponseToEntry = (r: any) => ({
+  id: r.id,
+  entryNumber: r.entry_number ?? r.entryNumber ?? '',
+  productionOrderId: r.production_order_id ?? r.productionOrderId ?? '',
+  productionOrderNumber: r.production_order_number ?? r.productionOrderNumber ?? '',
+  workOrderId: r.work_order_id ?? r.workOrderId ?? '',
+  workOrderNumber: r.work_order_number ?? r.workOrderNumber ?? '',
+  stageName: r.stage_name ?? r.stageName ?? '',
+  stageNumber: r.stage_number ?? r.stageNumber ?? null,
+  workCenterId: r.work_center_id ?? r.workCenterId ?? '',
+  workCenterName: r.work_center_name ?? r.workCenterName ?? '',
+  machineId: r.machine_id ?? r.machineId ?? '',
+  machineName: r.machine_name ?? r.machineName ?? '',
+  operatorId: r.operator_id ?? r.operatorId ?? '',
+  operatorName: r.operator_name ?? r.operatorName ?? '',
+  shiftId: r.shift_id ?? r.shiftId ?? '',
+  shiftName: r.shift_name ?? r.shiftName ?? '',
+  date: r.date ? new Date(r.date).toISOString().split('T')[0] : '',
+  producedQty: Number(r.produced_qty ?? r.producedQty ?? 0),
+  rejectedQty: Number(r.rejected_qty ?? r.rejectedQty ?? 0),
+  unit: r.unit ?? 'Pcs',
+  startTime: r.start_time ?? r.startTime ?? '',
+  endTime: r.end_time ?? r.endTime ?? '',
+  actualTimeMinutes: Number(r.actual_time_minutes ?? r.actualTimeMinutes ?? 0),
+  rejectionCodeId: r.rejection_code_id ?? r.rejectionCodeId ?? '',
+  notes: r.notes ?? '',
+  status: r.status ?? 'PENDING',
+  isApproved: r.status === 'APPROVED',
+  createdAt: r.created_at ?? r.createdAt ?? '',
+  warehouseId: r.warehouse_id ?? r.warehouseId ?? '',
+});
 
 export default function ProductionEntryPage() {
   const toast = useToast();
+  const { selectedWarehouseId } = useWarehouseStore();
+
   const [search, setSearch] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [poFilter, setPoFilter] = useState('ALL');
   const [wcFilter, setWcFilter] = useState('ALL');
   const [opFilter, setOpFilter] = useState('ALL');
-  const [approvedFilter, setApprovedFilter] = useState<
-    'ALL' | 'APPROVED' | 'PENDING'
-  >('ALL');
+  const [approvedFilter, setApprovedFilter] = useState<'ALL' | 'APPROVED' | 'PENDING'>('ALL');
   const [showSlideOver, setShowSlideOver] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm());
   const [formError, setFormError] = useState<string | null>(null);
-  const [refreshTick, setRefreshTick] = useState(0);
-  const [activeTab, setActiveTab] = useState<'entries' | 'rejections'>(
-    'entries',
-  );
+  const [activeTab, setActiveTab] = useState<'entries' | 'rejections'>('entries');
 
   // Rejection form
   const [showRejectionSlideOver, setShowRejectionSlideOver] = useState(false);
-  const [rejectionEditingId, setRejectionEditingId] = useState<string | null>(
-    null,
-  );
-  const [rejectionForm, setRejectionForm] = useState<{
-    productionOrderId: string;
-    workOrderId: string;
-    date: string;
-    shiftId: string;
-    operatorId: string;
-    machineId: string;
-    rejectionCodeId: string;
-    rejectedQty: string;
-    isReworkable: boolean;
-    reworkQty: string;
-    notes: string;
-  }>({
+  const [rejectionForm, setRejectionForm] = useState({
     productionOrderId: '',
     workOrderId: '',
     date: new Date().toISOString().split('T')[0],
@@ -99,46 +113,212 @@ export default function ProductionEntryPage() {
     machineId: '',
     rejectionCodeId: '',
     rejectedQty: '',
-    isReworkable: false,
-    reworkQty: '',
     notes: '',
   });
   const [rejectionError, setRejectionError] = useState<string | null>(null);
 
-  const inProgressPOs = useMemo(
-    () => mockProductionOrders.filter((po) => po.status === 'IN_PROGRESS'),
-    [],
-  );
+  // Real API Data States
+  const [entries, setEntries] = useState<any[]>([]);
+  const [productionOrders, setProductionOrders] = useState<any[]>([]);
+  const [routings, setRoutings] = useState<any[]>([]);
+  const [workOrders, setWorkOrders] = useState<any[]>([]);
+  const [shifts, setShifts] = useState<any[]>([]);
+  const [operators, setOperators] = useState<any[]>([]);
+  const [machines, setMachines] = useState<any[]>([]);
+  const [rejectionCodes, setRejectionCodes] = useState<any[]>([]);
+  const [workCenters, setWorkCenters] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const filteredWOs = useMemo(() => {
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const [
+        entriesRes,
+        poRes,
+        routingsRes,
+        workOrdersRes,
+        shiftsRes,
+        operatorsRes,
+        machinesRes,
+        rejRes,
+        wcRes,
+      ] = await Promise.all([
+        getAllProductionEntries(),
+        getAllProductionOrders(),
+        getAllRoutings(),
+        getAllWorkOrders(selectedWarehouseId),
+        getAllShifts(),
+        getAllOperators(),
+        getAllMachines(),
+        getAllRejectionCodes(),
+        getAllWorkCenters(),
+      ]);
+
+      if (entriesRes.success && entriesRes.data) {
+        setEntries(entriesRes.data.map(mapResponseToEntry));
+      }
+      if (poRes.success && poRes.data) {
+        setProductionOrders(poRes.data);
+      }
+      if (routingsRes.success && routingsRes.data) {
+        setRoutings(routingsRes.data);
+      }
+      if (workOrdersRes.success && workOrdersRes.data) {
+        setWorkOrders(workOrdersRes.data);
+      }
+      if (shiftsRes.success && shiftsRes.data) {
+        setShifts(shiftsRes.data);
+      }
+      if (operatorsRes.success && operatorsRes.data) {
+        setOperators(operatorsRes.data);
+      }
+      if (machinesRes.success && machinesRes.data) {
+        setMachines(machinesRes.data);
+      }
+      if (rejRes.success && rejRes.data) {
+        setRejectionCodes(rejRes.data);
+      }
+      if (wcRes.success && wcRes.data) {
+        setWorkCenters(wcRes.data);
+      }
+    } catch (error) {
+      console.error('Failed to load production entries:', error);
+      toast.error('Failed to load page data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [selectedWarehouseId]);
+
+  // Warehouse partitioning filters
+  // POs and entries are warehouse-scoped; masters (shifts/operators/machines/workcenters) are global
+  const warehousePOs = useMemo(() => {
+    if (!selectedWarehouseId) return productionOrders;
+    return productionOrders.filter(
+      (po) => po.warehouse_id === selectedWarehouseId || po.warehouseId === selectedWarehouseId
+    );
+  }, [productionOrders, selectedWarehouseId]);
+
+  // Global masters — show all (not warehouse-filtered)
+  const warehouseShifts = shifts;
+  const warehouseOperators = operators;
+  const warehouseMachines = machines;
+  const warehouseRejectionCodes = rejectionCodes;
+  const warehouseWorkCenters = workCenters;
+
+  const warehouseEntries = useMemo(() => {
+    if (!selectedWarehouseId) return entries;
+    return entries.filter(
+      (e) => e.warehouseId === selectedWarehouseId
+    );
+  }, [entries, selectedWarehouseId]);
+
+  // Work Orders filtered by selected PO for Entry Form
+  const selectedPO = useMemo(() => {
+    return warehousePOs.find((po) => po.id === form.productionOrderId) || null;
+  }, [form.productionOrderId, warehousePOs]);
+
+  // Use real work orders from DB, filtered by selected production order
+  const selectedPOWorkOrders = useMemo(() => {
     if (!form.productionOrderId) return [];
-    return mockWorkOrders.filter(
-      (wo) =>
-        wo.productionOrderId === form.productionOrderId &&
-        (wo.status === 'PENDING' || wo.status === 'IN_PROGRESS'),
+    return workOrders.filter(
+      (wo) => wo.production_order_id === form.productionOrderId
     );
-  }, [form.productionOrderId]);
+  }, [form.productionOrderId, workOrders]);
 
-  const selectedWO = useMemo(
-    () => mockWorkOrders.find((wo) => wo.id === form.workOrderId) || null,
-    [form.workOrderId],
-  );
+  // Keep routing stages as fallback if no work orders exist
+  const selectedPOStages = useMemo(() => {
+    if (selectedPOWorkOrders.length > 0) return []; // prefer work orders
+    if (!selectedPO || !selectedPO.routing_id) return [];
+    const routing = routings.find((r) => r.id === selectedPO.routing_id);
+    if (!routing) return [];
+    try {
+      const parsed = typeof routing.stages === 'string' ? JSON.parse(routing.stages) : routing.stages;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.error('Failed to parse routing stages:', e);
+      return [];
+    }
+  }, [selectedPO, routings, selectedPOWorkOrders]);
 
+  // Selected work order (from DB) or routing stage (fallback)
+  const selectedWorkOrder = useMemo(() => {
+    return selectedPOWorkOrders.find((wo) => wo.id === form.workOrderId) || null;
+  }, [form.workOrderId, selectedPOWorkOrders]);
+
+  const selectedStage = useMemo(() => {
+    const stageNum = Number(form.workOrderId);
+    return selectedPOStages.find((s) => s.sequence === stageNum) || null;
+  }, [form.workOrderId, selectedPOStages]);
+
+  // Machines filtered by the work center of the selected work order
   const availableMachines = useMemo(() => {
-    if (!selectedWO) return [];
-    return mockMachines.filter(
-      (m) => m.workCenterId === selectedWO.workCenterId,
+    const wcId = selectedWorkOrder?.work_center_id || selectedStage?.workCenterId || selectedStage?.work_center_id;
+    if (!wcId) return [];
+    return machines.filter(
+      (m) => m.work_center_id === wcId
     );
-  }, [selectedWO]);
+  }, [selectedWorkOrder, selectedStage, machines]);
 
+  // Work Orders & Routing stages resolver for Rejection Form
+  const selectedPORej = useMemo(() => {
+    return warehousePOs.find((po) => po.id === rejectionForm.productionOrderId) || null;
+  }, [rejectionForm.productionOrderId, warehousePOs]);
+
+  const selectedPOWorkOrdersRej = useMemo(() => {
+    if (!rejectionForm.productionOrderId) return [];
+    return workOrders.filter(
+      (wo) => wo.production_order_id === rejectionForm.productionOrderId
+    );
+  }, [rejectionForm.productionOrderId, workOrders]);
+
+  const selectedPOStagesRej = useMemo(() => {
+    if (selectedPOWorkOrdersRej.length > 0) return []; // prefer work orders
+    if (!selectedPORej || !selectedPORej.routing_id) return [];
+    const routing = routings.find((r) => r.id === selectedPORej.routing_id);
+    if (!routing) return [];
+    try {
+      const parsed = typeof routing.stages === 'string' ? JSON.parse(routing.stages) : routing.stages;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.error('Failed to parse routing stages:', e);
+      return [];
+    }
+  }, [selectedPORej, routings, selectedPOWorkOrdersRej]);
+
+  const selectedWorkOrderRej = useMemo(() => {
+    return selectedPOWorkOrdersRej.find((wo) => wo.id === rejectionForm.workOrderId) || null;
+  }, [rejectionForm.workOrderId, selectedPOWorkOrdersRej]);
+
+  const selectedStageRej = useMemo(() => {
+    const stageNum = Number(rejectionForm.workOrderId);
+    return selectedPOStagesRej.find((s) => s.sequence === stageNum) || null;
+  }, [rejectionForm.workOrderId, selectedPOStagesRej]);
+
+  const availableMachinesRej = useMemo(() => {
+    const wcId = selectedWorkOrderRej?.work_center_id || selectedStageRej?.workCenterId || selectedStageRej?.work_center_id;
+    if (!wcId) return [];
+    return machines.filter(
+      (m) => m.work_center_id === wcId
+    );
+  }, [selectedWorkOrderRej, selectedStageRej, machines]);
+
+  const selectedRejCode = useMemo(() => {
+    return warehouseRejectionCodes.find((c) => c.id === rejectionForm.rejectionCodeId) || null;
+  }, [rejectionForm.rejectionCodeId, warehouseRejectionCodes]);
+
+  // Main list filters
   const filtered = useMemo(() => {
-    return mockProductionEntries.filter((e) => {
+    return warehouseEntries.filter((e) => {
       if (dateFilter && e.date !== dateFilter) return false;
       if (poFilter !== 'ALL' && e.productionOrderId !== poFilter) return false;
       if (wcFilter !== 'ALL' && e.workCenterId !== wcFilter) return false;
       if (opFilter !== 'ALL' && e.operatorId !== opFilter) return false;
-      if (approvedFilter === 'APPROVED' && !e.isApproved) return false;
-      if (approvedFilter === 'PENDING' && e.isApproved) return false;
+      if (approvedFilter === 'APPROVED' && e.status !== 'APPROVED') return false;
+      if (approvedFilter === 'PENDING' && e.status !== 'PENDING') return false;
       if (search.trim()) {
         const q = search.toLowerCase();
         return (
@@ -153,78 +333,28 @@ export default function ProductionEntryPage() {
       }
       return true;
     });
-  }, [
-    search,
-    dateFilter,
-    poFilter,
-    wcFilter,
-    opFilter,
-    approvedFilter,
-    refreshTick,
-  ]);
+  }, [warehouseEntries, search, dateFilter, poFilter, wcFilter, opFilter, approvedFilter]);
 
   const stats = useMemo(() => {
-    const total = mockProductionEntries.length;
-    const approved = mockProductionEntries.filter((e) => e.isApproved).length;
+    const total = warehouseEntries.length;
+    const approved = warehouseEntries.filter((e) => e.status === 'APPROVED').length;
     const pending = total - approved;
-    const totalProduced = mockProductionEntries.reduce(
-      (s, e) => s + e.producedQty,
-      0,
-    );
-    const totalRejected = mockProductionEntries.reduce(
-      (s, e) => s + e.rejectedQty,
-      0,
-    );
+    const totalProduced = warehouseEntries.reduce((s, e) => s + e.producedQty, 0);
+    const totalRejected = warehouseEntries.reduce((s, e) => s + e.rejectedQty, 0);
     return { total, approved, pending, totalProduced, totalRejected };
-  }, [refreshTick]);
+  }, [warehouseEntries]);
 
-  const selectedWORej = useMemo(
-    () =>
-      mockWorkOrders.find((wo) => wo.id === rejectionForm.workOrderId) || null,
-    [rejectionForm.workOrderId],
-  );
-
-  const filteredWOsRej = useMemo(() => {
-    if (!rejectionForm.productionOrderId) return [];
-    return mockWorkOrders.filter(
-      (wo) =>
-        wo.productionOrderId === rejectionForm.productionOrderId &&
-        (wo.status === 'PENDING' || wo.status === 'IN_PROGRESS'),
-    );
-  }, [rejectionForm.productionOrderId]);
-
-  const availableMachinesRej = useMemo(() => {
-    if (!selectedWORej) return [];
-    return mockMachines.filter(
-      (m) => m.workCenterId === selectedWORej.workCenterId,
-    );
-  }, [selectedWORej]);
-
-  const selectedRejCode = useMemo(
-    () =>
-      mockRejectionCodes.find((c) => c.id === rejectionForm.rejectionCodeId) ||
-      null,
-    [rejectionForm.rejectionCodeId],
-  );
-
-  const selectedRejPO = useMemo(
-    () =>
-      mockProductionOrders.find(
-        (po) => po.id === rejectionForm.productionOrderId,
-      ) || null,
-    [rejectionForm.productionOrderId],
-  );
+  const rejectionEntries = useMemo(() => {
+    return warehouseEntries.filter((e) => e.rejectedQty > 0);
+  }, [warehouseEntries]);
 
   const rejectionStats = useMemo(() => {
-    const total = mockRejectionEntries.length;
-    const rework = mockRejectionEntries.filter((r) => r.isReworkable).length;
-    const scrap = total - rework;
-    const totalQty = mockRejectionEntries.reduce(
-      (s, r) => s + r.rejectedQty,
-      0,
-    );
+    const total = rejectionEntries.length;
+    const rework = 0;
+    const scrap = total;
+    const totalQty = rejectionEntries.reduce((s, r) => s + r.rejectedQty, 0);
     return { total, rework, scrap, totalQty };
-  }, [refreshTick]);
+  }, [rejectionEntries]);
 
   const clearFilters = useCallback(() => {
     setSearch('');
@@ -250,42 +380,52 @@ export default function ProductionEntryPage() {
     setShowSlideOver(true);
   };
 
-  const openEditEntry = (entry: MockProductionEntry) => {
+  const openEditEntry = (entry: any) => {
     setEditingId(entry.id);
     setForm({
       productionOrderId: entry.productionOrderId,
-      workOrderId: entry.workOrderId,
+      workOrderId: String(entry.stageNumber),
       date: entry.date,
       shiftId: entry.shiftId,
       operatorId: entry.operatorId,
       machineId: entry.machineId ?? '',
-      startTime: entry.startTime,
-      endTime: entry.endTime,
+      startTime: entry.startTime.slice(0, 5),
+      endTime: entry.endTime.slice(0, 5),
       producedQty: String(entry.producedQty),
       rejectedQty: String(entry.rejectedQty),
-      rejectionCodeId: '',
+      rejectionCodeId: entry.rejectionCodeId ?? '',
       notes: entry.notes ?? '',
     });
     setFormError(null);
     setShowSlideOver(true);
   };
 
-  const handleApprove = (id: string) => {
-    const idx = mockProductionEntries.findIndex((e) => e.id === id);
-    if (idx !== -1) {
-      mockProductionEntries[idx] = {
-        ...mockProductionEntries[idx],
-        isApproved: true,
-      };
-      setRefreshTick((t) => t + 1);
+  const handleApprove = async (id: string) => {
+    try {
+      const res = await approveProductionEntry(id);
+      if (res.success) {
+        toast.success('Production entry approved successfully');
+        loadData();
+      } else {
+        toast.error(res.message || 'Failed to approve entry');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Server error occurred');
     }
   };
 
-  const handleDelete = (id: string) => {
-    const idx = mockProductionEntries.findIndex((e) => e.id === id);
-    if (idx !== -1) {
-      mockProductionEntries.splice(idx, 1);
-      setRefreshTick((t) => t + 1);
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this entry?')) return;
+    try {
+      const res = await deleteProductionEntry(id);
+      if (res.success) {
+        toast.success('Production entry deleted successfully');
+        loadData();
+      } else {
+        toast.error(res.message || 'Failed to delete entry');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Server error occurred');
     }
   };
 
@@ -304,212 +444,90 @@ export default function ProductionEntryPage() {
     setFormError(null);
   };
 
-  const handleSave = () => {
-    // Validation
-    if (!form.productionOrderId)
-      return setFormError('Production Order is required');
-    if (!form.workOrderId)
-      return setFormError('Work Order / Stage is required');
+  const handleSave = async () => {
+    if (!form.productionOrderId) return setFormError('Production Order is required');
+    if (!form.workOrderId) return setFormError('Work Order / Stage is required');
     if (!form.date) return setFormError('Date is required');
     if (!form.shiftId) return setFormError('Shift is required');
     if (!form.operatorId) return setFormError('Operator is required');
     if (!form.startTime) return setFormError('Start Time is required');
     if (!form.endTime) return setFormError('End Time is required');
-    if (form.startTime >= form.endTime)
-      return setFormError('End Time must be after Start Time');
-    if (!form.producedQty || Number(form.producedQty) < 0)
-      return setFormError('Produced Qty is required');
-    if (form.rejectedQty && Number(form.rejectedQty) < 0)
-      return setFormError('Rejected Qty cannot be negative');
-    if (Number(form.rejectedQty || 0) > 0 && !form.rejectionCodeId)
+    if (form.startTime >= form.endTime) return setFormError('End Time must be after Start Time');
+    if (form.producedQty === '' || Number(form.producedQty) < 0) return setFormError('Produced Qty is required');
+    if (form.rejectedQty !== '' && Number(form.rejectedQty) < 0) return setFormError('Rejected Qty cannot be negative');
+    if (Number(form.rejectedQty || 0) > 0 && !form.rejectionCodeId) {
       return setFormError('Rejection Code is required when rejected qty > 0');
+    }
 
     const producedQty = Number(form.producedQty);
     const rejectedQty = Number(form.rejectedQty || 0);
-    const actualTimeMinutes =
-      timeToMinutes(form.endTime) - timeToMinutes(form.startTime);
+    const actualTimeMinutes = timeToMinutes(form.endTime) - timeToMinutes(form.startTime);
 
-    const po = mockProductionOrders.find(
-      (p) => p.id === form.productionOrderId,
-    );
-    const wo = mockWorkOrders.find((w) => w.id === form.workOrderId);
-    const shift = mockShifts.find((s) => s.id === form.shiftId);
-    const operator = mockOperators.find((o) => o.id === form.operatorId);
-    const machine = mockMachines.find((m) => m.id === form.machineId) || null;
-    const wc = mockWorkCenters.find((w) => w.id === (wo?.workCenterId || ''));
+    const po = warehousePOs.find((p) => p.id === form.productionOrderId);
+    // Prefer real work order from DB; fall back to routing stage
+    const wo = selectedWorkOrder;
+    const stage = !wo ? selectedPOStages.find((s) => s.sequence === Number(form.workOrderId)) : null;
+    const shift = warehouseShifts.find((s) => s.id === form.shiftId);
+    const operator = warehouseOperators.find((o) => o.id === form.operatorId);
+    const machine = machines.find((m) => m.id === form.machineId) || null;
 
-    if (!po || !wo || !shift || !operator || !wc) {
-      return setFormError('Invalid selection — please refresh and try again');
+    if (!po || (!wo && !stage) || !shift || !operator) {
+      return setFormError('Invalid selection — please check fields');
     }
 
-    if (editingId) {
-      const idx = mockProductionEntries.findIndex((e) => e.id === editingId);
-      if (idx === -1) return;
-      const old = mockProductionEntries[idx];
-      // Reverse old quantities from WO and PO
-      wo.completedQty = Math.max(
-        0,
-        wo.completedQty - old.producedQty + producedQty,
-      );
-      wo.rejectedQty = Math.max(
-        0,
-        wo.rejectedQty - old.rejectedQty + rejectedQty,
-      );
-      mockProductionEntries[idx] = {
-        ...old,
-        productionOrderId: form.productionOrderId,
-        productionOrderNumber: po.poNumber,
-        workOrderId: form.workOrderId,
-        workOrderNumber: wo.woNumber,
-        stageName: wo.stageName,
-        workCenterId: wc.id,
-        workCenterName: wc.name,
-        machineId: machine?.id ?? null,
-        machineName: machine?.name ?? null,
-        operatorId: operator.id,
-        operatorName: operator.name,
-        shiftId: shift.id,
-        shiftName: shift.name,
-        date: form.date,
-        producedQty,
-        rejectedQty,
-        unit: po.unit,
-        startTime: form.startTime,
-        endTime: form.endTime,
-        actualTimeMinutes,
-        notes: form.notes || null,
-        enteredBy: operator.id,
-      };
-    } else {
-      const nextNum = mockProductionEntries.length + 1;
-      const entryNumber = `PE-2024-${String(nextNum).padStart(3, '0')}`;
-      const newEntry: MockProductionEntry = {
-        id: `pe-${String(nextNum).padStart(3, '0')}`,
-        entryNumber,
-        productionOrderId: form.productionOrderId,
-        productionOrderNumber: po.poNumber,
-        workOrderId: form.workOrderId,
-        workOrderNumber: wo.woNumber,
-        stageName: wo.stageName,
-        workCenterId: wc.id,
-        workCenterName: wc.name,
-        machineId: machine?.id ?? null,
-        machineName: machine?.name ?? null,
-        operatorId: operator.id,
-        operatorName: operator.name,
-        shiftId: shift.id,
-        shiftName: shift.name,
-        date: form.date,
-        producedQty,
-        rejectedQty,
-        unit: po.unit,
-        startTime: form.startTime,
-        endTime: form.endTime,
-        actualTimeMinutes,
-        notes: form.notes || null,
-        enteredBy: operator.id,
-        supervisorId: null,
-        supervisorName: null,
-        isApproved: false,
-        createdAt: new Date().toISOString(),
-      };
-      mockProductionEntries.push(newEntry);
+    const payload = {
+      productionOrderId: po.id,
+      productionOrderNumber: po.po_number || po.poNumber,
+      workOrderId: wo ? wo.id : `${po.id}-stage-${stage!.sequence}`,
+      workOrderNumber: wo ? (wo.wo_number || wo.woNumber) : `${po.po_number || po.poNumber}-ST-${stage!.sequence}`,
+      stageName: wo ? (wo.stage_name || wo.stageName) : stage!.operationName,
+      stageNumber: wo ? (wo.stage_number ?? wo.stageNumber) : stage!.sequence,
+      workCenterId: wo ? (wo.work_center_id || wo.workCenterId) : stage!.workCenterId,
+      workCenterName: wo ? (wo.work_center_name || wo.workCenterName) : stage!.workCenterName,
+      machineId: machine?.id ?? null,
+      machineName: machine?.name ?? null,
+      operatorId: operator.id,
+      operatorName: operator.name,
+      shiftId: shift.id,
+      shiftName: shift.name,
+      date: form.date,
+      producedQty,
+      rejectedQty,
+      unit: po.unit || 'Pcs',
+      startTime: form.startTime,
+      endTime: form.endTime,
+      actualTimeMinutes,
+      rejectionCodeId: form.rejectionCodeId || null,
+      notes: form.notes || null,
+      warehouseId: selectedWarehouseId || po.warehouse_id || null,
+    };
 
-      // Update WO
-      wo.completedQty += producedQty;
-      wo.rejectedQty += rejectedQty;
-    }
-
-    // Auto-complete WO if fully produced
-    if (wo.completedQty >= wo.plannedQty && wo.status !== 'COMPLETED') {
-      wo.status = 'COMPLETED';
-      wo.actualEndDate = form.date;
-    } else if (wo.completedQty > 0 && wo.status === 'PENDING') {
-      wo.status = 'IN_PROGRESS';
-      wo.actualStartDate = wo.actualStartDate || form.date;
-    }
-
-    // Recalculate PO completedQty
-    const poWOs = mockWorkOrders.filter((w) => w.productionOrderId === po.id);
-    po.completedQty = poWOs.reduce((sum, w) => sum + w.completedQty, 0);
-    po.rejectedQty = poWOs.reduce((sum, w) => sum + w.rejectedQty, 0);
-
-    // Auto-trigger IN_PROCESS inspection if stage has qcRequired
-    const routing = po.routingId
-      ? mockRoutings.find((r) => r.id === po.routingId)
-      : mockRoutings.find(
-          (r) => r.itemId === po.productId && r.status === 'ACTIVE',
-        );
-    if (routing) {
-      const stage = routing.stages.find(
-        (s) => s.stageNumber === wo.stageNumber,
-      );
-      if (stage && stage.qcRequired) {
-        const item = mockItems.find((i) => i.id === po.productId);
-        const checklist =
-          mockInspectionChecklists.find(
-            (c) =>
-              c.applicableTo === 'IN_PROCESS' &&
-              c.itemTypeTarget === item?.itemType &&
-              c.isActive,
-          ) ||
-          mockInspectionChecklists.find(
-            (c) => c.applicableTo === 'IN_PROCESS' && c.isActive,
-          );
-        if (checklist) {
-          const nextNum = mockInspections.length + 1;
-          const sampleQty = calcSampleQty(
-            checklist.samplingPlan,
-            wo.plannedQty,
-          );
-          const newInspection = {
-            id: `insp-${Date.now()}`,
-            inspectionNumber: `QC-IP-2024-${String(nextNum).padStart(3, '0')}`,
-            type: 'IN_PROCESS' as const,
-            status: 'PENDING' as const,
-            triggeredBy: 'AUTO' as const,
-            sourceType: 'PRODUCTION_ORDER' as const,
-            sourceId: po.id,
-            sourceNumber: po.poNumber,
-            itemId: po.productId,
-            itemName: po.productName,
-            itemCode: item?.code || null,
-            isVariant: po.isVariant ?? false,
-            variantName: po.variantName || null,
-            checklistId: checklist.id,
-            checklistName: checklist.name,
-            samplingPlan: checklist.samplingPlan,
-            batchNumber: null,
-            lotNumber: null,
-            totalQty: wo.plannedQty,
-            sampleQty,
-            passedQty: 0,
-            failedQty: 0,
-            unit: po.unit,
-            inspectorId: null,
-            inspectorName: null,
-            scheduledDate: form.date,
-            completedDate: null,
-            warehouseId: null,
-            notes: `Auto-triggered for Stage ${stage.stageName}`,
-            createdAt: new Date().toISOString(),
-          };
-          mockInspections.push(newInspection);
-          toast.success(
-            `In-Process inspection triggered for Stage ${stage.stageName}`,
-          );
+    try {
+      if (editingId) {
+        const res = await updateProductionEntry(editingId, payload);
+        if (res.success) {
+          toast.success('Production entry updated successfully');
+          setShowSlideOver(false);
+          loadData();
+        } else {
+          setFormError(res.message || 'Failed to update entry');
+        }
+      } else {
+        const res = await createProductionEntry(payload);
+        if (res.success) {
+          toast.success('Production entry saved successfully');
+          setShowSlideOver(false);
+          loadData();
+        } else {
+          setFormError(res.message || 'Failed to save entry');
         }
       }
+    } catch (error: any) {
+      setFormError(error.message || 'Server error occurred');
     }
-
-    setShowSlideOver(false);
-    setEditingId(null);
-    setForm(emptyForm());
-    setRefreshTick((t) => t + 1);
   };
 
   const openRejectionForm = () => {
-    setRejectionEditingId(null);
     setRejectionForm({
       productionOrderId: '',
       workOrderId: '',
@@ -519,165 +537,74 @@ export default function ProductionEntryPage() {
       machineId: '',
       rejectionCodeId: '',
       rejectedQty: '',
-      isReworkable: false,
-      reworkQty: '',
       notes: '',
     });
     setRejectionError(null);
     setShowRejectionSlideOver(true);
   };
 
-  const handleSaveRejection = () => {
-    if (!rejectionForm.productionOrderId)
-      return setRejectionError('Production Order is required');
-    if (!rejectionForm.workOrderId)
-      return setRejectionError('Work Order / Stage is required');
+  const handleSaveRejection = async () => {
+    if (!rejectionForm.productionOrderId) return setRejectionError('Production Order is required');
+    if (!rejectionForm.workOrderId) return setRejectionError('Work Order / Stage is required');
     if (!rejectionForm.date) return setRejectionError('Date is required');
     if (!rejectionForm.shiftId) return setRejectionError('Shift is required');
-    if (!rejectionForm.operatorId)
-      return setRejectionError('Operator is required');
-    if (!rejectionForm.rejectionCodeId)
-      return setRejectionError('Rejection Code is required');
-    if (!rejectionForm.rejectedQty || Number(rejectionForm.rejectedQty) <= 0)
+    if (!rejectionForm.operatorId) return setRejectionError('Operator is required');
+    if (!rejectionForm.rejectionCodeId) return setRejectionError('Rejection Code is required');
+    if (!rejectionForm.rejectedQty || Number(rejectionForm.rejectedQty) <= 0) {
       return setRejectionError('Rejected Qty is required and must be > 0');
+    }
 
     const rejectedQty = Number(rejectionForm.rejectedQty);
-    const reworkQty = rejectionForm.isReworkable
-      ? Math.min(Number(rejectionForm.reworkQty || 0), rejectedQty)
-      : 0;
-    const scrapQty = rejectedQty - reworkQty;
+    const po = warehousePOs.find((p) => p.id === rejectionForm.productionOrderId);
+    // Prefer real work order from DB; fall back to routing stage
+    const wo = selectedWorkOrderRej;
+    const stage = !wo ? selectedPOStagesRej.find((s) => s.sequence === Number(rejectionForm.workOrderId)) : null;
+    const shift = warehouseShifts.find((s) => s.id === rejectionForm.shiftId);
+    const operator = warehouseOperators.find((o) => o.id === rejectionForm.operatorId);
+    const machine = machines.find((m) => m.id === rejectionForm.machineId) || null;
 
-    const po = mockProductionOrders.find(
-      (p) => p.id === rejectionForm.productionOrderId,
-    );
-    const wo = mockWorkOrders.find((w) => w.id === rejectionForm.workOrderId);
-    const shift = mockShifts.find((s) => s.id === rejectionForm.shiftId);
-    const operator = mockOperators.find(
-      (o) => o.id === rejectionForm.operatorId,
-    );
-    const machine = rejectionForm.machineId
-      ? mockMachines.find((m) => m.id === rejectionForm.machineId) || null
-      : null;
-    const code = mockRejectionCodes.find(
-      (c) => c.id === rejectionForm.rejectionCodeId,
-    );
-    const wc = wo
-      ? mockWorkCenters.find((w) => w.id === wo.workCenterId) || null
-      : null;
-
-    if (!po || !wo || !shift || !operator || !code || !wc) {
+    if (!po || (!wo && !stage) || !shift || !operator) {
       return setRejectionError('Invalid selection');
     }
 
-    if (rejectionEditingId) {
-      const idx = mockRejectionEntries.findIndex(
-        (r) => r.id === rejectionEditingId,
-      );
-      if (idx === -1) return;
-      const old = mockRejectionEntries[idx];
-      // Reverse old qtys
-      wo.rejectedQty = Math.max(
-        0,
-        wo.rejectedQty - old.rejectedQty + rejectedQty,
-      );
-      po.rejectedQty = Math.max(
-        0,
-        po.rejectedQty - old.rejectedQty + rejectedQty,
-      );
-      mockRejectionEntries[idx] = {
-        ...old,
-        productionOrderId: po.id,
-        productionOrderNumber: po.poNumber,
-        workOrderId: wo.id,
-        workOrderNumber: wo.woNumber,
-        stageName: wo.stageName,
-        workCenterId: wc.id,
-        workCenterName: wc.name,
-        machineId: machine?.id ?? null,
-        machineName: machine?.name ?? null,
-        shiftId: shift.id,
-        shiftName: shift.name,
-        operatorId: operator.id,
-        operatorName: operator.name,
-        rejectionCodeId: code.id,
-        rejectionCodeName: code.description,
-        category: code.category,
-        rejectedQty,
-        reworkQty,
-        scrapQty,
-        unit: po.unit,
-        isReworkable: rejectionForm.isReworkable,
-        date: rejectionForm.date,
-        notes: rejectionForm.notes || null,
-      };
-    } else {
-      const nextNum = mockRejectionEntries.length + 1;
-      const entryNumber = `REJ-2024-${String(nextNum).padStart(3, '0')}`;
-      const newEntry = {
-        id: `rej-${String(nextNum).padStart(3, '0')}`,
-        entryNumber,
-        productionOrderId: po.id,
-        productionOrderNumber: po.poNumber,
-        workOrderId: wo.id,
-        workOrderNumber: wo.woNumber,
-        stageName: wo.stageName,
-        workCenterId: wc.id,
-        workCenterName: wc.name,
-        machineId: machine?.id ?? null,
-        machineName: machine?.name ?? null,
-        shiftId: shift.id,
-        shiftName: shift.name,
-        operatorId: operator.id,
-        operatorName: operator.name,
-        rejectionCodeId: code.id,
-        rejectionCodeName: code.description,
-        category: code.category,
-        rejectedQty,
-        reworkQty,
-        scrapQty,
-        unit: po.unit,
-        isReworkable: rejectionForm.isReworkable,
-        date: rejectionForm.date,
-        notes: rejectionForm.notes || null,
-        createdAt: new Date().toISOString(),
-      };
-      mockRejectionEntries.push(newEntry as MockRejectionEntry);
-    }
+    const payload = {
+      productionOrderId: po.id,
+      productionOrderNumber: po.po_number || po.poNumber,
+      workOrderId: wo ? wo.id : `${po.id}-stage-${stage!.sequence}`,
+      workOrderNumber: wo ? (wo.wo_number || wo.woNumber) : `${po.po_number || po.poNumber}-ST-${stage!.sequence}`,
+      stageName: wo ? (wo.stage_name || wo.stageName) : stage!.operationName,
+      stageNumber: wo ? (wo.stage_number ?? wo.stageNumber) : stage!.sequence,
+      workCenterId: wo ? (wo.work_center_id || wo.workCenterId) : stage!.workCenterId,
+      workCenterName: wo ? (wo.work_center_name || wo.workCenterName) : stage!.workCenterName,
+      machineId: machine?.id ?? null,
+      machineName: machine?.name ?? null,
+      operatorId: operator.id,
+      operatorName: operator.name,
+      shiftId: shift.id,
+      shiftName: shift.name,
+      date: rejectionForm.date,
+      producedQty: 0,
+      rejectedQty,
+      unit: po.unit || 'Pcs',
+      startTime: '00:00',
+      endTime: '00:00',
+      actualTimeMinutes: 0,
+      rejectionCodeId: rejectionForm.rejectionCodeId,
+      notes: rejectionForm.notes || null,
+      warehouseId: selectedWarehouseId || po.warehouse_id || null,
+    };
 
-    // Update WO and PO rejected qtys
-    wo.rejectedQty += rejectedQty;
-    po.rejectedQty += rejectedQty;
-
-    setShowRejectionSlideOver(false);
-    setRejectionEditingId(null);
-    setRejectionForm({
-      productionOrderId: '',
-      workOrderId: '',
-      date: new Date().toISOString().split('T')[0],
-      shiftId: '',
-      operatorId: '',
-      machineId: '',
-      rejectionCodeId: '',
-      rejectedQty: '',
-      isReworkable: false,
-      reworkQty: '',
-      notes: '',
-    });
-    setRefreshTick((t) => t + 1);
-  };
-
-  const handleDeleteRejection = (id: string) => {
-    const idx = mockRejectionEntries.findIndex((r) => r.id === id);
-    if (idx !== -1) {
-      const entry = mockRejectionEntries[idx];
-      const wo = mockWorkOrders.find((w) => w.id === entry.workOrderId);
-      const po = mockProductionOrders.find(
-        (p) => p.id === entry.productionOrderId,
-      );
-      if (wo) wo.rejectedQty = Math.max(0, wo.rejectedQty - entry.rejectedQty);
-      if (po) po.rejectedQty = Math.max(0, po.rejectedQty - entry.rejectedQty);
-      mockRejectionEntries.splice(idx, 1);
-      setRefreshTick((t) => t + 1);
+    try {
+      const res = await createProductionEntry(payload);
+      if (res.success) {
+        toast.success('Rejection entry logged successfully');
+        setShowRejectionSlideOver(false);
+        loadData();
+      } else {
+        setRejectionError(res.message || 'Failed to log rejection');
+      }
+    } catch (error: any) {
+      setRejectionError(error.message || 'Server error occurred');
     }
   };
 
@@ -700,7 +627,7 @@ export default function ProductionEntryPage() {
             {activeTab === 'entries' ? (
               <button
                 onClick={openNewEntry}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#2563eb] text-white text-sm font-medium hover:bg-blue-700 transition-colors cursor-pointer whitespace-nowrap"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#2563eb] text-white text-sm font-medium hover:bg-blue-700 transition-colors cursor-pointer whitespace-nowrap flex"
               >
                 <i className="ri-add-line" />
                 New Entry
@@ -708,7 +635,7 @@ export default function ProductionEntryPage() {
             ) : (
               <button
                 onClick={openRejectionForm}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium hover:bg-rose-700 transition-colors cursor-pointer whitespace-nowrap"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium hover:bg-rose-700 transition-colors cursor-pointer whitespace-nowrap flex"
               >
                 <i className="ri-add-line" />
                 Log Rejection
@@ -829,22 +756,20 @@ export default function ProductionEntryPage() {
             <div className="flex p-1 gap-1">
               <button
                 onClick={() => setActiveTab('entries')}
-                className={`px-4 py-2 text-sm font-medium rounded-lg cursor-pointer whitespace-nowrap transition-colors ${
-                  activeTab === 'entries'
-                    ? 'bg-slate-100 text-[#1e293b]'
-                    : 'text-[#64748b] hover:bg-slate-50'
-                }`}
+                className={`px-4 py-2 text-sm font-medium rounded-lg cursor-pointer whitespace-nowrap transition-colors ${activeTab === 'entries'
+                  ? 'bg-slate-100 text-[#1e293b]'
+                  : 'text-[#64748b] hover:bg-slate-50'
+                  }`}
               >
                 <i className="ri-file-list-3-line mr-1.5" />
                 Production Entries
               </button>
               <button
                 onClick={() => setActiveTab('rejections')}
-                className={`px-4 py-2 text-sm font-medium rounded-lg cursor-pointer whitespace-nowrap transition-colors ${
-                  activeTab === 'rejections'
-                    ? 'bg-slate-100 text-[#1e293b]'
-                    : 'text-[#64748b] hover:bg-slate-50'
-                }`}
+                className={`px-4 py-2 text-sm font-medium rounded-lg cursor-pointer whitespace-nowrap transition-colors ${activeTab === 'rejections'
+                  ? 'bg-slate-100 text-[#1e293b]'
+                  : 'text-[#64748b] hover:bg-slate-50'
+                  }`}
               >
                 <i className="ri-close-circle-line mr-1.5" />
                 Rejections
@@ -888,9 +813,9 @@ export default function ProductionEntryPage() {
                         className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 cursor-pointer bg-white"
                       >
                         <option value="ALL">All POs</option>
-                        {mockProductionOrders.map((po) => (
+                        {warehousePOs.map((po) => (
                           <option key={po.id} value={po.id}>
-                            {po.poNumber}
+                            {po.po_number || po.poNumber}
                           </option>
                         ))}
                       </select>
@@ -900,7 +825,7 @@ export default function ProductionEntryPage() {
                         className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 cursor-pointer bg-white"
                       >
                         <option value="ALL">All Work Centers</option>
-                        {mockWorkCenters.map((wc) => (
+                        {warehouseWorkCenters.map((wc) => (
                           <option key={wc.id} value={wc.id}>
                             {wc.name}
                           </option>
@@ -912,7 +837,7 @@ export default function ProductionEntryPage() {
                         className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 cursor-pointer bg-white"
                       >
                         <option value="ALL">All Operators</option>
-                        {mockOperators.map((op) => (
+                        {warehouseOperators.map((op) => (
                           <option key={op.id} value={op.id}>
                             {op.name}
                           </option>
@@ -994,12 +919,15 @@ export default function ProductionEntryPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filtered.length === 0 ? (
+                      {isLoading ? (
                         <tr>
-                          <td
-                            colSpan={13}
-                            className="px-4 py-10 text-center text-sm text-[#94a3b8]"
-                          >
+                          <td colSpan={13} className="px-4 py-10 text-center text-sm text-[#94a3b8]">
+                            Loading production entries...
+                          </td>
+                        </tr>
+                      ) : filtered.length === 0 ? (
+                        <tr>
+                          <td colSpan={13} className="px-4 py-10 text-center text-sm text-[#94a3b8]">
                             <div className="w-12 h-12 mx-auto flex items-center justify-center rounded-full bg-slate-50 border border-slate-200 mb-3">
                               <i className="ri-inbox-line text-xl text-slate-300" />
                             </div>
@@ -1120,8 +1048,7 @@ export default function ProductionEntryPage() {
                 </div>
                 <div className="px-4 py-3 border-t border-slate-200 flex items-center justify-between bg-slate-50/50">
                   <span className="text-xs text-[#64748b]">
-                    Showing {filtered.length} of {mockProductionEntries.length}{' '}
-                    entries
+                    Showing {filtered.length} of {warehouseEntries.length} entries
                   </span>
                 </div>
               </div>
@@ -1133,7 +1060,7 @@ export default function ProductionEntryPage() {
               {/* Rejection Filters placeholder */}
               <div className="bg-white border border-slate-200 rounded-b-xl p-3 mb-4 -mt-px">
                 <div className="text-xs text-[#64748b]">
-                  {mockRejectionEntries.length} rejection entries on record
+                  {rejectionEntries.length} rejection entries on record
                 </div>
               </div>
 
@@ -1173,12 +1100,15 @@ export default function ProductionEntryPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {mockRejectionEntries.length === 0 ? (
+                      {isLoading ? (
                         <tr>
-                          <td
-                            colSpan={9}
-                            className="px-4 py-10 text-center text-sm text-[#94a3b8]"
-                          >
+                          <td colSpan={9} className="px-4 py-10 text-center text-sm text-[#94a3b8]">
+                            Loading rejection entries...
+                          </td>
+                        </tr>
+                      ) : rejectionEntries.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} className="px-4 py-10 text-center text-sm text-[#94a3b8]">
                             <div className="w-12 h-12 mx-auto flex items-center justify-center rounded-full bg-slate-50 border border-slate-200 mb-3">
                               <i className="ri-inbox-line text-xl text-slate-300" />
                             </div>
@@ -1186,7 +1116,7 @@ export default function ProductionEntryPage() {
                           </td>
                         </tr>
                       ) : (
-                        mockRejectionEntries.map((r) => (
+                        rejectionEntries.map((r) => (
                           <tr
                             key={r.id}
                             className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors"
@@ -1209,7 +1139,10 @@ export default function ProductionEntryPage() {
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border bg-rose-50 text-rose-700 border-rose-200">
-                                {r.rejectionCodeName}
+                                {
+                                  warehouseRejectionCodes.find((c) => c.id === r.rejectionCodeId)?.code ??
+                                  'REJ'
+                                }
                               </span>
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
@@ -1221,15 +1154,9 @@ export default function ProductionEntryPage() {
                               </span>
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
-                              {r.isReworkable ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border bg-amber-50 text-amber-700 border-amber-200">
-                                  <i className="ri-tools-line" /> Rework
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border bg-rose-50 text-rose-700 border-rose-200">
-                                  <i className="ri-delete-bin-line" /> Scrap
-                                </span>
-                              )}
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border bg-rose-50 text-rose-700 border-rose-200">
+                                <i className="ri-delete-bin-line" /> Scrap
+                              </span>
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-xs text-[#475569]">
                               {r.date}
@@ -1240,7 +1167,7 @@ export default function ProductionEntryPage() {
                             <td className="px-4 py-3 whitespace-nowrap">
                               <div className="flex items-center gap-1">
                                 <button
-                                  onClick={() => handleDeleteRejection(r.id)}
+                                  onClick={() => handleDelete(r.id)}
                                   className="px-2 py-1 text-[11px] font-medium rounded-md bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 cursor-pointer"
                                   title="Delete"
                                 >
@@ -1256,8 +1183,7 @@ export default function ProductionEntryPage() {
                 </div>
                 <div className="px-4 py-3 border-t border-slate-200 flex items-center justify-between bg-slate-50/50">
                   <span className="text-xs text-[#64748b]">
-                    Showing {mockRejectionEntries.length} of{' '}
-                    {mockRejectionEntries.length} entries
+                    Showing {rejectionEntries.length} of {rejectionEntries.length} entries
                   </span>
                 </div>
               </div>
@@ -1306,16 +1232,15 @@ export default function ProductionEntryPage() {
                   className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 cursor-pointer bg-white"
                 >
                   <option value="">Select Production Order</option>
-                  {inProgressPOs.map((po) => (
+                  {warehousePOs.map((po) => (
                     <option key={po.id} value={po.id}>
-                      {po.poNumber} — {po.productName}
-                      {po.variantName ? ` (${po.variantName})` : ''}
+                      {po.po_number || po.poNumber} — {po.item_name || po.itemName}
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* Work Order */}
+              {/* Work Order / Stage */}
               <div>
                 <label className="block text-xs font-semibold text-[#475569] mb-1.5">
                   Work Order / Stage <span className="text-rose-500">*</span>
@@ -1331,12 +1256,29 @@ export default function ProductionEntryPage() {
                       ? 'Select Work Order'
                       : 'Choose PO first'}
                   </option>
-                  {filteredWOs.map((wo) => (
+                  {/* Show real work orders from DB first */}
+                  {selectedPOWorkOrders.map((wo: any) => (
                     <option key={wo.id} value={wo.id}>
-                      Stage {wo.stageNumber}: {wo.stageName}
+                      {wo.wo_number} — Stage {wo.stage_number}: {wo.stage_name}
                     </option>
                   ))}
+                  {/* Fallback: routing stages if no work orders exist */}
+                  {selectedPOWorkOrders.length === 0 && selectedPOStages.map((stage: any) => (
+                    <option key={stage.sequence} value={stage.sequence}>
+                      Stage {stage.sequence}: {stage.operationName}
+                    </option>
+                  ))}
+                  {selectedPOWorkOrders.length === 0 && selectedPOStages.length === 0 && form.productionOrderId && (
+                    <option disabled value="">
+                      No work orders found for this PO
+                    </option>
+                  )}
                 </select>
+                {selectedPOWorkOrders.length === 0 && selectedPOStages.length === 0 && form.productionOrderId && (
+                  <p className="text-[11px] text-amber-600 mt-1">
+                    No work orders exist for this PO yet. Create work orders first.
+                  </p>
+                )}
               </div>
 
               {/* Date */}
@@ -1363,9 +1305,9 @@ export default function ProductionEntryPage() {
                   className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 cursor-pointer bg-white"
                 >
                   <option value="">Select Shift</option>
-                  {mockShifts.map((s) => (
+                  {warehouseShifts.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.name} ({s.startTime} – {s.endTime})
+                      {s.name} ({s.start_time || s.startTime} – {s.end_time || s.endTime})
                     </option>
                   ))}
                 </select>
@@ -1382,9 +1324,9 @@ export default function ProductionEntryPage() {
                   className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 cursor-pointer bg-white"
                 >
                   <option value="">Select Operator</option>
-                  {mockOperators.map((o) => (
+                  {warehouseOperators.map((o) => (
                     <option key={o.id} value={o.id}>
-                      {o.name} ({o.employeeCode})
+                      {o.name} ({o.employee_code || o.employeeCode})
                     </option>
                   ))}
                 </select>
@@ -1443,9 +1385,7 @@ export default function ProductionEntryPage() {
                 <div className="text-xs text-[#64748b]">
                   Duration:{' '}
                   <span className="font-medium text-[#1e293b]">
-                    {timeToMinutes(form.endTime) -
-                      timeToMinutes(form.startTime)}{' '}
-                    min
+                    {timeToMinutes(form.endTime) - timeToMinutes(form.startTime)} min
                   </span>
                 </div>
               )}
@@ -1496,7 +1436,7 @@ export default function ProductionEntryPage() {
                     className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 cursor-pointer bg-white"
                   >
                     <option value="">Select Rejection Code</option>
-                    {mockRejectionCodes.map((rc) => (
+                    {warehouseRejectionCodes.map((rc) => (
                       <option key={rc.id} value={rc.id}>
                         {rc.code} — {rc.description}
                       </option>
@@ -1582,15 +1522,15 @@ export default function ProductionEntryPage() {
                   className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 cursor-pointer bg-white"
                 >
                   <option value="">Select Production Order</option>
-                  {inProgressPOs.map((po) => (
+                  {warehousePOs.map((po) => (
                     <option key={po.id} value={po.id}>
-                      {po.poNumber} — {po.productName}
+                      {po.po_number || po.poNumber} — {po.item_name || po.itemName}
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* WO */}
+              {/* WO / Stage */}
               <div>
                 <label className="block text-xs font-semibold text-[#475569] mb-1.5">
                   Work Order / Stage <span className="text-rose-500">*</span>
@@ -1612,9 +1552,16 @@ export default function ProductionEntryPage() {
                       ? 'Select Work Order'
                       : 'Choose PO first'}
                   </option>
-                  {filteredWOsRej.map((wo) => (
+                  {/* Show real work orders from DB first */}
+                  {selectedPOWorkOrdersRej.map((wo: any) => (
                     <option key={wo.id} value={wo.id}>
-                      Stage {wo.stageNumber}: {wo.stageName}
+                      {wo.wo_number} — Stage {wo.stage_number}: {wo.stage_name}
+                    </option>
+                  ))}
+                  {/* Fallback: routing stages if no work orders exist */}
+                  {selectedPOWorkOrdersRej.length === 0 && selectedPOStagesRej.map((stage: any) => (
+                    <option key={stage.sequence} value={stage.sequence}>
+                      Stage {stage.sequence}: {stage.operationName}
                     </option>
                   ))}
                 </select>
@@ -1648,9 +1595,9 @@ export default function ProductionEntryPage() {
                   className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 cursor-pointer bg-white"
                 >
                   <option value="">Select Shift</option>
-                  {mockShifts.map((s) => (
+                  {warehouseShifts.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.name} ({s.startTime} – {s.endTime})
+                      {s.name} ({s.start_time || s.startTime} – {s.end_time || s.endTime})
                     </option>
                   ))}
                 </select>
@@ -1672,9 +1619,9 @@ export default function ProductionEntryPage() {
                   className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 cursor-pointer bg-white"
                 >
                   <option value="">Select Operator</option>
-                  {mockOperators.map((o) => (
+                  {warehouseOperators.map((o) => (
                     <option key={o.id} value={o.id}>
-                      {o.name} ({o.employeeCode})
+                      {o.name} ({o.employee_code || o.employeeCode})
                     </option>
                   ))}
                 </select>
@@ -1725,7 +1672,7 @@ export default function ProductionEntryPage() {
                   className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 cursor-pointer bg-white"
                 >
                   <option value="">Select Rejection Code</option>
-                  {mockRejectionCodes.map((rc) => (
+                  {warehouseRejectionCodes.map((rc) => (
                     <option key={rc.id} value={rc.id}>
                       {rc.code} — {rc.description}
                     </option>
@@ -1765,65 +1712,12 @@ export default function ProductionEntryPage() {
                   </label>
                   <input
                     type="text"
-                    value={selectedRejPO?.unit ?? ''}
+                    value={selectedPORej?.unit || 'Pcs'}
                     readOnly
                     className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-500"
                   />
                 </div>
               </div>
-
-              {/* Is Reworkable */}
-              <div>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={rejectionForm.isReworkable}
-                    onChange={(e) =>
-                      setRejectionForm((p) => ({
-                        ...p,
-                        isReworkable: e.target.checked,
-                        reworkQty: '',
-                      }))
-                    }
-                    className="w-4 h-4 rounded border-slate-300 text-[#2563eb] focus:ring-indigo-200"
-                  />
-                  <span className="text-sm font-medium text-[#1e293b]">
-                    Is Reworkable
-                  </span>
-                </label>
-              </div>
-
-              {/* Rework Qty */}
-              {rejectionForm.isReworkable && (
-                <div>
-                  <label className="block text-xs font-semibold text-[#475569] mb-1.5">
-                    Rework Qty
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={Number(rejectionForm.rejectedQty || 0)}
-                    value={rejectionForm.reworkQty}
-                    onChange={(e) =>
-                      setRejectionForm((p) => ({
-                        ...p,
-                        reworkQty: e.target.value,
-                      }))
-                    }
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300"
-                  />
-                  <div className="mt-1 text-xs text-[#64748b]">
-                    Scrap Qty:{' '}
-                    <span className="font-medium text-[#1e293b]">
-                      {Math.max(
-                        0,
-                        Number(rejectionForm.rejectedQty || 0) -
-                          Number(rejectionForm.reworkQty || 0),
-                      )}
-                    </span>
-                  </div>
-                </div>
-              )}
 
               {/* Notes */}
               <div>
